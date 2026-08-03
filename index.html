@@ -431,46 +431,44 @@
   /* JAUGE CALORIQUE (page d'accueil) */
   .kcal-gauge{grid-column:1/3; grid-row:3; width:100%; padding:2px 4px 2px;}
 
-  /* Conteneur de référence UNIQUE pour bulle, trait et remplissage : sa hauteur = seulement la barre.
-     Bulle et texte "besoin" sont des éléments frères positionnés hors flux (pas des enfants d'un
-     wrapper avec du padding), pour rester alignés exactement sur la même base 0–100% que la barre. */
+  /* Jauge d'apport absolu : échelle de 0 à 1,5x le besoin du jour.
+     La couleur ne va que jusqu'au niveau actuel (apport), pas au-delà. Le repère "besoin"
+     est positionné dynamiquement (toujours aux 2/3 de l'échelle, puisque max = besoin x1,5). */
   .kcal-gauge-outer{position:relative; height:14px; margin:32px 0 26px;}
 
   .kcal-gauge-clip{
     position:relative; height:14px; border-radius:7px; overflow:hidden;
     background:var(--panel-2); border:1px solid var(--line);
   }
-  /* Le remplissage n'a pas son propre arrondi : c'est .kcal-gauge-clip qui arrondit via overflow,
-     donc le bord mobile du remplissage tombe pile à la position calculée, sans écart avec la bulle. */
-  .kcal-gauge-fill{position:absolute; top:0; height:100%; transition:width 0.3s, left 0.3s, right 0.3s;}
-  .kcal-gauge-fill.deficit{background:linear-gradient(to left, #7ea6c9, var(--success));}
-  .kcal-gauge-fill.excess{background:linear-gradient(to right, #e0b84f, var(--danger));}
-  .kcal-gauge-fill.neutral{background:var(--text-dim);}
+  /* Segment "sous le besoin" : bleu doux -> vert */
+  .kcal-gauge-fill-under{position:absolute; top:0; left:0; height:100%; background:linear-gradient(to right, #7ea6c9, var(--success)); transition:width 0.3s;}
+  /* Segment "au-delà du besoin" (n'existe que si l'apport dépasse le besoin) : or -> rouge */
+  .kcal-gauge-fill-over{position:absolute; top:0; height:100%; background:linear-gradient(to right, #e0b84f, var(--danger)); transition:width 0.3s, left 0.3s;}
 
-  /* Trait central : frère de .kcal-gauge-clip (pas un enfant), donc pas rogné par l'overflow:hidden. */
+  /* Repère "besoin" : frère de .kcal-gauge-clip (pas un enfant), donc pas rogné par l'overflow:hidden. */
   .kcal-gauge-mid{
-    position:absolute; top:-3px; left:50%; width:2px; height:20px;
-    background:var(--text); opacity:0.55; z-index:3; border-radius:1px; transform:translateX(-1px);
+    position:absolute; top:-3px; width:2px; height:20px;
+    background:var(--text); opacity:0.55; z-index:3; transform:translateX(-1px); transition:left 0.3s;
   }
 
   .kcal-gauge-bubble{
-    position:absolute; bottom:calc(100% + 4px); z-index:4; transform:translateX(-50%); transition:left 0.3s, right 0.3s;
+    position:absolute; bottom:calc(100% + 4px); z-index:4; transform:translateX(-50%); transition:left 0.3s;
     color:#fff; font-family:'JetBrains Mono',monospace; font-size:0.64rem; font-weight:700;
     padding:3px 7px; border-radius:8px; white-space:nowrap; box-shadow:0 2px 5px rgba(0,0,0,0.25);
   }
-  .kcal-gauge-bubble.deficit{background:var(--success);}
-  .kcal-gauge-bubble.excess{background:var(--danger);}
+  .kcal-gauge-bubble.under{background:var(--success);}
+  .kcal-gauge-bubble.over{background:var(--danger);}
   .kcal-gauge-bubble.neutral{background:var(--text-dim);}
   .kcal-gauge-bubble::after{
     content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
     border-left:4px solid transparent; border-right:4px solid transparent; border-top:4px solid currentColor;
   }
-  .kcal-gauge-bubble.deficit::after{ border-top-color:var(--success); }
-  .kcal-gauge-bubble.excess::after{ border-top-color:var(--danger); }
+  .kcal-gauge-bubble.under::after{ border-top-color:var(--success); }
+  .kcal-gauge-bubble.over::after{ border-top-color:var(--danger); }
   .kcal-gauge-bubble.neutral::after{ border-top-color:var(--text-dim); }
 
   .kcal-gauge-need{
-    position:absolute; top:calc(100% + 6px); left:50%; transform:translateX(-50%); z-index:2;
+    position:absolute; top:calc(100% + 6px); transform:translateX(-50%); z-index:2; transition:left 0.3s;
     font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--text-dim); white-space:nowrap;
   }
   .kcal-gauge-need .n{color:var(--text); font-weight:700;}
@@ -607,10 +605,11 @@
       <div class="kcal-gauge-outer">
         <div class="kcal-gauge-bubble" id="gaugeBubble">—</div>
         <div class="kcal-gauge-clip">
-          <div class="kcal-gauge-fill" id="gaugeFill"></div>
+          <div class="kcal-gauge-fill-under" id="gaugeFillUnder"></div>
+          <div class="kcal-gauge-fill-over" id="gaugeFillOver"></div>
         </div>
-        <div class="kcal-gauge-mid"></div>
-        <div class="kcal-gauge-need">besoin estimé : <span class="n" id="gaugeNeedVal">– kcal</span></div>
+        <div class="kcal-gauge-mid" id="gaugeMid"></div>
+        <div class="kcal-gauge-need" id="gaugeNeedLabel">besoin estimé : <span class="n" id="gaugeNeedVal">– kcal</span></div>
       </div>
     </div>
   </div>
@@ -2644,32 +2643,37 @@ function updateHomeSynth(day){
 }
 
 function updateKcalGauge(foodKcal, needToday, diff){
-  const fill = document.getElementById('gaugeFill');
+  const fillUnder = document.getElementById('gaugeFillUnder');
+  const fillOver = document.getElementById('gaugeFillOver');
   const bubble = document.getElementById('gaugeBubble');
-  const GAUGE_MAX = 800; // plafond visuel de l'échelle, en kcal ; au-delà la barre sature à 100% du côté concerné
-  const halfPct = Math.min(50, (Math.abs(diff) / GAUGE_MAX) * 50);
+  const mid = document.getElementById('gaugeMid');
+  const needLabel = document.getElementById('gaugeNeedLabel');
 
-  fill.className = 'kcal-gauge-fill';
-  bubble.className = 'kcal-gauge-bubble';
-  fill.style.left = ''; fill.style.right = '';
-  bubble.style.left = ''; bubble.style.right = '';
+  // Échelle : 0 à 1,5x le besoin du jour (donc le repère "besoin" est toujours aux 2/3 de la barre)
+  const maxScale = Math.max(needToday * 1.5, 1);
+  const pct = v => Math.max(0, Math.min(100, (v / maxScale) * 100));
+  const needPct = pct(needToday);
+  const apportPct = pct(foodKcal);
 
-  if(diff > 0){
-    fill.classList.add('excess'); bubble.classList.add('excess');
-    fill.style.left = '50%'; fill.style.width = `${halfPct}%`;
-    bubble.style.left = `${50+halfPct}%`;
-  } else if(diff < 0){
-    fill.classList.add('deficit'); bubble.classList.add('deficit');
-    fill.style.right = '50%'; fill.style.width = `${halfPct}%`;
-    bubble.style.left = `${50-halfPct}%`;
+  // Segment sous le besoin (0 -> min(apport, besoin))
+  const underPct = Math.min(apportPct, needPct);
+  fillUnder.style.width = `${underPct}%`;
+
+  // Segment au-delà du besoin (besoin -> apport), seulement si dépassement
+  if(apportPct > needPct){
+    fillOver.style.left = `${needPct}%`;
+    fillOver.style.width = `${apportPct - needPct}%`;
   } else {
-    fill.classList.add('neutral'); bubble.classList.add('neutral');
-    fill.style.left = '50%'; fill.style.width = '0%';
-    bubble.style.left = '50%';
+    fillOver.style.width = '0%';
   }
 
-  bubble.textContent = `${diff>=0?'+':''}${diff}`;
+  mid.style.left = `${needPct}%`;
+  needLabel.style.left = `${needPct}%`;
   document.getElementById('gaugeNeedVal').textContent = `${needToday} kcal`;
+
+  bubble.style.left = `${apportPct}%`;
+  bubble.className = 'kcal-gauge-bubble' + (diff>0 ? ' over' : diff<0 ? ' under' : ' neutral');
+  bubble.textContent = `${diff>=0?'+':''}${diff}`;
 }
 
 // Moyenne de l'écart apport/besoin sur les jours renseignés des 7 derniers jours (tendance, pas jour isolé)
