@@ -463,6 +463,20 @@
   .hiit-stepper{display:flex; align-items:center; gap:4px; border:1px solid var(--line); background:var(--panel-2); border-radius:8px; padding:2px 4px;}
   .hiit-step-btn{width:20px; height:20px; border-radius:6px; border:none; background:var(--panel); color:var(--text); font-size:0.9rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
   .hiit-step-val{font-family:'JetBrains Mono',monospace; font-size:0.75rem; font-weight:700; min-width:14px; text-align:center;}
+
+  /* BILAN : synthèse + conseils dynamiques */
+  .bilan-synth-text{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
+    padding:12px 14px; font-size:0.86rem; line-height:1.5; color:var(--text);
+  }
+  .bilan-tips{margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+  .bilan-tip{
+    display:flex; gap:8px; align-items:flex-start; padding:10px 12px; border-radius:10px;
+    font-size:0.82rem; line-height:1.4; border-left:3px solid var(--accent); background:var(--panel-2);
+  }
+  .bilan-tip.warn{border-left-color:var(--danger);}
+  .bilan-tip.good{border-left-color:var(--success);}
+  .bilan-tip-icon{flex-shrink:0;}
   .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:12px; line-height:1.6;}
   .goal-chip{display:inline-block; background:rgba(255,255,255,0.16); border-radius:10px; padding:2px 8px; margin:2px 3px 2px 0;}
   .goal-chip.done{background:rgba(255,255,255,0.32); text-decoration:line-through; opacity:0.8;}
@@ -798,6 +812,16 @@
       </div>
       <div class="pct-sticker" data-section="bilan">0%</div>
     </div>
+
+    <div class="bilan-synth-text" id="bilanSynthText">—</div>
+
+    <div class="stat-grid" style="margin-top:12px;">
+      <div class="stat-box"><div class="stat-num" id="kcalNeed2">–</div><div class="stat-lbl">Besoin estimé (base + sport)</div></div>
+      <div class="stat-box"><div class="stat-num" id="kcalBalance2">–</div><div class="stat-lbl">Écart apport / besoin</div></div>
+    </div>
+
+    <div class="bilan-tips" id="bilanTips"></div>
+
     <div class="energy-row" style="padding-top:0;">
       <div class="energy-label"><span>Ressenti du jour</span><span class="mono" id="energyVal">–</span></div>
       <div class="energy-dots" id="energyDots"></div>
@@ -1965,6 +1989,9 @@ function render(){
   const balance = apportToday - needToday;
   document.getElementById('kcalNeed').textContent = `${needToday} kcal`;
   document.getElementById('kcalBalance').textContent = `${balance>=0?'+':''}${balance} kcal`;
+  document.getElementById('kcalNeed2').textContent = `${needToday} kcal`;
+  document.getElementById('kcalBalance2').textContent = `${balance>=0?'+':''}${balance} kcal`;
+  updateBilanSynthesis(day, needToday, apportToday, balance, selIso);
 
   document.getElementById('sleepDuration').value = day.sleep.duration ?? '';
   document.getElementById('sleepBodyBattery').value = day.sleep.bodyBattery ?? '';
@@ -2592,6 +2619,74 @@ function updateKcalGauge(foodKcal, needToday, diff){
   const bilanEl = document.getElementById('gaugeBilan');
   bilanEl.textContent = `${diff>=0?'+':''}${diff} kcal`;
   bilanEl.className = 'kcal-gauge-bilan' + (diff>0 ? ' over' : diff<0 ? ' under' : '');
+}
+
+// Moyenne de l'écart apport/besoin sur les jours renseignés des 7 derniers jours (tendance, pas jour isolé)
+function weeklyAvgDiff(selIso, tdee){
+  const selDate = new Date(selIso+"T00:00:00");
+  let sum = 0, count = 0;
+  for(let i=0;i<7;i++){
+    const d = addDays(selDate, -i);
+    const iso = isoDate(d);
+    if(!state.days[iso]) continue;
+    const day = getDay(iso);
+    if(day.foods.length===0 && (day.sessions||[]).length===0) continue; // jour vide, on ignore
+    sum += dayFoodTotals(day).kcal - (tdee + sportTotalKcal(day));
+    count++;
+  }
+  return count>0 ? Math.round(sum/count) : null;
+}
+
+function updateBilanSynthesis(day, needToday, apportToday, balance, selIso){
+  const bb = day.sleep.bodyBattery;
+  const sportKcal = sportTotalKcal(day);
+  const hiitCount = (day.sessions||[]).filter(s=>s.type==='hiit').length;
+
+  // Objectif HIIT du jour, si la semaine affichée correspond à une semaine d'objectifs enregistrée
+  const dObj = new Date(selIso+"T00:00:00");
+  const monday = getMonday(dObj);
+  let hiitTarget = null;
+  if(state.weeklyGoals.weekStart === isoDate(monday)){
+    hiitTarget = state.weeklyGoals.activities.hiit[dowIndexMondayBased(dObj)];
+  }
+
+  const avgDiff = weeklyAvgDiff(selIso, computeTDEE());
+
+  // --- Texte de synthèse ---
+  const parts = [];
+  parts.push(bb==null ? "Sommeil non renseigné" : bb<70 ? `Sommeil bas (${bb})` : bb<=80 ? `Sommeil correct (${bb})` : `Bon sommeil (${bb})`);
+  parts.push(sportKcal>0 ? `${sportKcal} kcal dépensées en sport` : "aucun sport loggué");
+  parts.push(`${apportToday} kcal ingérées pour un besoin de ${needToday} kcal (${balance>=0?'+':''}${balance})`);
+  document.getElementById('bilanSynthText').textContent = parts.join(' · ') + '.';
+
+  // --- Conseils dynamiques ---
+  const tips = [];
+
+  if(bb!=null && bb<70 && sportKcal>400){
+    tips.push({type:'warn', icon:'😴', text:"Sommeil bas et séance sport conséquente aujourd'hui — surveille la récupération, ce n'est pas forcément le bon jour pour forcer davantage."});
+  }
+  if(avgDiff!=null && avgDiff<=-400){
+    tips.push({type:'warn', icon:'📉', text:`Déficit moyen de ${avgDiff} kcal/jour sur les derniers jours renseignés — vérifie que ça reste tenable dans la durée, pas juste sur un jour isolé.`});
+  }
+  if(avgDiff!=null && avgDiff>=400){
+    tips.push({type:'warn', icon:'📈', text:`Surplus moyen de +${avgDiff} kcal/jour sur les derniers jours — si l'objectif est la perte de poids, ça vaut le coup d'ajuster les portions plutôt que de compenser un jour isolé.`});
+  }
+  if(hiitTarget!=null && hiitTarget>0 && hiitCount<hiitTarget){
+    tips.push({type:'info', icon:'⚡', text:`Objectif HIIT du jour : ${hiitCount}/${hiitTarget} série(s) — il en reste ${hiitTarget-hiitCount}.`});
+  }
+  if(hiitTarget!=null && hiitTarget>0 && hiitCount>=hiitTarget){
+    tips.push({type:'good', icon:'⚡', text:`Objectif HIIT du jour atteint (${hiitCount}/${hiitTarget}).`});
+  }
+  if(Math.abs(balance)<=100 && sportKcal>0){
+    tips.push({type:'good', icon:'✅', text:"Bilan du jour proche de l'équilibre — dans la marge d'erreur normale des estimations, rien à ajuster."});
+  }
+  if(!tips.length){
+    tips.push({type:'info', icon:'ℹ️', text:"Rien de particulier à signaler aujourd'hui sur ces données."});
+  }
+
+  document.getElementById('bilanTips').innerHTML = tips.map(t=>
+    `<div class="bilan-tip ${t.type}"><span class="bilan-tip-icon">${t.icon}</span><span>${t.text}</span></div>`
+  ).join('');
 }
 
 function updateSectionStickers(day, bb, sportKcal, foodKcal, diff){
