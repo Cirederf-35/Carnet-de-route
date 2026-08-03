@@ -434,9 +434,11 @@
   .kcal-gauge-labels .val-food{color:var(--food);}
   .kcal-gauge-labels .val-need{color:var(--text-dim);}
   .kcal-gauge-track{position:relative; height:14px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line); overflow:hidden;}
-  .kcal-gauge-fill{position:absolute; top:0; left:0; height:100%; border-radius:7px 0 0 7px; background:var(--food); transition:width 0.3s;}
-  .kcal-gauge-fill.over{background:var(--danger); border-radius:7px;}
-  .kcal-gauge-marker{position:absolute; top:-3px; width:2px; height:20px; background:var(--text); opacity:0.5;}
+  .kcal-gauge-mid{position:absolute; top:0; left:50%; width:1px; height:100%; background:var(--line); z-index:2;}
+  .kcal-gauge-fill{position:absolute; top:0; height:100%; transition:width 0.3s, left 0.3s, right 0.3s;}
+  .kcal-gauge-fill.deficit{background:linear-gradient(to left, #7ea6c9, var(--success));}
+  .kcal-gauge-fill.excess{background:linear-gradient(to right, #e0b84f, var(--danger));}
+  .kcal-gauge-fill.neutral{background:var(--text-dim);}
   .kcal-gauge-bilan{text-align:center; margin-top:6px; font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:700; color:var(--text-dim);}
   .kcal-gauge-bilan.over{color:var(--danger);}
   .kcal-gauge-bilan.under{color:var(--success);}
@@ -571,11 +573,12 @@
     </div>
     <div class="kcal-gauge">
       <div class="kcal-gauge-labels">
-        <span class="val-food" id="gaugeFoodLabel">0 kcal mangées</span>
-        <span class="val-need" id="gaugeNeedLabel">besoin 0 kcal</span>
+        <span id="gaugeDeficitLabel">déficit</span>
+        <span id="gaugeExcessLabel">excès</span>
       </div>
       <div class="kcal-gauge-track">
-        <div class="kcal-gauge-fill" id="gaugeFill" style="width:0%;"></div>
+        <div class="kcal-gauge-mid"></div>
+        <div class="kcal-gauge-fill" id="gaugeFill"></div>
       </div>
       <div class="kcal-gauge-bilan" id="gaugeBilan">—</div>
     </div>
@@ -2610,14 +2613,30 @@ function updateHomeSynth(day){
 }
 
 function updateKcalGauge(foodKcal, needToday, diff){
-  document.getElementById('gaugeFoodLabel').textContent = `${foodKcal} kcal mangées`;
-  document.getElementById('gaugeNeedLabel').textContent = `besoin ${needToday} kcal`;
   const fill = document.getElementById('gaugeFill');
-  const pct = needToday>0 ? Math.min(100, Math.round((foodKcal/needToday)*100)) : 0;
-  fill.style.width = `${pct}%`;
-  fill.classList.toggle('over', foodKcal>needToday);
+  const GAUGE_MAX = 800; // plafond visuel de l'échelle, en kcal ; au-delà la barre sature à 100% du côté concerné
+  const halfPct = Math.min(50, (Math.abs(diff) / GAUGE_MAX) * 50);
+
+  fill.className = 'kcal-gauge-fill';
+  fill.style.left = '';
+  fill.style.right = '';
+
+  if(diff > 0){
+    fill.classList.add('excess');
+    fill.style.left = '50%';
+    fill.style.width = `${halfPct}%`;
+  } else if(diff < 0){
+    fill.classList.add('deficit');
+    fill.style.right = '50%';
+    fill.style.width = `${halfPct}%`;
+  } else {
+    fill.classList.add('neutral');
+    fill.style.left = '50%';
+    fill.style.width = '0%';
+  }
+
   const bilanEl = document.getElementById('gaugeBilan');
-  bilanEl.textContent = `${diff>=0?'+':''}${diff} kcal`;
+  bilanEl.textContent = `${diff>=0?'+':''}${diff} kcal — apport ${foodKcal} / besoin ${needToday}`;
   bilanEl.className = 'kcal-gauge-bilan' + (diff>0 ? ' over' : diff<0 ? ' under' : '');
 }
 
