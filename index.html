@@ -1472,11 +1472,11 @@ const SEED_INGREDIENTS = {
   "Soda cola":{p:0,f:0,c:10.6,cat:"boissons"},
   "Soda sans sucre":{p:0,f:0,c:0,cat:"boissons"},
   "Sirop (dilué)":{p:0,f:0,c:9,cat:"boissons"},
-  "Bière blonde 5°":{p:0.5,f:0,c:3.5,cat:"boissons"},
-  "Bière IPA 6.5°":{p:0.6,f:0,c:5,cat:"boissons"},
-  "Vin rouge 12.5°":{p:0.1,f:0,c:2.6,cat:"boissons"},
-  "Vin blanc sec":{p:0.1,f:0,c:1.4,cat:"boissons"},
-  "Spiritueux 40° (whisky, rhum...)":{p:0,f:0,c:0.1,cat:"boissons"},
+  "Bière blonde 5°":{p:0.5,f:0,c:3.5,a:3.9,cat:"boissons"},
+  "Bière IPA 6.5°":{p:0.6,f:0,c:5,a:5.1,cat:"boissons"},
+  "Vin rouge 12.5°":{p:0.1,f:0,c:2.6,a:9.9,cat:"boissons"},
+  "Vin blanc sec":{p:0.1,f:0,c:1.4,a:9.5,cat:"boissons"},
+  "Spiritueux 40° (whisky, rhum...)":{p:0,f:0,c:0.1,a:31.6,cat:"boissons"},
   "Café / thé non sucré":{p:0.1,f:0,c:0.3,cat:"boissons"},
   // --- plaisirs ---
   "Chocolat noir 70%":{p:8,f:43,c:46,cat:"plaisirs"},
@@ -1575,7 +1575,7 @@ document.querySelectorAll('.bn-tab').forEach(btn=>{
 function migrateIngredients(s){
   if(s.ingredients && Object.keys(s.ingredients).length>0){
     // Migration seed v2 : enrichit la base sans jamais écraser les entrées existantes de l'utilisateur
-    if(s.seedVersion !== 2){
+    if((s.seedVersion||0) < 2){
       const remap = {viennoiserie:'plaisirs', desserts:'plaisirs'};
       Object.values(s.ingredients).forEach(v=>{ if(remap[v.cat]) v.cat = remap[v.cat]; });
       Object.entries(SEED_INGREDIENTS).forEach(([name,v])=>{
@@ -1583,6 +1583,15 @@ function migrateIngredients(s){
       });
       s.categoryOrder = Object.keys(FOOD_CATEGORIES);
       s.seedVersion = 2;
+    }
+    // Migration seed v3 : rattrape les champs ajoutés depuis (ex. taux d'alcool) sur les entrées déjà
+    // présentes chez l'utilisateur, sans toucher à un champ que l'utilisateur aurait personnalisé.
+    if((s.seedVersion||0) < 3){
+      Object.entries(SEED_INGREDIENTS).forEach(([name,v])=>{
+        if(!s.ingredients[name]){ s.ingredients[name] = structuredClone(v); return; }
+        if(v.a!=null && s.ingredients[name].a==null) s.ingredients[name].a = v.a;
+      });
+      s.seedVersion = 3;
     }
     return s;
   }
@@ -1594,7 +1603,7 @@ function migrateIngredients(s){
     });
   }
   s.ingredients = merged;
-  s.seedVersion = 2;
+  s.seedVersion = 3;
   if(!s.categoryOrder || !s.categoryOrder.length) s.categoryOrder = Object.keys(FOOD_CATEGORIES);
   return s;
 }
@@ -1637,7 +1646,7 @@ function setDay(iso, day){ state.days[iso] = day; persistState(); }
 // Alimentation validée : au moins un aliment loggé (factuel).
 // Rétrocompatible : les anciennes journées cochées via l'ex-case "règle respectée" restent valides.
 function foodDone(day){ return day.foods.length>0 || day.food===true; }
-function foodKcal(f){ if(f.kcalOverride!=null) return Math.round(f.kcalOverride); return Math.round(f.p*4 + f.c*4 + f.f*9); }
+function foodKcal(f){ if(f.kcalOverride!=null) return Math.round(f.kcalOverride); return Math.round(f.p*4 + f.c*4 + f.f*9 + (f.a||0)*7); }
 const ACTIVITY_MULT = {sedentaire:1.2, leger:1.375, actif:1.55, tres_actif:1.725};
 const ACTIVITY_LABEL = {sedentaire:"Sédentaire", leger:"Légèrement actif", actif:"Actif", tres_actif:"Très actif"};
 function computeTDEE(){
@@ -2176,6 +2185,7 @@ function editFoodItem(idx){
     modalName = f.name; modalIsNew = false;
     const grams = f.grams || 1;
     modalCat = state.ingredients[f.name] ? state.ingredients[f.name].cat : 'autres';
+    modalA100 = (f.a||0)*100/grams;
     document.getElementById('modalSelectedName').textContent = f.name;
     document.getElementById('modalP').value = +(f.p*100/grams).toFixed(2);
     document.getElementById('modalF').value = +(f.f*100/grams).toFixed(2);
@@ -2818,6 +2828,7 @@ document.querySelectorAll('.synth-item').forEach(item=>{
 let modalCat = null;
 let modalName = null;
 let modalIsNew = false;
+let modalA100 = 0; // grammes d'alcool pur pour 100g/100ml de l'ingrédient sélectionné — scalé comme p/f/c
 let modalStepStack = [];
 
 function modalShowStep(step){
@@ -2904,6 +2915,7 @@ function selectIngredientForQuantity(name){
   modalName = name; modalIsNew = false;
   const match = state.ingredients[name];
   modalCat = match.cat;
+  modalA100 = match.a || 0;
   document.getElementById('modalSelectedName').textContent = name;
   document.getElementById('modalP').value = match.p;
   document.getElementById('modalF').value = match.f;
@@ -2923,7 +2935,7 @@ function runFoodSearch(){
   }).join('');
   html += ing.map(n=>{
     const v = state.ingredients[n];
-    return `<button type="button" class="food-tile" data-sing="${n}">${n}<span class="search-cat-tag">${FOOD_CATEGORIES[v.cat]||v.cat} · ${Math.round(v.p*4+v.c*4+v.f*9)} kcal/100g</span></button>`;
+    return `<button type="button" class="food-tile" data-sing="${n}">${n}<span class="search-cat-tag">${FOOD_CATEGORIES[v.cat]||v.cat} · ${Math.round(v.p*4+v.c*4+v.f*9+(v.a||0)*7)} kcal/100g</span></button>`;
   }).join('');
   if(!ing.length && !dishes.length){
     const raw = document.getElementById('foodSearch').value.trim();
@@ -3109,6 +3121,7 @@ function renderModalItemGrid(){
     btn.onclick = ()=>{
       modalName = btn.dataset.val; modalIsNew = false;
       const match = state.ingredients[modalName];
+      modalA100 = match.a || 0;
       document.getElementById('modalSelectedName').textContent = modalName;
       document.getElementById('modalP').value = match.p;
       document.getElementById('modalF').value = match.f;
@@ -3129,6 +3142,7 @@ document.getElementById('modalNewContinue').onclick = ()=>{
   const name = document.getElementById('modalNewName').value.trim();
   if(!name){ alert("Indique un nom d'ingrédient."); return; }
   modalName = name; modalIsNew = true;
+  modalA100 = 0;
   document.getElementById('modalSelectedName').textContent = name;
   document.getElementById('modalP').value = document.getElementById('modalNewP').value || 0;
   document.getElementById('modalF').value = document.getElementById('modalNewF').value || 0;
@@ -3153,7 +3167,7 @@ document.getElementById('modalConfirmAdd').onclick = ()=>{
   const item = {
     name: modalName, grams,
     unitCount: unit ? qty : null, unitLabel: unit ? unit.label : null,
-    p: p100*grams/100, f: f100*grams/100, c: c100*grams/100
+    p: p100*grams/100, f: f100*grams/100, c: c100*grams/100, a: modalA100*grams/100
   };
 
   const iso = isoDate(selectedDate);
