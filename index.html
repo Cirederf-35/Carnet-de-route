@@ -397,7 +397,7 @@
   #dayOverview{display:flex; flex-direction:column; min-height:calc(100vh - 160px); min-height:calc(100dvh - 160px);}
   .mantra-card{flex-shrink:0;}
   .home-synth{
-    flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+    flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr auto;
     gap:8px; margin-top:16px; min-height:0; place-items:center;
   }
   .synth-item{
@@ -428,6 +428,19 @@
 
   .synth-item{cursor:pointer;}
 
+  /* JAUGE CALORIQUE (page d'accueil) */
+  .kcal-gauge{grid-column:1/3; grid-row:3; width:100%; padding:10px 4px 2px;}
+  .kcal-gauge-labels{display:flex; justify-content:space-between; font-family:'JetBrains Mono',monospace; font-size:0.66rem; color:var(--text-dim); margin-bottom:6px;}
+  .kcal-gauge-labels .val-food{color:var(--food);}
+  .kcal-gauge-labels .val-need{color:var(--text-dim);}
+  .kcal-gauge-track{position:relative; height:14px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line); overflow:hidden;}
+  .kcal-gauge-fill{position:absolute; top:0; left:0; height:100%; border-radius:7px 0 0 7px; background:var(--food); transition:width 0.3s;}
+  .kcal-gauge-fill.over{background:var(--danger); border-radius:7px;}
+  .kcal-gauge-marker{position:absolute; top:-3px; width:2px; height:20px; background:var(--text); opacity:0.5;}
+  .kcal-gauge-bilan{text-align:center; margin-top:6px; font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:700; color:var(--text-dim);}
+  .kcal-gauge-bilan.over{color:var(--danger);}
+  .kcal-gauge-bilan.under{color:var(--success);}
+
   /* WIZARD (saisie page par page) */
   .wizard-step{padding-top:4px;}
   .est-box{
@@ -446,6 +459,10 @@
     line-height:1.3;
   }
   .goal-day.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700;}
+  .goal-day-hiit{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; color:var(--text-dim);}
+  .hiit-stepper{display:flex; align-items:center; gap:4px; border:1px solid var(--line); background:var(--panel-2); border-radius:8px; padding:2px 4px;}
+  .hiit-step-btn{width:20px; height:20px; border-radius:6px; border:none; background:var(--panel); color:var(--text); font-size:0.9rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .hiit-step-val{font-family:'JetBrains Mono',monospace; font-size:0.75rem; font-weight:700; min-width:14px; text-align:center;}
   .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:12px; line-height:1.6;}
   .goal-chip{display:inline-block; background:rgba(255,255,255,0.16); border-radius:10px; padding:2px 8px; margin:2px 3px 2px 0;}
   .goal-chip.done{background:rgba(255,255,255,0.32); text-decoration:line-through; opacity:0.8;}
@@ -537,6 +554,16 @@
         <div class="home-pct" id="homePct-bilan">—</div>
       </div>
       <span class="synth-label">Bilan</span>
+    </div>
+    <div class="kcal-gauge">
+      <div class="kcal-gauge-labels">
+        <span class="val-food" id="gaugeFoodLabel">0 kcal mangées</span>
+        <span class="val-need" id="gaugeNeedLabel">besoin 0 kcal</span>
+      </div>
+      <div class="kcal-gauge-track">
+        <div class="kcal-gauge-fill" id="gaugeFill" style="width:0%;"></div>
+      </div>
+      <div class="kcal-gauge-bilan" id="gaugeBilan">—</div>
     </div>
   </div>
 
@@ -1776,8 +1803,13 @@ function ensureGoalsForWeek(monday){
   const iso = isoDate(monday);
   if(state.weeklyGoals.weekStart !== iso){
     const activities = {};
-    GOAL_ACTIVITIES.forEach(a=>{ activities[a] = new Array(7).fill(false); });
+    GOAL_ACTIVITIES.forEach(a=>{ activities[a] = new Array(7).fill(a==='hiit' ? 0 : false); });
     state.weeklyGoals = {weekStart: iso, activities};
+  }
+  // Migration : anciennes semaines où hiit était stocké en booléen (true/false)
+  const hiitDays = state.weeklyGoals.activities.hiit;
+  if(hiitDays){
+    state.weeklyGoals.activities.hiit = hiitDays.map(v => typeof v === 'boolean' ? (v?1:0) : v);
   }
 }
 function renderGoalsPage(){
@@ -1800,6 +1832,23 @@ function renderGoalsPage(){
   grid.innerHTML = GOAL_ACTIVITIES.map(act=>{
     const cfg = SPORT_ACTIVITIES[act];
     const days = state.weeklyGoals.activities[act];
+    if(act==='hiit'){
+      return `
+        <div class="goal-row" data-activity="${act}">
+          <div class="goal-row-label">${cfg.icon} ${cfg.label}</div>
+          <div class="goal-days">
+            ${GOAL_DAYS.map((lbl,i)=>`
+              <div class="goal-day-hiit" data-day="${i}">
+                <span style="font-size:0.58rem; opacity:0.75;">${lbl} ${dayDates[i].getDate()}/${dayDates[i].getMonth()+1}</span>
+                <div class="hiit-stepper">
+                  <button type="button" class="hiit-step-btn" data-dir="-1" data-day="${i}">−</button>
+                  <span class="hiit-step-val" id="hiitGoalVal-${i}">${days[i]}</span>
+                  <button type="button" class="hiit-step-btn" data-dir="1" data-day="${i}">+</button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }
     return `
       <div class="goal-row" data-activity="${act}">
         <div class="goal-row-label">${cfg.icon} ${cfg.label}</div>
@@ -1809,12 +1858,23 @@ function renderGoalsPage(){
       </div>`;
   }).join('');
 
-  grid.querySelectorAll('.goal-day').forEach(el=>{
+  grid.querySelectorAll('.goal-row:not([data-activity="hiit"]) .goal-day').forEach(el=>{
     el.onclick = ()=>{
       const act = el.closest('.goal-row').dataset.activity;
       const day = parseInt(el.dataset.day);
       state.weeklyGoals.activities[act][day] = !state.weeklyGoals.activities[act][day];
       el.classList.toggle('on');
+    };
+  });
+
+  grid.querySelectorAll('.hiit-step-btn').forEach(el=>{
+    el.onclick = ()=>{
+      const day = parseInt(el.dataset.day);
+      const dir = parseInt(el.dataset.dir);
+      const cur = state.weeklyGoals.activities.hiit[day];
+      const next = Math.max(0, cur + dir);
+      state.weeklyGoals.activities.hiit[day] = next;
+      document.getElementById(`hiitGoalVal-${day}`).textContent = next;
     };
   });
 }
@@ -1838,9 +1898,15 @@ function renderHeroGoals(day){
   const planned = GOAL_ACTIVITIES.filter(act => state.weeklyGoals.activities[act] && state.weeklyGoals.activities[act][idx]);
   if(!planned.length){ el.style.display='none'; return; }
   const doneTypes = new Set((day.sessions||[]).map(s=>s.type));
+  const hiitCount = (day.sessions||[]).filter(s=>s.type==='hiit').length;
   el.style.display = 'block';
   el.innerHTML = "Objectif aujourd'hui : " + planned.map(act=>{
     const cfg = SPORT_ACTIVITIES[act];
+    if(act==='hiit'){
+      const target = state.weeklyGoals.activities.hiit[idx];
+      const done = hiitCount >= target;
+      return `<span class="goal-chip${done?' done':''}">${cfg.icon} ${cfg.label} ${hiitCount}/${target}${done?' ✓':''}</span>`;
+    }
     const done = doneTypes.has(act);
     return `<span class="goal-chip${done?' done':''}">${cfg.icon} ${cfg.label}${done?' ✓':''}</span>`;
   }).join('');
@@ -2507,11 +2573,25 @@ function updateHomeSynth(day){
   const foodKcal = dayFoodTotals(day).kcal;
   document.getElementById('homePct-alimentation').textContent = `${foodKcal} kcal`;
 
-  // Bilan : différence alimentation - sport
-  const diff = foodKcal - sportKcal;
+  // Bilan : apport - besoin total (base + sport), harmonisé avec la page alimentation
+  const needToday = computeTDEE() + sportKcal;
+  const diff = foodKcal - needToday;
   document.getElementById('homePct-bilan').textContent = `${diff>=0?'+':''}${diff} kcal`;
 
   updateSectionStickers(day, bb, sportKcal, foodKcal, diff);
+  updateKcalGauge(foodKcal, needToday, diff);
+}
+
+function updateKcalGauge(foodKcal, needToday, diff){
+  document.getElementById('gaugeFoodLabel').textContent = `${foodKcal} kcal mangées`;
+  document.getElementById('gaugeNeedLabel').textContent = `besoin ${needToday} kcal`;
+  const fill = document.getElementById('gaugeFill');
+  const pct = needToday>0 ? Math.min(100, Math.round((foodKcal/needToday)*100)) : 0;
+  fill.style.width = `${pct}%`;
+  fill.classList.toggle('over', foodKcal>needToday);
+  const bilanEl = document.getElementById('gaugeBilan');
+  bilanEl.textContent = `${diff>=0?'+':''}${diff} kcal`;
+  bilanEl.className = 'kcal-gauge-bilan' + (diff>0 ? ' over' : diff<0 ? ' under' : '');
 }
 
 function updateSectionStickers(day, bb, sportKcal, foodKcal, diff){
