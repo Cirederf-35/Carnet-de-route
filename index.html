@@ -533,7 +533,7 @@
   .bilan-tip.warn{border-left-color:var(--danger);}
   .bilan-tip.good{border-left-color:var(--success);}
   .bilan-tip-icon{flex-shrink:0;}
-  .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:8px; line-height:1.5; min-height:58px;}
+  .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:8px; line-height:1.5; min-height:58px; max-height:84px; overflow:hidden;}
   .goal-chip{display:inline-block; background:rgba(255,255,255,0.16); border-radius:10px; padding:2px 8px; margin:2px 3px 2px 0;}
   .goal-chip.done{background:rgba(255,255,255,0.32); text-decoration:line-through; opacity:0.8;}
 
@@ -1585,6 +1585,14 @@ let manualMantra = null; // override ponctuel du mantra du jour (reset au change
 let bilanGranularity = 'semaine';
 let currentTab = 'jour';
 
+function updateScrollLock(){
+  // Le scroll ne se bloque que sur l'écran d'accueil du jour (blobs+jauge) — les pages de
+  // saisie (Sommeil/Sport/Alimentation/Bilan) et les autres onglets restent scrollables normalement.
+  const locked = currentTab==='jour' && !activeDaySection;
+  document.body.style.overflow = locked ? 'hidden' : '';
+  document.documentElement.style.overflow = locked ? 'hidden' : '';
+}
+
 function switchTab(name){
   if(currentTab==='jour' && name!=='jour' && activeDaySection){
     document.getElementById('dayOverview').style.display='block';
@@ -1599,6 +1607,7 @@ function switchTab(name){
   if(name==='objectifs') renderGoalsPage();
   if(name==='semaine' && document.getElementById('bilanDetails').open) drawCharts(getPeriodInfo());
   window.scrollTo(0,0);
+  updateScrollLock();
 }
 document.querySelectorAll('.bn-tab').forEach(btn=>{
   btn.onclick = ()=>switchTab(btn.dataset.tab);
@@ -2847,6 +2856,7 @@ function openSection(sec){
   resetWizards(page);
   crossfade(overview, page);
   window.scrollTo({top:0, behavior:'smooth'});
+  updateScrollLock();
 }
 function resetWizards(page){
   page.querySelectorAll('.wizard').forEach(w=>{
@@ -2872,6 +2882,7 @@ function closeSection(){
   activeDaySection = null;
   crossfade(page, overview);
   window.scrollTo({top:0, behavior:'smooth'});
+  updateScrollLock();
 }
 document.querySelectorAll('.section-page .back-btn').forEach(btn=>{
   btn.onclick = ()=>{ closeSection(); render(); };
@@ -3556,6 +3567,24 @@ renderIngredientDb();
 
 render();
 switchTab('jour');
+
+// Balayage tactile sur l'écran d'accueil du jour : gauche→droite = jour précédent, droite→gauche = jour suivant
+(function(){
+  let startX = null, startY = null;
+  const el = document.getElementById('dayOverview');
+  el.addEventListener('touchstart', (e)=>{
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, {passive:true});
+  el.addEventListener('touchend', (e)=>{
+    if(startX===null) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    startX = null;
+    if(Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // seuil + éviter conflit avec un geste vertical
+    if(dx > 0) goToDay(-1); else goToDay(1);
+  }, {passive:true});
+})();
 </script>
 <script>
 if ('serviceWorker' in navigator) {
