@@ -426,6 +426,22 @@
   .home-pct.sleep-green{background:var(--success);}
   .home-pct.sleep-empty{background:var(--text-dim); font-size:0.52rem;}
 
+  .day-nav-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    margin-bottom:12px; position:relative;
+  }
+  .day-nav-btn{
+    width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text); font-size:1.2rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+  }
+  .day-nav-btn:disabled{opacity:0.3; cursor:default;}
+  .day-nav-label{
+    flex:1; text-align:center; background:none; border:none; font-family:'Space Grotesk',sans-serif;
+    font-weight:600; font-size:0.88rem; color:var(--text); cursor:pointer; padding:6px 4px;
+  }
+  .day-nav-label.not-today{color:var(--accent);}
+
   .synth-item{cursor:pointer;}
 
   /* JAUGE CALORIQUE (page d'accueil) */
@@ -545,6 +561,13 @@
   <div class="tab-page" data-tab="jour">
 
   <div id="dayOverview" class="fade-panel">
+
+  <div class="day-nav-bar" id="dayNavBar">
+    <button type="button" class="day-nav-btn" id="dayPrevBtn" aria-label="Jour précédent">‹</button>
+    <button type="button" class="day-nav-label" id="dayNavLabel">Aujourd'hui</button>
+    <button type="button" class="day-nav-btn" id="dayNextBtn" aria-label="Jour suivant">›</button>
+    <input type="date" id="dayNavPicker" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;">
+  </div>
 
   <div class="mantra-card" id="mantraCard">
     <div class="mantra-top">
@@ -2003,6 +2026,20 @@ function renderWeighins(){
 }
 
 /* ---------- RENDU ---------- */
+function updateDayNavBar(date, isToday){
+  const label = document.getElementById('dayNavLabel');
+  label.textContent = isToday ? "Aujourd'hui" : date.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+  label.classList.toggle('not-today', !isToday);
+  document.getElementById('dayNextBtn').disabled = isToday;
+}
+
+function goToDay(delta){
+  const target = addDays(selectedDate, delta);
+  if(target > todayDate()) return;
+  selectedDate = target;
+  render();
+}
+
 function render(){
   const info = getPeriodInfo();
   const todayIso = isoDate(info.today);
@@ -2012,6 +2049,7 @@ function render(){
   const selDayIndex = daysBetween(info.start, selectedDate);
   const isToday = selIso === todayIso;
   const selWeekIndex = Math.min(Math.max(Math.floor(selDayIndex/7),0),5);
+  updateDayNavBar(selectedDate, isToday);
 
   const m = manualMantra || getMantraFor(selIso, mantraDayIndex);
   document.getElementById('mantraCat').textContent = m.label + (isToday ? '' : ' · jour consulté');
@@ -3274,6 +3312,21 @@ document.getElementById('bilanDetails').addEventListener('toggle', function(){
 
 document.getElementById('startDateInput').onchange = (e)=>{ state.startDate=e.target.value; persistState(); render(); };
 document.getElementById('weightInput').onchange = (e)=>{ state.weightKg=parseFloat(e.target.value)||75; persistState(); render(); };
+
+document.getElementById('dayPrevBtn').onclick = ()=> goToDay(-1);
+document.getElementById('dayNextBtn').onclick = ()=> goToDay(1);
+document.getElementById('dayNavLabel').onclick = ()=>{
+  const picker = document.getElementById('dayNavPicker');
+  picker.value = isoDate(selectedDate);
+  if(picker.showPicker){ picker.showPicker(); } else { picker.click(); }
+};
+document.getElementById('dayNavPicker').onchange = (e)=>{
+  if(!e.target.value) return;
+  const d = new Date(e.target.value+'T00:00:00');
+  if(d > todayDate()) return;
+  selectedDate = d;
+  render();
+};
 document.getElementById('heightInput').onchange = (e)=>{ state.heightCm=parseFloat(e.target.value)||175; persistState(); render(); };
 document.getElementById('ageInput').onchange = (e)=>{ state.age=parseInt(e.target.value)||30; persistState(); render(); };
 document.getElementById('sexInput').onchange = (e)=>{ state.sex=e.target.value; persistState(); render(); };
