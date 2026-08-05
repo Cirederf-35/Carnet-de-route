@@ -66,15 +66,15 @@
 
   .mantra-card{
     background:linear-gradient(135deg, #5f4380 0%, #1f4f6b 35%, #445a3d 65%, #8f6626 100%);
-    border:none; border-radius:var(--radius); padding:22px 20px; margin-bottom:22px;
+    border:none; border-radius:var(--radius); padding:16px 18px; margin-bottom:14px;
     cursor:pointer; user-select:none; transition:transform 0.15s; color:#fff;
     box-shadow:0 12px 28px rgba(31,25,15,0.18);
   }
   .mantra-card:active{transform:scale(0.98);}
   .mantra-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
-  .mantra-hint{font-size:0.68rem; color:rgba(255,255,255,0.65); margin-top:12px; font-style:italic;}
+  .mantra-hint{font-size:0.64rem; color:rgba(255,255,255,0.65); margin-top:6px; font-style:italic;}
   .mantra-cat{font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:#f0c869; display:block;}
-  .mantra-text{font-family:'Space Grotesk',sans-serif; font-size:1.2rem; font-weight:500; line-height:1.4; margin-top:8px;}
+  .mantra-text{font-family:'Space Grotesk',sans-serif; font-size:1.05rem; font-weight:500; line-height:1.32; margin-top:6px;}
   .hero-streak{
     flex-shrink:0; display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:20px;
     background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.28);
@@ -398,18 +398,18 @@
   .mantra-card{flex-shrink:0;}
   .home-synth{
     flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr auto;
-    gap:8px; margin-top:16px; min-height:0; place-items:center;
+    gap:5px; margin-top:8px; min-height:0; place-items:center;
   }
   .synth-item{
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
     min-height:0;
   }
   .synth-galet{
-    width:min(28vw,120px); aspect-ratio:1/1; position:relative; display:flex; align-items:center; justify-content:center;
+    width:min(20vw,84px); aspect-ratio:1/1; position:relative; display:flex; align-items:center; justify-content:center;
     border-radius:68% 32% 58% 42% / 42% 58% 38% 62%;
   }
-  .synth-icon{position:relative; z-index:2; font-size:clamp(1.9rem, 19.6vw, 84px); line-height:1; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));}
-  .synth-label{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(0.72rem, 2.6vw, 0.92rem); color:var(--text-dim);}
+  .synth-icon{position:relative; z-index:2; font-size:clamp(1.4rem, 13.6vw, 56px); line-height:1; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.2));}
+  .synth-label{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:clamp(0.62rem, 2.2vw, 0.78rem); color:var(--text-dim);}
   .synth-item[data-section="sommeil"] .synth-galet{background:var(--sleep);}
   .synth-item[data-section="sport"] .synth-galet{background:var(--sport);}
   .synth-item[data-section="alimentation"] .synth-galet{background:var(--food);}
@@ -427,30 +427,30 @@
   .home-pct.sleep-empty{background:var(--text-dim); font-size:0.52rem;}
 
   .day-nav-bar{
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-    margin-bottom:12px; position:relative;
+    display:flex; align-items:center; justify-content:space-between; gap:6px;
+    margin-bottom:8px; position:relative;
   }
   .day-nav-btn{
-    width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--panel);
-    color:var(--text); font-size:1.2rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text); font-size:1.05rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
     flex-shrink:0;
   }
   .day-nav-btn:disabled{opacity:0.3; cursor:default;}
   .day-nav-label{
     flex:1; text-align:center; background:none; border:none; font-family:'Space Grotesk',sans-serif;
-    font-weight:600; font-size:0.88rem; color:var(--text); cursor:pointer; padding:6px 4px;
+    font-weight:600; font-size:0.8rem; color:var(--text); cursor:pointer; padding:3px 4px;
   }
   .day-nav-label.not-today{color:var(--accent);}
 
   .synth-item{cursor:pointer;}
 
   /* JAUGE CALORIQUE (page d'accueil) */
-  .kcal-gauge{grid-column:1/3; grid-row:3; width:100%; padding:2px 4px 2px;}
+  .kcal-gauge{grid-column:1/3; grid-row:3; width:100%; padding:2px 22px 2px;}
 
   /* Jauge d'apport absolu : échelle de 0 à 1,5x le besoin du jour.
      La couleur ne va que jusqu'au niveau actuel (apport), pas au-delà. Le repère "besoin"
      est positionné dynamiquement (toujours aux 2/3 de l'échelle, puisque max = besoin x1,5). */
-  .kcal-gauge-outer{position:relative; height:14px; margin:32px 0 26px;}
+  .kcal-gauge-outer{position:relative; height:14px; margin:24px 0 20px;}
 
   .kcal-gauge-clip{
     position:relative; height:14px; border-radius:7px; overflow:hidden;
@@ -530,7 +530,7 @@
   .bilan-tip.warn{border-left-color:var(--danger);}
   .bilan-tip.good{border-left-color:var(--success);}
   .bilan-tip-icon{flex-shrink:0;}
-  .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:12px; line-height:1.6;}
+  .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:8px; line-height:1.5;}
   .goal-chip{display:inline-block; background:rgba(255,255,255,0.16); border-radius:10px; padding:2px 8px; margin:2px 3px 2px 0;}
   .goal-chip.done{background:rgba(255,255,255,0.32); text-decoration:line-through; opacity:0.8;}
 
@@ -603,21 +603,21 @@
   <div class="home-synth" id="homeSynth">
     <div class="synth-item" data-section="sommeil">
       <div class="synth-galet">
-        <div class="synth-icon">😴</div>
+        <div class="synth-icon" id="sleepSynthIcon">😴</div>
         <div class="home-pct" id="homePct-sommeil">—</div>
       </div>
       <span class="synth-label">Sommeil</span>
     </div>
     <div class="synth-item" data-section="sport">
       <div class="synth-galet">
-        <div class="synth-icon">🔥</div>
+        <div class="synth-icon" id="sportSynthIcon">🔥</div>
         <div class="home-pct" id="homePct-sport">—</div>
       </div>
       <span class="synth-label">Sport</span>
     </div>
     <div class="synth-item" data-section="alimentation">
       <div class="synth-galet">
-        <div class="synth-icon">🍽</div>
+        <div class="synth-icon" id="alimSynthIcon">🍽</div>
         <div class="home-pct" id="homePct-alimentation">—</div>
       </div>
       <span class="synth-label">Alimentation</span>
@@ -2667,24 +2667,35 @@ function updateDayBadges(day){
 }
 
 function updateHomeSynth(day){
-  // Sommeil : score Body Battery, coloré selon le seuil
+  // Sommeil : score Body Battery, coloré selon le seuil, avec un smiley qui reflète la qualité
   const bb = day.sleep.bodyBattery;
   const sleepEl = document.getElementById('homePct-sommeil');
+  const sleepIcon = document.getElementById('sleepSynthIcon');
   if(bb===null || bb===undefined){
     sleepEl.textContent = 'Non renseigné';
     sleepEl.className = 'home-pct sleep-empty';
+    sleepIcon.textContent = '😴';
   } else {
     sleepEl.textContent = bb;
     sleepEl.className = 'home-pct ' + (bb<70 ? 'sleep-red' : bb<=80 ? 'sleep-orange' : 'sleep-green');
+    sleepIcon.textContent = bb<70 ? '😩' : bb<=80 ? '🙂' : '😃';
   }
 
-  // Sport : calories dépensées
+  // Sport : calories dépensées, avec une icône qui reflète le niveau d'activité
   const sportKcal = sportTotalKcal(day);
   document.getElementById('homePct-sport').textContent = `${sportKcal} kcal`;
+  document.getElementById('sportSynthIcon').textContent = sportKcal===0 ? '🪵' : sportKcal<300 ? '🔥' : '🌋';
 
-  // Alimentation : calories consommées
+  // Alimentation : calories consommées, avec une icône en 4 paliers selon l'écart au besoin
   const foodKcal = dayFoodTotals(day).kcal;
   document.getElementById('homePct-alimentation').textContent = `${foodKcal} kcal`;
+  const alimIcon = document.getElementById('alimSynthIcon');
+  if(foodKcal===0){
+    alimIcon.textContent = '🍽';
+  } else {
+    const gap = foodKcal - (computeTDEE()+sportKcal); // négatif = en dessous du besoin, positif = au-dessus
+    alimIcon.textContent = gap < -150 ? '🍲' : gap > 150 ? '🍔' : '🍛';
+  }
 
   // Bilan : apport - besoin total (base + sport), harmonisé avec la page alimentation
   const needToday = computeTDEE() + sportKcal;
