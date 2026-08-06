@@ -1594,6 +1594,12 @@ function updateScrollLock(){
 }
 
 function switchTab(name){
+  // Retour sur l'onglet Jour depuis un autre onglet : on revient toujours sur aujourd'hui.
+  // La consultation d'un jour passé reste possible via chevrons/swipe/picker, mais ne survit pas à un aller-retour dans les menus.
+  if(name==='jour' && currentTab!=='jour' && isoDate(selectedDate)!==isoDate(todayDate())){
+    selectedDate = todayDate();
+    render();
+  }
   if(currentTab==='jour' && name!=='jour' && activeDaySection){
     document.getElementById('dayOverview').style.display='block';
     document.getElementById('dayOverview').classList.remove('hidden');
@@ -3568,20 +3574,39 @@ renderIngredientDb();
 render();
 switchTab('jour');
 
+// PWA gardée en mémoire : au retour au premier plan, si la date a changé (passage de minuit),
+// on bascule sur le nouveau jour si on affichait "aujourd'hui", et on re-rend dans tous les cas.
+let lastKnownToday = isoDate(todayDate());
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState!=='visible') return;
+  const nowToday = isoDate(todayDate());
+  if(nowToday !== lastKnownToday){
+    if(isoDate(selectedDate) === lastKnownToday) selectedDate = todayDate();
+    lastKnownToday = nowToday;
+    render();
+  }
+});
+
 // Balayage tactile sur l'écran d'accueil du jour : gauche→droite = jour précédent, droite→gauche = jour suivant
 (function(){
   let startX = null, startY = null;
+  const EDGE = 28; // px : zone morte sur les bords pour ne pas entrer en conflit avec le geste "retour" d'Android
   const el = document.getElementById('dayOverview');
   el.addEventListener('touchstart', (e)=>{
-    startX = e.touches[0].clientX;
+    const x = e.touches[0].clientX;
+    // Un swipe qui démarre au ras du bord est très probablement un geste système (retour Android) : on l'ignore.
+    if(x < EDGE || x > window.innerWidth - EDGE){ startX = null; return; }
+    startX = x;
     startY = e.touches[0].clientY;
   }, {passive:true});
+  el.addEventListener('touchcancel', ()=>{ startX = null; }, {passive:true});
   el.addEventListener('touchend', (e)=>{
     if(startX===null) return;
     const dx = e.changedTouches[0].clientX - startX;
     const dy = e.changedTouches[0].clientY - startY;
     startX = null;
-    if(Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // seuil + éviter conflit avec un geste vertical
+    // Seuil relevé + ratio strict : le geste doit être franchement horizontal pour changer de jour
+    if(Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2.5) return;
     if(dx > 0) goToDay(-1); else goToDay(1);
   }, {passive:true});
 })();
