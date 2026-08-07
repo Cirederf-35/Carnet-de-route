@@ -1601,7 +1601,7 @@ function switchTab(name){
     render();
   }
   if(currentTab==='jour' && name!=='jour' && activeDaySection){
-    document.getElementById('dayOverview').style.display='block';
+    document.getElementById('dayOverview').style.display='';
     document.getElementById('dayOverview').classList.remove('hidden');
     document.querySelectorAll('.section-page').forEach(p=>{ p.style.display='none'; });
     activeDaySection = null;
@@ -1977,6 +1977,8 @@ function renderGoalsPage(){
       const day = parseInt(el.dataset.day);
       state.weeklyGoals.activities[act][day] = !state.weeklyGoals.activities[act][day];
       el.classList.toggle('on');
+      persistState(); // autosauvegarde : sans ça, un rechargement de la PWA faisait revenir les anciennes valeurs
+      renderHeroGoals(getDay(isoDate(selectedDate)));
     };
   });
 
@@ -1988,6 +1990,8 @@ function renderGoalsPage(){
       const next = Math.max(0, cur + dir);
       state.weeklyGoals.activities.hiit[day] = next;
       document.getElementById(`hiitGoalVal-${day}`).textContent = next;
+      persistState(); // autosauvegarde : la valeur ne dépend plus du bouton Enregistrer
+      renderHeroGoals(getDay(isoDate(selectedDate)));
     };
   });
 }
@@ -2003,17 +2007,21 @@ document.getElementById('saveGoalsBtn').onclick = ()=>{
 function renderHeroGoals(day){
   const el = document.getElementById('heroGoals');
   el.style.display = 'block';
-  const monday = getMonday(todayDate());
+  // Objectifs du jour AFFICHÉ (et non d'aujourd'hui) : en consultant mercredi,
+  // on compare les séances de mercredi à l'objectif de mercredi, pas à celui de jeudi.
+  const shownDate = selectedDate;
+  const monday = getMonday(shownDate);
   if(state.weeklyGoals.weekStart !== isoDate(monday)){
     el.innerHTML = '';
     return;
   }
-  const idx = dowIndexMondayBased(todayDate());
+  const idx = dowIndexMondayBased(shownDate);
   const planned = GOAL_ACTIVITIES.filter(act => state.weeklyGoals.activities[act] && state.weeklyGoals.activities[act][idx]);
   if(!planned.length){ el.innerHTML = ''; return; }
   const doneTypes = new Set((day.sessions||[]).map(s=>s.type));
   const hiitCount = (day.sessions||[]).filter(s=>s.type==='hiit').length;
-  el.innerHTML = "Objectif aujourd'hui : " + planned.map(act=>{
+  const isShownToday = isoDate(shownDate)===isoDate(todayDate());
+  el.innerHTML = (isShownToday ? "Objectif aujourd'hui : " : "Objectif de ce jour : ") + planned.map(act=>{
     const cfg = SPORT_ACTIVITIES[act];
     if(act==='hiit'){
       const target = state.weeklyGoals.activities.hiit[idx];
@@ -2848,7 +2856,9 @@ function crossfade(hideEl, showEl){
   hideEl.classList.add('hidden');
   setTimeout(()=>{
     hideEl.style.display='none';
-    showEl.style.display='block';
+    // display:'' rend la main au CSS : #dayOverview retrouve son display:flex
+    // (forcer 'block' cassait la mise en page pleine hauteur → contenu tassé en haut)
+    showEl.style.display='';
     showEl.classList.add('hidden');
     void showEl.offsetWidth; // force reflow
     showEl.classList.remove('hidden');
