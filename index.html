@@ -24,6 +24,7 @@
     --sport:#2f6f96; --sport-soft:#2f6f961a;
     --food:#5f7355; --food-soft:#5f73551a;
     --sleep:#7657a0; --sleep-soft:#7657a01a;
+    --stamp1:#a84f3f; --stamp2:#c1793a; --stamp3:#9c8a2e; --stamp4:#6f9455; --stamp5:#4f8a5c; --stamp0:#847d6f;
     --radius:14px;
   }
   *{box-sizing:border-box;}
@@ -402,7 +403,30 @@
   .home-synth{
     flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
     gap:8px; margin-top:8px; min-height:0; place-items:center; align-content:center;
+    position:relative;
   }
+
+  /* CACHET RESSENTI (jours passés uniquement) : posé en travers de la grille, laisse passer les clics vers les pavés */
+  .day-stamp{
+    position:absolute; z-index:5; pointer-events:none;
+    top:50%; left:50%; transform:translate(-50%,-50%) rotate(-13deg);
+    width:112px; height:112px;
+    filter:url(#inkRough);
+    opacity:0.92;
+  }
+  .day-stamp-inner{
+    width:100%; height:100%; border-radius:50%; border:3px solid currentColor;
+    position:relative; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle, rgba(255,255,255,0.35), transparent 70%);
+  }
+  .day-stamp-ring{position:absolute; inset:7px; border:1.5px solid currentColor; border-radius:50%;}
+  .day-stamp svg.ringtext{position:absolute; inset:0; width:100%; height:100%;}
+  .day-stamp svg.ringtext text{font-family:'JetBrains Mono',monospace; font-size:9px; font-weight:700; letter-spacing:2px; fill:currentColor;}
+  .day-stamp-num{font-family:'JetBrains Mono',monospace; font-weight:900; font-size:1.55rem; color:currentColor; line-height:1;}
+  .day-stamp-num.empty{font-size:0.62rem; letter-spacing:1px; text-align:center; padding:0 8px;}
+  .day-stamp-sub{position:absolute; bottom:24px; left:0; right:0; text-align:center; font-family:'JetBrains Mono',monospace; font-size:6.5px; letter-spacing:1.5px; font-weight:700; color:currentColor;}
+  .day-stamp.n1{color:var(--stamp1);} .day-stamp.n2{color:var(--stamp2);} .day-stamp.n3{color:var(--stamp3);}
+  .day-stamp.n4{color:var(--stamp4);} .day-stamp.n5{color:var(--stamp5);} .day-stamp.n0{color:var(--stamp0);}
   .synth-item{
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
     min-height:0;
@@ -559,6 +583,12 @@
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute;">
+  <filter id="inkRough">
+    <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise"/>
+    <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.6"/>
+  </filter>
+</svg>
 <div class="wrap">
 
   <div class="tab-page" data-tab="jour">
@@ -631,6 +661,17 @@
         <div class="home-pct" id="homePct-bilan">—</div>
       </div>
       <span class="synth-label">Bilan</span>
+    </div>
+    <div class="day-stamp" id="dayStamp" style="display:none;">
+      <div class="day-stamp-inner">
+        <div class="day-stamp-ring"></div>
+        <svg class="ringtext" viewBox="0 0 112 112">
+          <path id="dayStampArc" d="M 13,56 A 43,43 0 1,1 99,56" fill="none"/>
+          <text><textPath href="#dayStampArc" startOffset="50%" text-anchor="middle">CARNET DE ROUTE</textPath></text>
+        </svg>
+        <div class="day-stamp-num" id="dayStampNum">–</div>
+        <div class="day-stamp-sub" id="dayStampSub">–</div>
+      </div>
     </div>
   </div>
 
@@ -2060,6 +2101,36 @@ function updateDayNavBar(date, isToday){
   document.getElementById('dayNextBtn').disabled = isToday;
 }
 
+// Rotation légère mais stable par jour (pas aléatoire à chaque rendu, sinon le tampon "bougerait")
+function stampRotation(iso){
+  let h = 0;
+  for(let i=0;i<iso.length;i++) h = (h*31 + iso.charCodeAt(i)) % 360;
+  return -16 + (h % 13); // entre -16° et -4°, toujours légèrement de travers
+}
+
+function renderDayStamp(day, isToday){
+  const el = document.getElementById('dayStamp');
+  if(isToday){
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  const iso = isoDate(selectedDate);
+  el.className = 'day-stamp n' + (day.energy ?? 0);
+  el.style.transform = `translate(-50%,-50%) rotate(${stampRotation(iso)}deg)`;
+
+  const numEl = document.getElementById('dayStampNum');
+  if(day.energy){
+    numEl.textContent = `${day.energy}/5`;
+    numEl.classList.remove('empty');
+  } else {
+    numEl.textContent = 'NON RENSEIGNÉ';
+    numEl.classList.add('empty');
+  }
+  document.getElementById('dayStampSub').textContent =
+    selectedDate.toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
+}
+
 function goToDay(delta){
   const target = addDays(selectedDate, delta);
   if(target > todayDate()) return;
@@ -2092,6 +2163,7 @@ function render(){
   updateSeal(day);
   updateDayBadges(day);
   renderHeroGoals(day);
+  renderDayStamp(day, isToday);
   updateExportReminder();
   updateEndPeriodCard(info);
 
