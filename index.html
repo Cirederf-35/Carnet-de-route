@@ -84,6 +84,9 @@
     background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.28);
     font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:#fff; white-space:nowrap;
   }
+  .badges-group{display:flex; flex-direction:row; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;}
+  .hero-streak.alcohol-badge{cursor:pointer;}
+  .hero-streak.alcohol-badge.on{background:rgba(95,115,85,0.35); border-color:var(--sage);}
 
   .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px;}
   .card h2{font-size:1rem; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;}
@@ -179,6 +182,21 @@
   .stat-box{background:var(--panel-2); border-radius:10px; padding:12px;}
   .stat-num{font-family:'JetBrains Mono',monospace; font-size:1.3rem; color:var(--accent); font-weight:600;}
   .stat-lbl{font-size:0.7rem; color:var(--text-dim); margin-top:2px;}
+
+  .synthesis-table{width:100%; border-collapse:collapse;}
+  .synthesis-table td{padding:8px 4px; border-bottom:1px solid var(--line); font-size:0.85rem; vertical-align:middle;}
+  .synthesis-table tr:last-child td{border-bottom:none;}
+  .synthesis-table td:first-child{color:var(--text-dim); font-size:0.8rem;}
+  .synthesis-table td:nth-child(2){font-family:'JetBrains Mono',monospace; font-weight:600; white-space:nowrap;}
+  .synthesis-table td:last-child{text-align:right;}
+  .status-pill{display:inline-block; padding:3px 9px; border-radius:20px; font-size:0.7rem; font-weight:600; font-family:'JetBrains Mono',monospace; white-space:nowrap;}
+  .status-pill.good{background:var(--sage-soft); color:var(--sage);}
+  .status-pill.warn{background:#a84f3f1a; color:var(--danger);}
+  .status-pill.neutral{background:var(--panel-2); color:var(--text-dim);}
+  .delta-pill{font-family:'JetBrains Mono',monospace; font-size:0.78rem; font-weight:600;}
+  .delta-pill.good{color:var(--sage);}
+  .delta-pill.warn{color:var(--danger);}
+  .delta-pill.neutral{color:var(--text-dim);}
 
   .btn-row{display:flex; gap:8px; margin-top:10px;}
   .btn-sm{flex:1; padding:9px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2); color:var(--text); font-size:0.78rem; cursor:pointer; font-family:'Inter',sans-serif;}
@@ -605,7 +623,10 @@
   <div class="mantra-card" id="mantraCard">
     <div class="mantra-top">
       <span class="mantra-cat" id="mantraCat">—</span>
-      <span class="hero-streak" id="streakBadge">🔥 0 jour</span>
+      <div class="badges-group">
+        <span class="hero-streak" id="streakBadge">🔥 0 jour</span>
+        <span class="hero-streak alcohol-badge" id="alcoholRow">🚱 0 j</span>
+      </div>
     </div>
     <div class="mantra-text" id="mantraText">—</div>
     <div class="mantra-hint">Touche pour en voir un autre</div>
@@ -989,6 +1010,61 @@
     <table style="margin-top:10px">
       <tr><th>Date</th><th>Poids</th><th>Taille</th><th>Bras</th><th></th></tr>
       <tbody id="weighinTableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- SCAN INBODY -->
+  <div class="card" id="inbodyCard">
+    <h2>Scan InBody <span class="tag mono" id="inbodyCount"></span></h2>
+    <div class="disclaimer">Données d'un scan de bio-impédance (InBody, balance pro). À saisir après chaque scan — généralement toutes les 6 à 8 semaines, pas à chaque pesée.</div>
+
+    <div id="inbodySynthesis" style="display:none;">
+      <h3>Synthèse — dernier scan</h3>
+      <table class="synthesis-table">
+        <tbody id="inbodySynthesisBody"></tbody>
+      </table>
+    </div>
+
+    <div class="form-grid">
+      <div><label class="field-inline">Date</label><input type="date" id="inbodyDate"></div>
+      <div><label class="field-inline">Poids (kg)</label><input type="number" id="inbodyWeight" min="30" max="200" step="0.1"></div>
+    </div>
+    <div class="form-grid three">
+      <div><label class="field-inline">Masse grasse (kg)</label><input type="number" id="inbodyFatMass" min="0" max="100" step="0.1"></div>
+      <div><label class="field-inline">Masse musc. squel. — MMS (kg)</label><input type="number" id="inbodyMuscleMass" min="0" max="100" step="0.1"></div>
+      <div><label class="field-inline">Score InBody (/100)</label><input type="number" id="inbodyScore" min="0" max="100"></div>
+    </div>
+    <div class="form-grid three">
+      <div><label class="field-inline">IMC (kg/m²)</label><input type="number" id="inbodyBmi" min="0" max="60" step="0.1"></div>
+      <div><label class="field-inline">TGC — % masse grasse</label><input type="number" id="inbodyBodyFatPct" min="0" max="70" step="0.1"></div>
+      <div><label class="field-inline">Graisse viscérale — SGV (cm²)</label><input type="number" id="inbodyVisceralFat" min="0" max="300" step="0.1"></div>
+    </div>
+    <div class="form-grid three">
+      <div><label class="field-inline">Eau corporelle totale (L)</label><input type="number" id="inbodyWater" min="0" max="100" step="0.1"></div>
+      <div><label class="field-inline">Protéines (kg)</label><input type="number" id="inbodyProtein" min="0" max="50" step="0.1"></div>
+      <div><label class="field-inline">Angle de phase (°)</label><input type="number" id="inbodyPhaseAngle" min="0" max="15" step="0.1"></div>
+    </div>
+    <button class="add-btn" id="addInbodyBtn">+ Enregistrer le scan</button>
+
+    <h3>Composition : masse grasse vs muscle</h3>
+    <div class="chart-legend"><span style="color:#a84f3f;">● Masse grasse (kg)</span> <span style="color:#2f6f96;">● MMS (kg)</span></div>
+    <canvas id="chartInbodyComposition" height="140"></canvas>
+
+    <h3>Autres indicateurs</h3>
+    <select id="inbodyMetric" style="margin-bottom:10px;">
+      <option value="score">Score InBody</option>
+      <option value="bmi">IMC</option>
+      <option value="bodyFatPct">% masse grasse (TGC)</option>
+      <option value="visceralFat">Graisse viscérale</option>
+      <option value="water">Eau corporelle totale</option>
+      <option value="protein">Protéines</option>
+      <option value="phaseAngle">Angle de phase</option>
+    </select>
+    <canvas id="chartInbodyMetric" height="140"></canvas>
+
+    <table style="margin-top:10px">
+      <tr><th>Date</th><th>Poids</th><th>MG</th><th>MMS</th><th>Score</th><th></th></tr>
+      <tbody id="inbodyTableBody"></tbody>
     </table>
   </div>
   </div><!-- /tab pesees -->
@@ -1613,6 +1689,12 @@ const DEFAULT_STATE = {
   categoryOrder:Object.keys(FOOD_CATEGORIES),
   days:{},
   weighins:{},
+  inbodyScans:{
+    "2026-08-11":{
+      weight:77.3, fatMass:13.7, muscleMass:35.9, score:82, bmi:24.4,
+      bodyFatPct:17.7, visceralFat:61.8, water:46.6, protein:12.6, phaseAngle:6.1
+    }
+  },
   xp:0,
   weeklyGoals:{weekStart:null, activities:{}},
   lastExport:null,
@@ -1650,7 +1732,7 @@ function switchTab(name){
   currentTab = name;
   document.querySelectorAll('.tab-page').forEach(el=>el.classList.toggle('active', el.dataset.tab===name));
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.toggle('on', b.dataset.tab===name));
-  if(name==='pesees') drawWeighinChart();
+  if(name==='pesees'){ drawWeighinChart(); drawInbodyCompositionChart(); drawInbodyMetricChart(); }
   if(name==='objectifs') renderGoalsPage();
   if(name==='semaine' && document.getElementById('bilanDetails').open) drawCharts(getPeriodInfo());
   window.scrollTo(0,0);
@@ -1716,6 +1798,7 @@ function normalizeDay(day){
     sessions: day?.sessions ?? [],
     food: day?.food ?? false,
     foods,
+    noAlcohol: day?.noAlcohol === true,
     sleep: {
       bedtime: day?.sleep?.bedtime ?? '',
       waketime: day?.sleep?.waketime ?? '',
@@ -1939,6 +2022,133 @@ function renderWeighinTable(){
     btn.onclick = ()=>{ delete state.weighins[btn.dataset.iso]; persistState(); renderWeighins(); };
   });
 }
+/* ---------- SCAN INBODY ---------- */
+function inbodySortedEntries(){ return Object.entries(state.inbodyScans).sort((a,b)=>a[0]<b[0]?-1:1); }
+function drawInbodyCompositionChart(){
+  const h=140;
+  const {ctx,w} = setupCanvas('chartInbodyComposition', h);
+  const withData = inbodySortedEntries().filter(([,v])=>v.fatMass!=null || v.muscleMass!=null);
+  if(withData.length===0){
+    ctx.fillStyle='#847d6f'; ctx.font='11px Inter, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Aucun scan enregistré', w/2, h/2);
+    return;
+  }
+  const n = withData.length;
+  const stepX = n>1 ? (w-20)/(n-1) : 0;
+  const xOf = i => 10 + i*stepX;
+  const scaleY = (vals)=>{
+    if(!vals.length) return ()=>null;
+    const mn=Math.min(...vals), mx=Math.max(...vals), rg=(mx-mn)||1;
+    return v => h-24 - ((v-mn)/rg)*(h-44);
+  };
+  const yFat = scaleY(withData.map(([,v])=>v.fatMass).filter(v=>v!=null));
+  const yMuscle = scaleY(withData.map(([,v])=>v.muscleMass).filter(v=>v!=null));
+  drawSeries(ctx, withData.map(([,v],i)=>({x:xOf(i), y: v.fatMass!=null ? yFat(v.fatMass) : null})), '#a84f3f');
+  drawSeries(ctx, withData.map(([,v],i)=>({x:xOf(i), y: v.muscleMass!=null ? yMuscle(v.muscleMass) : null})), '#2f6f96');
+  ctx.fillStyle='#847d6f'; ctx.font='9px Inter, sans-serif'; ctx.textAlign='center';
+  const labelEvery = Math.ceil(n/6)||1;
+  withData.forEach(([iso],i)=>{ if(i%labelEvery===0 || i===n-1) ctx.fillText(new Date(iso+"T00:00:00").toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}), xOf(i), h-8); });
+}
+function drawInbodyMetricChart(){
+  const metric = document.getElementById('inbodyMetric').value;
+  const pts = inbodySortedEntries().filter(([,v])=>v[metric]!=null).map(([iso,v])=>({iso, val:v[metric]}));
+  const h=140;
+  const {ctx,w} = setupCanvas('chartInbodyMetric', h);
+  if(pts.length===0){
+    ctx.fillStyle='#847d6f'; ctx.font='11px Inter, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('Aucune donnée pour cet indicateur', w/2, h/2);
+    return;
+  }
+  const vals = pts.map(p=>p.val);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = (maxV-minV)||1;
+  const n = pts.length;
+  const stepX = n>1 ? (w-20)/(n-1) : 0;
+  const coords = pts.map((p,i)=>({
+    x: 10 + i*stepX,
+    y: h-24 - ((p.val-minV)/range)*(h-44),
+    label: new Date(p.iso+"T00:00:00").toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})
+  }));
+  drawSeries(ctx, coords, '#b8863a');
+  ctx.fillStyle='#847d6f'; ctx.font='9px Inter, sans-serif'; ctx.textAlign='center';
+  const labelEvery = Math.ceil(n/6)||1;
+  coords.forEach((c,i)=>{ if(i%labelEvery===0 || i===n-1) ctx.fillText(c.label, c.x, h-8); });
+}
+function renderInbodyTable(){
+  const body = document.getElementById('inbodyTableBody');
+  const entries = Object.entries(state.inbodyScans).sort((a,b)=>a[0]<b[0]?1:-1);
+  body.innerHTML = entries.map(([iso,v])=>`
+    <tr>
+      <td class="mono">${iso}</td><td>${v.weight??'–'}</td><td>${v.fatMass??'–'}</td><td>${v.muscleMass??'–'}</td><td>${v.score??'–'}</td>
+      <td><button class="session-del" data-iso="${iso}">✕</button></td>
+    </tr>`).join('');
+  body.querySelectorAll('.session-del').forEach(btn=>{
+    btn.onclick = ()=>{ delete state.inbodyScans[btn.dataset.iso]; persistState(); renderInbody(); };
+  });
+}
+function renderInbodySynthesis(){
+  const wrap = document.getElementById('inbodySynthesis');
+  const entries = inbodySortedEntries();
+  if(entries.length===0){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const [, last] = entries[entries.length-1];
+  const prev = entries.length>=2 ? entries[entries.length-2][1] : null;
+
+  const pill = (label,status)=>`<span class="status-pill ${status}">${label}</span>`;
+  const delta = (a,b,unit,goodDir)=>{
+    // goodDir : 'down' = baisse souhaitable (ex. masse grasse), 'up' = hausse souhaitable (ex. MMS), null = neutre
+    if(a==null || b==null) return '<span class="delta-pill neutral">premier scan</span>';
+    const d = b-a;
+    const cls = goodDir==null ? 'neutral' : (goodDir==='down' ? (d<0?'good':d>0?'warn':'neutral') : (d>0?'good':d<0?'warn':'neutral'));
+    return `<span class="delta-pill ${cls}">${d>0?'+':''}${d.toFixed(1)}${unit}</span>`;
+  };
+
+  const rows = [];
+
+  // Score InBody
+  if(last.score!=null){
+    const status = last.score>=80 ? ['Bon','good'] : last.score>=65 ? ['Moyen','neutral'] : ['À travailler','warn'];
+    rows.push(`<tr><td>Score InBody</td><td>${last.score}/100</td><td>${pill(status[0],status[1])}</td></tr>`);
+  }
+  // IMC
+  if(last.bmi!=null){
+    const status = last.bmi<18.5 ? ['Insuffisance','warn'] : last.bmi<25 ? ['Normal','good'] : last.bmi<30 ? ['Surpoids','warn'] : ['Élevé','warn'];
+    rows.push(`<tr><td>IMC</td><td>${last.bmi}</td><td>${pill(status[0],status[1])}</td></tr>`);
+  }
+  // % Masse grasse (seuils indicatifs, dépendants du sexe)
+  if(last.bodyFatPct!=null){
+    const isF = state.sex==='F';
+    const lo = isF?18:10, hi = isF?28:20, hiHigh = isF?33:25;
+    const status = last.bodyFatPct<lo ? ['Bas','neutral'] : last.bodyFatPct<=hi ? ['Normal','good'] : last.bodyFatPct<=hiHigh ? ['Élevé','warn'] : ['Très élevé','warn'];
+    rows.push(`<tr><td>% Masse grasse</td><td>${last.bodyFatPct}%</td><td>${pill(status[0],status[1])}</td></tr>`);
+  }
+  // Graisse viscérale
+  if(last.visceralFat!=null){
+    const status = last.visceralFat<100 ? ['Normal','good'] : ['Élevé','warn'];
+    rows.push(`<tr><td>Graisse viscérale</td><td>${last.visceralFat} cm²</td><td>${pill(status[0],status[1])}</td></tr>`);
+  }
+  // Angle de phase (seuils approximatifs)
+  if(last.phaseAngle!=null){
+    const status = last.phaseAngle>=6 ? ['Bon','good'] : last.phaseAngle>=4 ? ['Normal','neutral'] : ['À surveiller','warn'];
+    rows.push(`<tr><td>Angle de phase</td><td>${last.phaseAngle}°</td><td>${pill(status[0],status[1])}</td></tr>`);
+  }
+  // Poids, masse grasse, MMS, eau, protéines : évolution vs scan précédent (pas de norme générique fiable)
+  if(last.weight!=null) rows.push(`<tr><td>Poids</td><td>${last.weight} kg</td><td>${delta(prev?.weight, last.weight,' kg', null)}</td></tr>`);
+  if(last.fatMass!=null) rows.push(`<tr><td>Masse grasse</td><td>${last.fatMass} kg</td><td>${delta(prev?.fatMass, last.fatMass,' kg','down')}</td></tr>`);
+  if(last.muscleMass!=null) rows.push(`<tr><td>MMS (muscle)</td><td>${last.muscleMass} kg</td><td>${delta(prev?.muscleMass, last.muscleMass,' kg','up')}</td></tr>`);
+  if(last.water!=null) rows.push(`<tr><td>Eau corporelle</td><td>${last.water} L</td><td>${delta(prev?.water, last.water,' L', null)}</td></tr>`);
+  if(last.protein!=null) rows.push(`<tr><td>Protéines</td><td>${last.protein} kg</td><td>${delta(prev?.protein, last.protein,' kg', null)}</td></tr>`);
+
+  document.getElementById('inbodySynthesisBody').innerHTML = rows.join('');
+}
+function renderInbody(){
+  document.getElementById('inbodyCount').textContent = `${Object.keys(state.inbodyScans).length} scan(s)`;
+  renderInbodySynthesis();
+  renderInbodyTable();
+  drawInbodyCompositionChart();
+  drawInbodyMetricChart();
+}
+
 /* ---------- OBJECTIFS DE LA SEMAINE ---------- */
 const GOAL_DAYS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 const GOAL_ACTIVITIES = ['tapis','footing','hiit','padel','tennis','natation']; // pas de marche
@@ -2159,6 +2369,7 @@ function render(){
   renderSessions(day);
   renderFoods(day);
   renderEnergyDots(day.energy);
+  renderAlcohol(day);
   document.getElementById('dayNote').value = day.note;
   updateSeal(day);
   updateDayBadges(day);
@@ -2203,6 +2414,7 @@ function render(){
   document.getElementById('activityInput').value = state.activityLevel;
 
   renderWeighins();
+  renderInbody();
 }
 
 function renderSleepQuality(current){
@@ -2391,6 +2603,29 @@ function renderEnergyDots(current){
 }
 
 let lastSealedState = null;
+function computeAlcoholStreak(){
+  let streak = 0;
+  let d = todayDate();
+  while(true){
+    const iso = isoDate(d);
+    const day = state.days[iso] ? getDay(iso) : null;
+    if(day && day.noAlcohol){ streak++; d = addDays(d,-1); } else break;
+  }
+  return streak;
+}
+function renderAlcohol(day){
+  const streak = computeAlcoholStreak();
+  const badge = document.getElementById('alcoholRow');
+  badge.classList.toggle('on', !!day.noAlcohol);
+  badge.textContent = `🚱 ${streak} j${day.noAlcohol ? ' ✓' : ''}`;
+}
+document.getElementById('alcoholRow').onclick = ()=>{
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  day.noAlcohol = !day.noAlcohol;
+  setDay(iso, day);
+  renderAlcohol(day);
+};
 function computeStreak(){
   let streak = 0;
   let d = todayDate();
@@ -3412,6 +3647,30 @@ document.getElementById('addWeighinBtn').onclick = ()=>{
 };
 document.getElementById('weighinMetric').onchange = drawWeighinChart;
 
+document.getElementById('inbodyDate').value = isoDate(todayDate());
+document.getElementById('addInbodyBtn').onclick = ()=>{
+  const date = document.getElementById('inbodyDate').value;
+  const w = parseFloat(document.getElementById('inbodyWeight').value);
+  if(!date){ alert("Choisis une date."); return; }
+  if(!w){ alert("Indique au moins le poids."); return; }
+  state.inbodyScans[date] = {
+    weight: w,
+    fatMass: parseFloat(document.getElementById('inbodyFatMass').value)||null,
+    muscleMass: parseFloat(document.getElementById('inbodyMuscleMass').value)||null,
+    score: parseFloat(document.getElementById('inbodyScore').value)||null,
+    bmi: parseFloat(document.getElementById('inbodyBmi').value)||null,
+    bodyFatPct: parseFloat(document.getElementById('inbodyBodyFatPct').value)||null,
+    visceralFat: parseFloat(document.getElementById('inbodyVisceralFat').value)||null,
+    water: parseFloat(document.getElementById('inbodyWater').value)||null,
+    protein: parseFloat(document.getElementById('inbodyProtein').value)||null,
+    phaseAngle: parseFloat(document.getElementById('inbodyPhaseAngle').value)||null
+  };
+  persistState();
+  renderInbody();
+  render();
+};
+document.getElementById('inbodyMetric').onchange = drawInbodyMetricChart;
+
 document.querySelectorAll('.gran-btn').forEach(btn=>{
   btn.classList.toggle('on', btn.dataset.gran===bilanGranularity);
   btn.onclick = ()=>{
@@ -3495,10 +3754,12 @@ document.getElementById('newPeriodBtn').onclick = ()=>{
   state.archives.push({
     startDate: state.startDate,
     days: structuredClone(state.days),
-    weighins: structuredClone(state.weighins)
+    weighins: structuredClone(state.weighins),
+    inbodyScans: structuredClone(state.inbodyScans)
   });
   state.days = {};
   state.weighins = {};
+  state.inbodyScans = {};
   state.weeklyGoals = {weekStart:null, activities:{}};
   state.startDate = isoDate(todayDate());
   persistState();
