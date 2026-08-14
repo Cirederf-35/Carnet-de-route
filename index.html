@@ -80,13 +80,15 @@
     min-height:calc(1.32em * 3); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;
   }
   .hero-streak{
-    flex-shrink:0; display:inline-flex; align-items:center; gap:5px; padding:5px 11px; border-radius:20px;
+    flex-shrink:0; display:inline-flex; align-items:center; gap:4px; padding:4px 9px; border-radius:16px;
     background:rgba(255,255,255,0.16); border:1px solid rgba(255,255,255,0.28);
-    font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:#fff; white-space:nowrap;
+    font-family:'JetBrains Mono',monospace; color:#fff; white-space:nowrap;
   }
-  .badges-group{display:flex; flex-direction:row; align-items:center; gap:6px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;}
-  .hero-streak.alcohol-badge{cursor:pointer;}
-  .hero-streak.alcohol-badge.on{background:rgba(95,115,85,0.35); border-color:var(--sage);}
+  .hero-streak .hi{font-size:1.05rem; line-height:1;}
+  .hero-streak .hn{font-size:0.68rem; opacity:0.92;}
+  .badges-group{display:flex; flex-direction:row; align-items:center; gap:5px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;}
+  .hero-streak.habit-badge{cursor:pointer;}
+  .hero-streak.habit-badge.on{background:rgba(95,115,85,0.35); border-color:var(--sage);}
 
   .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px;}
   .card h2{font-size:1rem; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;}
@@ -138,6 +140,20 @@
     border-radius:10px; color:var(--accent); font-size:0.85rem; cursor:pointer; margin-bottom:6px;
     font-family:'Inter',sans-serif; font-weight:600;
   }
+
+  .recipe-card{background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden;}
+  .recipe-photo{width:100%; height:140px; object-fit:cover; display:block;}
+  .recipe-head{padding:12px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .recipe-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem;}
+  .recipe-meta{font-size:0.72rem; color:var(--text-dim); margin-top:2px;}
+  .recipe-detail{padding:0 14px 14px; border-top:1px solid var(--line);}
+  .recipe-ing-list{font-size:0.82rem; margin:10px 0; line-height:1.6; color:var(--text);}
+  .recipe-steps{font-size:0.84rem; line-height:1.6; padding-left:18px; margin:10px 0;}
+  .recipe-steps li{margin-bottom:6px;}
+  .recipe-actions{display:flex; gap:8px; align-items:center; margin-top:10px; flex-wrap:wrap;}
+  .recipe-qty{width:60px; flex-shrink:0;}
+  .recipe-log-btn{flex:1; margin-bottom:0;}
+  .recipe-del-btn{background:none; border:none; color:var(--danger); font-size:0.78rem; cursor:pointer; flex-shrink:0;}
 
   .macro-total{
     display:flex; justify-content:space-between; align-items:center;
@@ -624,8 +640,10 @@
     <div class="mantra-top">
       <span class="mantra-cat" id="mantraCat">—</span>
       <div class="badges-group">
-        <span class="hero-streak" id="streakBadge">🔥 0 jour</span>
-        <span class="hero-streak alcohol-badge" id="alcoholRow">🚱 0 j</span>
+        <span class="hero-streak" id="streakBadge"><span class="hi">🔥</span><span class="hn">0</span></span>
+        <span class="hero-streak habit-badge" id="alcoholRow"><span class="hi">🚱</span><span class="hn">0</span></span>
+        <span class="hero-streak habit-badge" id="chocolateRow"><span class="hi">🍫</span><span class="hn">0</span></span>
+        <span class="hero-streak habit-badge" id="butterRow"><span class="hi">🧈</span><span class="hn">0</span></span>
       </div>
     </div>
     <div class="mantra-text" id="mantraText">—</div>
@@ -1120,6 +1138,22 @@
   </details>
   </div><!-- /tab semaine -->
 
+  <div class="tab-page" data-tab="recettes">
+    <div class="card">
+      <h2>Recettes <span class="tag mono" id="recipeCount"></span></h2>
+      <div class="disclaimer">Prends en photo une recette de livre de cuisine dans une conversation Claude : il extrait les ingrédients, les calories et les étapes, et te génère le JSON à coller ci-dessous.</div>
+
+      <details id="recipeImportDetails">
+        <summary>Importer une recette (JSON)</summary>
+        <textarea id="recipeImportInput" rows="6" placeholder="Colle ici le JSON généré par Claude…" style="margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;"></textarea>
+        <button class="add-btn" id="recipeImportBtn" style="margin-top:8px;">Importer</button>
+        <div class="check-sub" id="recipeImportStatus"></div>
+      </details>
+
+      <div id="recipeList" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
   <div class="tab-page" data-tab="reglages">
   <!-- REGLAGES -->
   <details open>
@@ -1173,6 +1207,7 @@
   <button class="bn-tab" data-tab="semaine">📊<span>Bilan</span></button>
   <button class="bn-tab" data-tab="objectifs">🎯<span>Objectifs</span></button>
   <button class="bn-tab" data-tab="pesees">⚖️<span>Pesées</span></button>
+  <button class="bn-tab" data-tab="recettes">📖<span>Recettes</span></button>
   <button class="bn-tab" data-tab="reglages">⚙️<span>Réglages</span></button>
 </div>
 
@@ -1734,6 +1769,7 @@ function switchTab(name){
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.toggle('on', b.dataset.tab===name));
   if(name==='pesees'){ drawWeighinChart(); drawInbodyCompositionChart(); drawInbodyMetricChart(); }
   if(name==='objectifs') renderGoalsPage();
+  if(name==='recettes') renderRecipes();
   if(name==='semaine' && document.getElementById('bilanDetails').open) drawCharts(getPeriodInfo());
   window.scrollTo(0,0);
   updateScrollLock();
@@ -1785,7 +1821,10 @@ function loadState(){
     return migrateIngredients(merged);
   }catch(e){ return migrateIngredients(structuredClone(DEFAULT_STATE)); }
 }
-function persistState(){ localStorage.setItem('carnet-de-route', JSON.stringify(state)); }
+function persistState(){
+  try{ localStorage.setItem('carnet-de-route', JSON.stringify(state)); }
+  catch(e){ alert("Stockage plein — impossible d'enregistrer. Supprime d'anciennes photos de recettes ou des données pour libérer de la place."); }
+}
 
 function normalizeDay(day){
   let foods = day?.foods;
@@ -1799,6 +1838,8 @@ function normalizeDay(day){
     food: day?.food ?? false,
     foods,
     noAlcohol: day?.noAlcohol === true,
+    noChocolate: day?.noChocolate === true,
+    noButter: day?.noButter === true,
     sleep: {
       bedtime: day?.sleep?.bedtime ?? '',
       waketime: day?.sleep?.waketime ?? '',
@@ -2369,7 +2410,7 @@ function render(){
   renderSessions(day);
   renderFoods(day);
   renderEnergyDots(day.energy);
-  renderAlcohol(day);
+  renderHabits(day);
   document.getElementById('dayNote').value = day.note;
   updateSeal(day);
   updateDayBadges(day);
@@ -2603,29 +2644,38 @@ function renderEnergyDots(current){
 }
 
 let lastSealedState = null;
-function computeAlcoholStreak(){
+const HABITS = [
+  {field:'noAlcohol', rowId:'alcoholRow'},
+  {field:'noChocolate', rowId:'chocolateRow'},
+  {field:'noButter', rowId:'butterRow'}
+];
+function computeHabitStreak(field){
   let streak = 0;
   let d = todayDate();
   while(true){
     const iso = isoDate(d);
     const day = state.days[iso] ? getDay(iso) : null;
-    if(day && day.noAlcohol){ streak++; d = addDays(d,-1); } else break;
+    if(day && day[field]){ streak++; d = addDays(d,-1); } else break;
   }
   return streak;
 }
-function renderAlcohol(day){
-  const streak = computeAlcoholStreak();
-  const badge = document.getElementById('alcoholRow');
-  badge.classList.toggle('on', !!day.noAlcohol);
-  badge.textContent = `🚱 ${streak} j${day.noAlcohol ? ' ✓' : ''}`;
+function renderHabits(day){
+  HABITS.forEach(({field,rowId})=>{
+    const streak = computeHabitStreak(field);
+    const badge = document.getElementById(rowId);
+    badge.classList.toggle('on', !!day[field]);
+    badge.querySelector('.hn').textContent = streak;
+  });
 }
-document.getElementById('alcoholRow').onclick = ()=>{
-  const iso = isoDate(selectedDate);
-  const day = getDay(iso);
-  day.noAlcohol = !day.noAlcohol;
-  setDay(iso, day);
-  renderAlcohol(day);
-};
+HABITS.forEach(({field,rowId})=>{
+  document.getElementById(rowId).onclick = ()=>{
+    const iso = isoDate(selectedDate);
+    const day = getDay(iso);
+    day[field] = !day[field];
+    setDay(iso, day);
+    renderHabits(day);
+  };
+});
 function computeStreak(){
   let streak = 0;
   let d = todayDate();
@@ -2665,7 +2715,7 @@ function updateSeal(day){
   document.getElementById('sealMissing').textContent =
     sealed ? 'Journée scellée ✓' : `Pour sceller : ${missing.join(' + ')}`;
   const streak = computeStreak();
-  document.getElementById('streakBadge').textContent = `🔥 ${streak} jour${streak>1?'s':''}`;
+  document.getElementById('streakBadge').querySelector('.hn').textContent = streak;
 
   if(sealed && lastSealedState===false && isoDate(selectedDate)===isoDate(todayDate())){
     fireConfetti();
@@ -3281,6 +3331,110 @@ function dishTotals(dish){
   });
   return {grams,p,f,c,kcal:Math.round(p*4+c*4+f*9)};
 }
+
+/* ---------- ONGLET RECETTES ---------- */
+function renderRecipes(){
+  document.getElementById('recipeCount').textContent = `${Object.keys(state.dishes).length} plat(s)`;
+  const list = document.getElementById('recipeList');
+  const names = Object.keys(state.dishes).sort();
+  if(names.length===0){ list.innerHTML = `<div class="check-sub">Aucune recette pour l'instant.</div>`; return; }
+  list.innerHTML = names.map((n,i)=>{
+    const dish = state.dishes[n];
+    const t = dishTotals(dish);
+    const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
+    const ingHtml = dish.ingredients.map(it=>`<div>• ${it.name} — ${it.grams}g</div>`).join('');
+    const stepsHtml = (dish.steps && dish.steps.length)
+      ? `<ol class="recipe-steps">${dish.steps.map(s=>`<li>${s}</li>`).join('')}</ol>`
+      : `<div class="check-sub">Pas d'étapes enregistrées pour ce plat.</div>`;
+    return `
+      <div class="recipe-card">
+        ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${n}">` : ''}
+        <div class="recipe-head" data-i="${i}">
+          <div>
+            <div class="recipe-name">${n}</div>
+            <div class="recipe-meta">${perPortion} kcal/portion · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</div>
+          </div>
+          <span>▾</span>
+        </div>
+        <div class="recipe-detail" style="display:none;">
+          <div class="recipe-ing-list">${ingHtml}</div>
+          ${stepsHtml}
+          <div class="recipe-actions">
+            <input type="number" class="recipe-qty" value="1" min="0.5" step="0.5">
+            <button class="add-btn recipe-log-btn" data-i="${i}">Logger dans le jour</button>
+          </div>
+          <button class="recipe-del-btn" data-i="${i}">✕ Supprimer ce plat</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  list.querySelectorAll('.recipe-head').forEach(head=>{
+    head.onclick = ()=>{
+      const detail = head.nextElementSibling;
+      detail.style.display = detail.style.display==='none' ? 'block' : 'none';
+    };
+  });
+  list.querySelectorAll('.recipe-log-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const name = names[parseInt(btn.dataset.i)];
+      const dish = state.dishes[name];
+      const qtyInput = btn.closest('.recipe-detail').querySelector('.recipe-qty');
+      const qty = parseFloat(qtyInput.value)||0;
+      if(qty<=0){ alert("Indique un nombre de portions valide."); return; }
+      const t = dishTotals(dish);
+      const r = qty/dish.portions;
+      const iso = isoDate(selectedDate);
+      const day = getDay(iso);
+      day.foods.push({name, grams:Math.round(t.grams*r), unitCount:qty, unitLabel:'portion(s)', p:t.p*r, f:t.f*r, c:t.c*r});
+      setDay(iso, day);
+      render();
+      btn.textContent = "✓ Ajouté";
+      setTimeout(()=>{ btn.textContent = "Logger dans le jour"; }, 1500);
+    };
+  });
+  list.querySelectorAll('.recipe-del-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const name = names[parseInt(btn.dataset.i)];
+      if(confirm(`Supprimer le plat « ${name} » ?`)){
+        delete state.dishes[name];
+        persistState();
+        renderRecipes();
+      }
+    };
+  });
+}
+document.getElementById('recipeImportBtn').onclick = ()=>{
+  const status = document.getElementById('recipeImportStatus');
+  const raw = document.getElementById('recipeImportInput').value.trim();
+  if(!raw){ status.textContent = "Colle d'abord un JSON."; return; }
+  let data;
+  try{ data = JSON.parse(raw); }
+  catch(e){ status.textContent = "JSON invalide — vérifie le format."; return; }
+  let nIng = 0, nRec = 0;
+  if(data.ingredientsNouveaux){
+    Object.entries(data.ingredientsNouveaux).forEach(([name,v])=>{
+      if(!state.ingredients[name]){ state.ingredients[name] = v; nIng++; }
+    });
+  }
+  if(data.recettes){
+    Object.entries(data.recettes).forEach(([name,r])=>{
+      state.dishes[name] = {
+        ingredients: r.ingredients||[],
+        portions: r.portions||1,
+        steps: r.steps||[],
+        source: r.source||'',
+        photo: r.photo||null
+      };
+      nRec++;
+    });
+  }
+  if(nRec===0){ status.textContent = "Aucune recette trouvée dans ce JSON."; return; }
+  persistState();
+  renderRecipes();
+  status.textContent = `✓ ${nRec} recette(s) et ${nIng} ingrédient(s) importés.`;
+  document.getElementById('recipeImportInput').value = '';
+};
+
 function renderModalHomeGrid(){
   const grid = document.getElementById('modalHomeGrid');
   const hasRecents = getRecentFoods(1).length>0;
@@ -3915,6 +4069,7 @@ document.getElementById('addIngredientDbBtn').onclick = ()=>{
 renderIngredientDb();
 
 render();
+renderRecipes();
 switchTab('jour');
 
 // PWA gardée en mémoire : au retour au premier plan, si la date a changé (passage de minuit),
