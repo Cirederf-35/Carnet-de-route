@@ -2604,10 +2604,14 @@ document.getElementById('saveGoalsBtn').onclick = ()=>{
 
 function renderHeroGoals(day){
   // Visuel uniquement : une pastille par activité prévue aujourd'hui, cochée si déjà faite.
+  // Lecture seule : ne modifie jamais state.weeklyGoals (on peut consulter n'importe quel jour passé/futur ici).
   const el = document.getElementById('heroGoals');
   const shownDate = selectedDate;
   const monday = getMonday(shownDate);
-  if(state.weeklyGoals.weekStart !== isoDate(monday)){ el.innerHTML = ''; return; }
+  if(!state.weeklyGoals || !state.weeklyGoals.activities || state.weeklyGoals.weekStart !== isoDate(monday)){
+    el.innerHTML = '';
+    return;
+  }
   const idx = dowIndexMondayBased(shownDate);
   const planned = GOAL_ACTIVITIES.filter(act => state.weeklyGoals.activities[act] && state.weeklyGoals.activities[act][idx]);
   if(!planned.length){ el.innerHTML = ''; return; }
