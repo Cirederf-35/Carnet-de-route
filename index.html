@@ -400,6 +400,12 @@
     font-family:'Space Grotesk',sans-serif; font-weight:600; flex-shrink:0;
   }
   .quick-logs{display:flex; gap:8px; justify-content:space-between; margin-top:12px;}
+  .water-row{display:flex; align-items:center; gap:10px; margin-top:10px;}
+  .water-icon{flex:0 0 auto; width:38px; height:38px; font-size:1.15rem; max-width:none;}
+  .water-gauge{flex:1; height:10px; background:rgba(255,255,255,0.16); border-radius:999px; overflow:hidden;}
+  .water-gauge-fill{height:100%; background:#7ec4e8; border-radius:999px; width:0%; transition:width 0.25s;}
+  .water-count{font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:rgba(255,255,255,0.85); flex-shrink:0;}
+
   .ql-icon{
     background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22);
     border-radius:50%; flex:1; max-width:60px; aspect-ratio:1/1; font-size:1.55rem; cursor:pointer;
@@ -738,7 +744,11 @@
       <span class="hero-streak" id="streakBadge"><span class="hi">🔥</span><span class="hn">0</span></span>
     </div>
     <div class="quick-logs" id="quickLogs"></div>
-    <div class="hero-goals" id="heroGoals" style="display:none;"></div>
+    <div class="water-row">
+      <button class="ql-icon water-icon" id="waterAddBtn" title="Ajouter un verre d'eau">💧</button>
+      <div class="water-gauge"><div class="water-gauge-fill" id="waterGaugeFill"></div></div>
+      <span class="water-count" id="waterCountLabel">0 / 0 mL</span>
+    </div>
     <div class="hero-seal confetti-wrap" id="sealRow">
       <div class="seal" id="sealEl">
         <svg viewBox="0 0 64 64">
@@ -1135,26 +1145,9 @@
       </table>
     </div>
 
-    <div class="form-grid">
-      <div><label class="field-inline">Date</label><input type="date" id="inbodyDate"></div>
-      <div><label class="field-inline">Poids (kg)</label><input type="number" id="inbodyWeight" min="30" max="200" step="0.1"></div>
-    </div>
-    <div class="form-grid three">
-      <div><label class="field-inline">Masse grasse (kg)</label><input type="number" id="inbodyFatMass" min="0" max="100" step="0.1"></div>
-      <div><label class="field-inline">Masse musc. squel. — MMS (kg)</label><input type="number" id="inbodyMuscleMass" min="0" max="100" step="0.1"></div>
-      <div><label class="field-inline">Score InBody (/100)</label><input type="number" id="inbodyScore" min="0" max="100"></div>
-    </div>
-    <div class="form-grid three">
-      <div><label class="field-inline">IMC (kg/m²)</label><input type="number" id="inbodyBmi" min="0" max="60" step="0.1"></div>
-      <div><label class="field-inline">TGC — % masse grasse</label><input type="number" id="inbodyBodyFatPct" min="0" max="70" step="0.1"></div>
-      <div><label class="field-inline">Graisse viscérale — SGV (cm²)</label><input type="number" id="inbodyVisceralFat" min="0" max="300" step="0.1"></div>
-    </div>
-    <div class="form-grid three">
-      <div><label class="field-inline">Eau corporelle totale (L)</label><input type="number" id="inbodyWater" min="0" max="100" step="0.1"></div>
-      <div><label class="field-inline">Protéines (kg)</label><input type="number" id="inbodyProtein" min="0" max="50" step="0.1"></div>
-      <div><label class="field-inline">Angle de phase (°)</label><input type="number" id="inbodyPhaseAngle" min="0" max="15" step="0.1"></div>
-    </div>
-    <button class="add-btn" id="addInbodyBtn">+ Enregistrer le scan</button>
+    <div class="disclaimer">Champs attendus (tous optionnels sauf date et poids) : <code>date, weight, fatMass, muscleMass, score, bmi, bodyFatPct, visceralFat, water, protein, phaseAngle</code>.</div>
+    <textarea id="inbodyJsonInput" rows="5" placeholder='{"date":"2026-08-15","weight":78.4,"fatMass":14.2,"muscleMass":36.1,"score":82,"bmi":22.9,"bodyFatPct":18.1,"visceralFat":6.5,"water":45.2,"protein":12.3,"phaseAngle":6.8}' style="width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); color:var(--text); font-size:0.78rem; font-family:'JetBrains Mono',monospace; box-sizing:border-box;"></textarea>
+    <button class="add-btn" id="addInbodyBtn">+ Importer ce scan (JSON)</button>
 
     <h3>Composition : masse grasse vs muscle</h3>
     <div class="chart-legend"><span style="color:#a84f3f;">● Masse grasse (kg)</span> <span style="color:#2f6f96;">● MMS (kg)</span></div>
@@ -1305,7 +1298,10 @@
       <label class="field">Date de début de période
         <input type="date" id="startDateInput">
       </label>
-      <label class="field">Rôle donné à l'IA pour l'Analyse IA (onglet Bilan)
+      <label class="field">Objectif d'hydratation journalier (mL)
+        <input type="number" id="waterGoalInput" min="500" max="5000" step="100">
+      </label>
+            <label class="field">Rôle donné à l'IA pour l'Analyse IA (onglet Bilan)
         <textarea id="aiRoleInput" rows="4" style="width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); color:var(--text); font-size:0.8rem;"></textarea>
       </label>
       <label class="field">Poids (kg) — utilisé pour l'estimation des calories sport
@@ -1779,6 +1775,7 @@ const SEED_INGREDIENTS = {
   // --- fromages ---
   "Emmental":{p:28,f:29,c:0,cat:"fromages"},
   "Comté":{p:27,f:34,c:0,cat:"fromages"},
+  "Fromage (générique)":{p:23,f:28,c:1,cat:"fromages"},
   "Gruyère râpé":{p:27,f:30,c:0,cat:"fromages"},
   "Camembert":{p:20,f:22,c:0.5,cat:"fromages"},
   "Brie":{p:19,f:25,c:0.5,cat:"fromages"},
@@ -1991,6 +1988,7 @@ const DEFAULT_STATE = {
   lastExport:null,
   archives:[],
   dishes:{},
+  waterGoalMl:1500,
   aiRole:"Tu es un coach sport-santé et nutritionniste comportemental. Tu accompagnes un adulte actif, alimentation sans viande ni charcuterie, dans une logique de constance (\"jamais zéro\") plutôt que de perfection. Ton ton est direct, bienveillant, sans moralisation.",
   mealPlan:{},   // { "2026-08-17": {midi:"Nom du plat", soir:null} }
   shopping:{}    // { "2026-08-17": {checked:{"Oignon":true}, extras:[{name,done}]} } — clé = lundi ISO
@@ -2144,7 +2142,8 @@ function normalizeDay(day){
     },
     zero: day?.zero ?? false,
     energy: day?.energy ?? null,
-    note: day?.note ?? ''
+    note: day?.note ?? '',
+    waterMl: day?.waterMl ?? 0
   };
 }
 function getDay(iso){ return normalizeDay(state.days[iso]); }
@@ -2597,33 +2596,8 @@ document.getElementById('saveGoalsBtn').onclick = ()=>{
 };
 
 function renderHeroGoals(day){
-  const el = document.getElementById('heroGoals');
-  el.style.display = 'block';
-  const hide = ()=>{ el.style.display='none'; };
-  // Objectifs du jour AFFICHÉ (et non d'aujourd'hui) : en consultant mercredi,
-  // on compare les séances de mercredi à l'objectif de mercredi, pas à celui de jeudi.
-  const shownDate = selectedDate;
-  const monday = getMonday(shownDate);
-  if(state.weeklyGoals.weekStart !== isoDate(monday)){
-    el.innerHTML = ''; hide();
-    return;
-  }
-  const idx = dowIndexMondayBased(shownDate);
-  const planned = GOAL_ACTIVITIES.filter(act => state.weeklyGoals.activities[act] && state.weeklyGoals.activities[act][idx]);
-  if(!planned.length){ el.innerHTML = ''; hide(); return; }
-  const doneTypes = new Set((day.sessions||[]).map(s=>s.type));
-  const hiitCount = (day.sessions||[]).filter(s=>s.type==='hiit').length;
-  const isShownToday = isoDate(shownDate)===isoDate(todayDate());
-  el.innerHTML = (isShownToday ? "Objectif aujourd'hui : " : "Objectif de ce jour : ") + planned.map(act=>{
-    const cfg = SPORT_ACTIVITIES[act];
-    if(act==='hiit'){
-      const target = state.weeklyGoals.activities.hiit[idx];
-      const done = hiitCount >= target;
-      return `<span class="goal-chip${done?' done':''}">${cfg.icon} ${cfg.label} ${hiitCount}/${target}${done?' ✓':''}</span>`;
-    }
-    const done = doneTypes.has(act);
-    return `<span class="goal-chip${done?' done':''}">${cfg.icon} ${cfg.label}${done?' ✓':''}</span>`;
-  }).join('');
+  // Bandeau allégé : l'objectif du jour n'est plus affiché sur la page d'accueil,
+  // il reste géré et consultable dans l'onglet Objectifs.
 }
 
 function renderWeighins(){
@@ -2705,6 +2679,7 @@ function render(){
   document.getElementById('motivModalCat').textContent = m.label;
   document.getElementById('motivModalText').textContent = m.text;
   renderQuickLogs();
+  renderWaterGauge();
 
   document.getElementById('foodRuleSub').textContent = WEEK_PLANS[selWeekIndex].food;
 
@@ -2750,6 +2725,7 @@ function render(){
 
   document.getElementById('startDateInput').value = state.startDate;
   document.getElementById('aiRoleInput').value = state.aiRole || '';
+  document.getElementById('waterGoalInput').value = state.waterGoalMl || 1500;
   document.getElementById('weightInput').value = state.weightKg;
   document.getElementById('heightInput').value = state.heightCm;
   document.getElementById('ageInput').value = state.age;
@@ -2953,8 +2929,11 @@ const QUICK_LOGS = [
   {icon:'🥃', name:'Spiritueux 40° (whisky, rhum...)', unit:40, label:'dose(s) 4cl'},
   {icon:'🧈', name:'Beurre', unit:10, label:'portion(s) 10g'},
   {icon:'🍫', name:'Chocolat noir 70%', unit:10, label:'carré(s) 10g'},
-  {icon:'🧀', name:'Comté', unit:30, label:'portion(s) 30g'}
+  {icon:'🧀', name:'Fromage (générique)', unit:30, label:'portion(s) 30g'},
+  {icon:'🍞', name:'Pain blanc (baguette)', unit:50, label:'tranche(s) 50g'}
 ];
+// Eau : hors macros, comptabilisée séparément en mL avec objectif journalier (state.waterGoalMl)
+const WATER_GLASS_ML = 200;
 let qlCurrent = null, qlCount = 1;
 function qlKcalFor(ql, count){
   const ing = state.ingredients[ql.name];
@@ -2962,10 +2941,24 @@ function qlKcalFor(ql, count){
   const g = ql.unit*count;
   return Math.round((ing.p*4 + ing.f*9 + ing.c*4 + (ing.a||0)*7) * g/100);
 }
+function renderWaterGauge(){
+  const day = getDay(isoDate(selectedDate));
+  const goal = state.waterGoalMl || 1500;
+  const pct = Math.min(100, Math.round(day.waterMl/goal*100));
+  document.getElementById('waterGaugeFill').style.width = pct + '%';
+  document.getElementById('waterCountLabel').textContent = `${day.waterMl} / ${goal} mL`;
+}
+document.getElementById('waterAddBtn').onclick = ()=>{
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  day.waterMl = (day.waterMl||0) + WATER_GLASS_ML;
+  setDay(iso, day);
+  renderWaterGauge();
+};
 function renderQuickLogs(){
   document.getElementById('quickLogs').innerHTML = QUICK_LOGS.map((q,i)=>
     `<button class="ql-icon" data-i="${i}" title="${q.name}">${q.icon}</button>`).join('');
-  document.querySelectorAll('.ql-icon').forEach(btn=>{
+  document.querySelectorAll('.ql-icon:not(.water-icon)').forEach(btn=>{
     btn.onclick = ()=>{
       qlCurrent = QUICK_LOGS[parseInt(btn.dataset.i)];
       qlCount = 1;
@@ -4600,25 +4593,28 @@ document.getElementById('addWeighinBtn').onclick = ()=>{
 };
 document.getElementById('weighinMetric').onchange = drawWeighinChart;
 
-document.getElementById('inbodyDate').value = isoDate(todayDate());
 document.getElementById('addInbodyBtn').onclick = ()=>{
-  const date = document.getElementById('inbodyDate').value;
-  const w = parseFloat(document.getElementById('inbodyWeight').value);
-  if(!date){ alert("Choisis une date."); return; }
-  if(!w){ alert("Indique au moins le poids."); return; }
-  state.inbodyScans[date] = {
-    weight: w,
-    fatMass: parseFloat(document.getElementById('inbodyFatMass').value)||null,
-    muscleMass: parseFloat(document.getElementById('inbodyMuscleMass').value)||null,
-    score: parseFloat(document.getElementById('inbodyScore').value)||null,
-    bmi: parseFloat(document.getElementById('inbodyBmi').value)||null,
-    bodyFatPct: parseFloat(document.getElementById('inbodyBodyFatPct').value)||null,
-    visceralFat: parseFloat(document.getElementById('inbodyVisceralFat').value)||null,
-    water: parseFloat(document.getElementById('inbodyWater').value)||null,
-    protein: parseFloat(document.getElementById('inbodyProtein').value)||null,
-    phaseAngle: parseFloat(document.getElementById('inbodyPhaseAngle').value)||null
+  const raw = document.getElementById('inbodyJsonInput').value.trim();
+  if(!raw){ alert('Colle le JSON du scan avant d\'importer.'); return; }
+  let data;
+  try{ data = JSON.parse(raw); }
+  catch(e){ alert('JSON invalide : ' + e.message); return; }
+  if(!data.date){ alert('Le champ "date" est requis (format AAAA-MM-JJ).'); return; }
+  if(!data.weight){ alert('Le champ "weight" (poids) est requis.'); return; }
+  state.inbodyScans[data.date] = {
+    weight: parseFloat(data.weight)||null,
+    fatMass: parseFloat(data.fatMass)||null,
+    muscleMass: parseFloat(data.muscleMass)||null,
+    score: parseFloat(data.score)||null,
+    bmi: parseFloat(data.bmi)||null,
+    bodyFatPct: parseFloat(data.bodyFatPct)||null,
+    visceralFat: parseFloat(data.visceralFat)||null,
+    water: parseFloat(data.water)||null,
+    protein: parseFloat(data.protein)||null,
+    phaseAngle: parseFloat(data.phaseAngle)||null
   };
   persistState();
+  document.getElementById('inbodyJsonInput').value = '';
   renderInbody();
   render();
 };
@@ -4757,6 +4753,11 @@ document.getElementById('aiShareBtn').onclick = async ()=>{
   else { try{ await navigator.clipboard.writeText(text); alert('Copié dans le presse-papier.'); }catch(e){} }
 };
 document.getElementById('aiRoleInput').onchange = e=>{ state.aiRole = e.target.value.trim(); persistState(); };
+document.getElementById('waterGoalInput').onchange = e=>{
+  state.waterGoalMl = parseInt(e.target.value)||1500;
+  persistState();
+  renderWaterGauge();
+};
 
 document.getElementById('weightInput').onchange = (e)=>{ state.weightKg=parseFloat(e.target.value)||75; persistState(); render(); };
 
