@@ -693,7 +693,13 @@
   .bilan-tip.warn{border-left-color:var(--danger);}
   .bilan-tip.good{border-left-color:var(--success);}
   .bilan-tip-icon{flex-shrink:0;}
-  .hero-goals{font-size:0.8rem; color:rgba(255,255,255,0.92); margin-top:10px; line-height:1.5; max-height:84px; overflow:hidden;}
+  .hero-goals{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; min-height:0;}
+  .goal-pill{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:36px; height:36px; border-radius:50%; font-size:1.15rem;
+    background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22); opacity:0.6;
+  }
+  .goal-pill.done{background:rgba(255,255,255,0.32); border-color:#fff; opacity:1;}
   .goal-chip{display:inline-block; background:rgba(255,255,255,0.16); border-radius:10px; padding:2px 8px; margin:2px 3px 2px 0;}
   .goal-chip.done{background:rgba(255,255,255,0.32); text-decoration:line-through; opacity:0.8;}
 
@@ -744,6 +750,7 @@
       <span class="hero-streak" id="streakBadge"><span class="hi">🔥</span><span class="hn">0</span></span>
     </div>
     <div class="quick-logs" id="quickLogs"></div>
+    <div class="hero-goals" id="heroGoals"></div>
     <div class="water-row">
       <button class="ql-icon water-icon" id="waterAddBtn" title="Ajouter un verre d'eau">💧</button>
       <div class="water-gauge"><div class="water-gauge-fill" id="waterGaugeFill"></div></div>
@@ -2596,8 +2603,22 @@ document.getElementById('saveGoalsBtn').onclick = ()=>{
 };
 
 function renderHeroGoals(day){
-  // Bandeau allégé : l'objectif du jour n'est plus affiché sur la page d'accueil,
-  // il reste géré et consultable dans l'onglet Objectifs.
+  // Visuel uniquement : une pastille par activité prévue aujourd'hui, cochée si déjà faite.
+  const el = document.getElementById('heroGoals');
+  const shownDate = selectedDate;
+  const monday = getMonday(shownDate);
+  if(state.weeklyGoals.weekStart !== isoDate(monday)){ el.innerHTML = ''; return; }
+  const idx = dowIndexMondayBased(shownDate);
+  const planned = GOAL_ACTIVITIES.filter(act => state.weeklyGoals.activities[act] && state.weeklyGoals.activities[act][idx]);
+  if(!planned.length){ el.innerHTML = ''; return; }
+  const doneTypes = new Set((day.sessions||[]).filter(s=>!s.notDone).map(s=>s.type));
+  const hiitTarget = state.weeklyGoals.activities.hiit ? state.weeklyGoals.activities.hiit[idx] : 0;
+  const hiitDone = (day.sessions||[]).filter(s=>!s.notDone && s.type==='hiit').length;
+  el.innerHTML = planned.map(act=>{
+    const cfg = SPORT_ACTIVITIES[act];
+    const isDone = act==='hiit' ? (hiitDone >= hiitTarget && hiitTarget>0) : doneTypes.has(act);
+    return `<span class="goal-pill ${isDone?'done':''}" title="${cfg.label}${act==='hiit'?` (${hiitDone}/${hiitTarget})`:''}">${cfg.icon}</span>`;
+  }).join('');
 }
 
 function renderWeighins(){
