@@ -419,6 +419,7 @@
     background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22);
     border-radius:50%; flex:1; max-width:60px; aspect-ratio:1/1; font-size:1.55rem; cursor:pointer;
     display:flex; align-items:center; justify-content:center; padding:0;
+    user-select:none; -webkit-user-select:none; touch-action:manipulation;
   }
   .ql-icon:active{transform:scale(0.92); background:rgba(255,255,255,0.26);}
   .ql-stepper{display:flex; align-items:center; justify-content:center; gap:20px;}
@@ -1262,21 +1263,33 @@
     <div class="sub-tabs"><button class="sub-tab on" data-go="recettes">📖 Recettes</button><button class="sub-tab " data-go="menus">🗓️ Menus</button></div>
 
     <div class="card">
-      <h2>Recettes <span class="tag mono" id="recipeCount"></span></h2>
-      <div class="disclaimer">Prends en photo une recette de livre de cuisine dans une conversation Claude : il extrait les ingrédients, les calories et les étapes, et te génère le JSON à coller ci-dessous.</div>
-
-      <details id="recipeImportDetails">
-        <summary>Importer une recette (JSON)</summary>
-        <button class="add-btn" id="recipePromptBtn" style="margin-top:8px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">📋 Copier le prompt d'extraction</button>
-        <div class="check-sub" id="recipePromptStatus"></div>
-        <textarea id="recipeImportInput" rows="6" placeholder="Colle ici le JSON généré par l'IA…" style="margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;"></textarea>
-        <button class="add-btn" id="recipeImportBtn" style="margin-top:8px;">Importer</button>
-        <div class="check-sub" id="recipeImportStatus"></div>
-      </details>
-
+      <h2 style="display:flex; align-items:center; gap:8px;">
+        <span style="flex:1;">Recettes <span class="tag mono" id="recipeCount"></span></span>
+        <button class="modal-close" id="recipeImportOpenBtn" title="Importer une recette">📥</button>
+      </h2>
       <div id="recipeList" style="margin-top:14px;"></div>
     </div>
   </div>
+
+<div class="modal-overlay" id="recipeImportModal">
+  <div class="modal-box" style="max-height:85vh; overflow-y:auto;">
+    <div class="modal-header">
+      <h3>Importer une recette</h3>
+      <button class="modal-close" id="recipeImportModalClose">✕</button>
+    </div>
+    <div class="disclaimer" style="margin-bottom:12px;">
+      <strong>Marche à suivre :</strong><br>
+      1. Copie le prompt ci-dessous.<br>
+      2. Colle-le dans ton IA (Claude, Dinootoo…) avec la photo de la recette.<br>
+      3. Colle le JSON obtenu dans le champ, puis Importer.
+    </div>
+    <button class="add-btn" id="recipePromptBtn" style="background:var(--panel-2); color:var(--text); border:1px solid var(--line);">📋 Copier le prompt d'extraction</button>
+    <div class="check-sub" id="recipePromptStatus"></div>
+    <textarea id="recipeImportInput" rows="6" placeholder="Colle ici le JSON généré par l'IA…" style="margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;"></textarea>
+    <button class="add-btn" id="recipeImportBtn" style="margin-top:8px;">Importer</button>
+    <div class="check-sub" id="recipeImportStatus"></div>
+  </div>
+</div>
 
   <div class="tab-page" data-tab="menus">
     <div class="sub-tabs"><button class="sub-tab " data-go="recettes">📖 Recettes</button><button class="sub-tab on" data-go="menus">🗓️ Menus</button></div>
@@ -1372,13 +1385,22 @@
 
 <!-- POP-UP MOTIVATION -->
 <div class="modal-overlay" id="motivModal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-height:85vh; overflow-y:auto;">
     <div class="modal-header">
+      <button class="modal-close" id="motivSettingsBtn" title="Gérer mes motivations">⚙️</button>
       <h3 id="motivModalCat">Motivation</h3>
       <button class="modal-close" id="motivModalClose">✕</button>
     </div>
-    <div class="mantra-text" id="motivModalText" style="margin-bottom:16px;">—</div>
-    <button class="add-btn" id="motivAnotherBtn">🎲 Une autre</button>
+    <div id="motivViewPanel">
+      <div class="mantra-text" id="motivModalText" style="margin-bottom:16px;">—</div>
+      <button class="add-btn" id="motivAnotherBtn">🎲 Une autre</button>
+    </div>
+    <div id="motivManagePanel" style="display:none;">
+      <div class="mp-chips" id="motivCatChips" style="margin-bottom:10px;"></div>
+      <div id="motivList" style="margin-bottom:12px;"></div>
+      <textarea id="motivNewInput" rows="2" placeholder="Nouvelle motivation…" style="margin-bottom:8px;"></textarea>
+      <button class="add-btn" id="motivAddBtn">+ Ajouter</button>
+    </div>
   </div>
 </div>
 
@@ -1527,7 +1549,8 @@ const WEEK_PLANS = [
   {sport:"Consolidation, pas de nouveauté", food:"Stabilisation complète", indicator:"Bilan global période"}
 ];
 
-const MANTRAS = {
+// Sert uniquement de graine au premier chargement : ensuite tout vit dans state.mantras (éditable via ⚙️ du popup).
+const SEED_MANTRAS = {
   discipline:{label:"Discipline", items:[
     "La motivation est temporaire. La discipline dure.",
     "Je ne cherche pas la perfection, je cherche la constance.",
@@ -2014,6 +2037,7 @@ const DEFAULT_STATE = {
   xp:0,
   goalsByWeek:{}, // { 'iso-lundi': {footing:[7 bool], hiit:[7 int], ...} } — multi-semaines, jamais écrasé
   weeklyGoals:null, // legacy — migré vers goalsByWeek au chargement
+  mantras:null, // seedé depuis SEED_MANTRAS au chargement, puis entièrement éditable
   lastExport:null,
   archives:[],
   dishes:{},
@@ -2142,6 +2166,19 @@ function migrateMenus(s){
   }
   return s;
 }
+// Migration mantras : au premier chargement on copie le seed dans le state ; ensuite le state fait foi
+// (ajouts/éditions/suppressions de l'utilisateur ne sont jamais écrasés par le seed).
+function migrateMantras(s){
+  if(!s.mantras){
+    s.mantras = structuredClone(SEED_MANTRAS);
+  }else{
+    // rattrape une catégorie du seed absente (structure minimale garantie)
+    Object.entries(SEED_MANTRAS).forEach(([cat,v])=>{
+      if(!s.mantras[cat]) s.mantras[cat] = {label:v.label, items:[]};
+    });
+  }
+  return s;
+}
 // Migration objectifs : l'ancien format ne stockait qu'une semaine (weeklyGoals, écrasée à chaque
 // changement de semaine). Le nouveau format goalsByWeek conserve toutes les semaines, clé = lundi ISO.
 function migrateGoals(s){
@@ -2158,10 +2195,10 @@ function migrateGoals(s){
 function loadState(){
   try{
     const raw = localStorage.getItem('carnet-de-route');
-    if(!raw) return migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))));
+    if(!raw) return migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))));
     const merged = {...structuredClone(DEFAULT_STATE), ...JSON.parse(raw)};
-    return migrateGoals(migrateMenus(migrateIngredients(merged)));
-  }catch(e){ return migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))); }
+    return migrateMantras(migrateGoals(migrateMenus(migrateIngredients(merged))));
+  }catch(e){ return migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))))); }
 }
 function persistState(){
   try{ localStorage.setItem('carnet-de-route', JSON.stringify(state)); }
@@ -2265,22 +2302,30 @@ function getPeriodInfo(){
   const inPeriod = dayIndex>=0 && dayIndex<42;
   return {start, today, dayIndex, weekIndex, inPeriod};
 }
+// Catégories actives = celles qui contiennent au moins une phrase (une catégorie vidée sort de la rotation)
+function activeMantraCats(){
+  return CAT_ORDER.filter(cat => state.mantras[cat] && state.mantras[cat].items.length > 0);
+}
 function getMantraFor(dateIso, dayIndex){
-  const cat = CAT_ORDER[((dayIndex%3)+3)%3];
-  const pool = MANTRAS[cat];
+  const cats = activeMantraCats();
+  if(!cats.length) return {cat:null, label:'Motivation', text:'Ajoute tes propres motivations via ⚙️.'};
+  const cat = cats[((dayIndex%cats.length)+cats.length)%cats.length];
+  const pool = state.mantras[cat];
   const idx = hashStr(dateIso) % pool.items.length;
   return {cat, label:pool.label, text:pool.items[idx]};
 }
 function pickRandomMantra(excludeText){
   const all = [];
-  CAT_ORDER.forEach(cat=>{
-    MANTRAS[cat].items.forEach(text=>all.push({cat, label:MANTRAS[cat].label, text}));
+  activeMantraCats().forEach(cat=>{
+    state.mantras[cat].items.forEach(text=>all.push({cat, label:state.mantras[cat].label, text}));
   });
   const pool = all.filter(m=>m.text!==excludeText);
+  if(!pool.length) return all[0] || {cat:null, label:'Motivation', text:'Ajoute tes propres motivations via ⚙️.'};
   return pool[Math.floor(Math.random()*pool.length)];
 }
 document.getElementById('motivBtn').onclick = e=>{
   e.stopPropagation();
+  motivShowView(); // toujours ouvrir sur la vue lecture
   document.getElementById('motivModal').classList.add('open');
 };
 document.getElementById('motivAnotherBtn').onclick = ()=>{
@@ -2288,6 +2333,73 @@ document.getElementById('motivAnotherBtn').onclick = ()=>{
   manualMantra = pickRandomMantra(current);
   document.getElementById('motivModalCat').textContent = manualMantra.label + ' · pioché';
   document.getElementById('motivModalText').textContent = manualMantra.text;
+};
+
+/* --- Gestion des motivations (⚙️) : ajout / édition / suppression, tout dans le popup --- */
+let motivManageCat = 'discipline';
+function motivShowView(){
+  document.getElementById('motivViewPanel').style.display = 'block';
+  document.getElementById('motivManagePanel').style.display = 'none';
+  document.getElementById('motivSettingsBtn').textContent = '⚙️';
+  // re-synchronise la vue lecture (le mantra du jour peut avoir été édité/supprimé)
+  render();
+}
+function motivShowManage(){
+  document.getElementById('motivViewPanel').style.display = 'none';
+  document.getElementById('motivManagePanel').style.display = 'block';
+  document.getElementById('motivSettingsBtn').textContent = '↩';
+  document.getElementById('motivModalCat').textContent = 'Mes motivations';
+  renderMotivManage();
+}
+document.getElementById('motivSettingsBtn').onclick = ()=>{
+  const managing = document.getElementById('motivManagePanel').style.display !== 'none';
+  managing ? motivShowView() : motivShowManage();
+};
+function renderMotivManage(){
+  document.getElementById('motivCatChips').innerHTML = CAT_ORDER.map(cat=>
+    `<button class="mp-chip ${motivManageCat===cat?'on':''}" data-cat="${cat}">${state.mantras[cat].label} (${state.mantras[cat].items.length})</button>`
+  ).join('');
+  document.getElementById('motivCatChips').querySelectorAll('.mp-chip').forEach(ch=>{
+    ch.onclick = ()=>{ motivManageCat = ch.dataset.cat; renderMotivManage(); };
+  });
+  const items = state.mantras[motivManageCat].items;
+  document.getElementById('motivList').innerHTML = items.length ? items.map((text,i)=>`
+    <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);">
+      <span style="flex:1; font-size:0.82rem; line-height:1.4;">${text}</span>
+      <button class="motiv-edit-btn" data-i="${i}" style="background:none; border:none; cursor:pointer; flex-shrink:0;">✏️</button>
+      <button class="motiv-del-btn" data-i="${i}" style="background:none; border:none; color:var(--danger); cursor:pointer; flex-shrink:0;">✕</button>
+    </div>`).join('')
+    : `<div class="check-sub">Aucune phrase dans cette catégorie — elle est sortie de la rotation quotidienne.</div>`;
+  document.getElementById('motivList').querySelectorAll('.motiv-edit-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const i = parseInt(btn.dataset.i);
+      const next = prompt('Modifier la motivation :', items[i]);
+      if(next===null) return;
+      const trimmed = next.trim();
+      if(!trimmed) return;
+      items[i] = trimmed;
+      persistState();
+      renderMotivManage();
+    };
+  });
+  document.getElementById('motivList').querySelectorAll('.motiv-del-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      const i = parseInt(btn.dataset.i);
+      if(!confirm(`Supprimer cette motivation ?\n\n« ${items[i]} »`)) return;
+      items.splice(i,1);
+      persistState();
+      renderMotivManage();
+    };
+  });
+}
+document.getElementById('motivAddBtn').onclick = ()=>{
+  const input = document.getElementById('motivNewInput');
+  const text = input.value.trim();
+  if(!text) return;
+  state.mantras[motivManageCat].items.push(text);
+  input.value = '';
+  persistState();
+  renderMotivManage();
 };
 document.getElementById('motivModalClose').onclick = ()=>document.getElementById('motivModal').classList.remove('open');
 document.getElementById('motivModal').onclick = e=>{ if(e.target.id==='motivModal') document.getElementById('motivModal').classList.remove('open'); };
@@ -3040,13 +3152,25 @@ function renderWaterGauge(){
   document.getElementById('waterGaugeFill').style.width = pct + '%';
   document.getElementById('waterCountLabel').textContent = `${day.waterMl} / ${goal} mL`;
 }
-document.getElementById('waterAddBtn').onclick = ()=>{
-  const iso = isoDate(selectedDate);
-  const day = getDay(iso);
-  day.waterMl = (day.waterMl||0) + WATER_GLASS_ML;
-  setDay(iso, day);
-  renderWaterGauge();
-};
+// Tap = +1 verre (200 mL), appui long (500 ms) = −1 verre — même mécanique que les chips HIIT des objectifs
+{
+  const waterBtn = document.getElementById('waterAddBtn');
+  const applyWater = (delta)=>{
+    const iso = isoDate(selectedDate);
+    const day = getDay(iso);
+    day.waterMl = Math.max(0, (day.waterMl||0) + delta*WATER_GLASS_ML);
+    setDay(iso, day);
+    renderWaterGauge();
+  };
+  let waterTimer = null, waterLongFired = false;
+  waterBtn.onpointerdown = ()=>{
+    waterLongFired = false;
+    waterTimer = setTimeout(()=>{ waterLongFired = true; applyWater(-1); }, 500);
+  };
+  waterBtn.onpointerup = ()=>{ clearTimeout(waterTimer); if(!waterLongFired) applyWater(1); };
+  waterBtn.onpointerleave = ()=>clearTimeout(waterTimer);
+  waterBtn.oncontextmenu = e=>{ e.preventDefault(); return false; };
+}
 function renderQuickLogs(){
   document.getElementById('quickLogs').innerHTML = QUICK_LOGS.map((q,i)=>
     `<button class="ql-icon" data-i="${i}" title="${q.name}">${q.icon}</button>`).join('');
@@ -3904,6 +4028,11 @@ document.getElementById('recipePromptBtn').onclick = async ()=>{
     else status.textContent = "Copie indisponible sur ce navigateur.";
   }
 };
+document.getElementById('recipeImportOpenBtn').onclick = ()=>{
+  document.getElementById('recipeImportModal').classList.add('open');
+};
+document.getElementById('recipeImportModalClose').onclick = ()=>document.getElementById('recipeImportModal').classList.remove('open');
+document.getElementById('recipeImportModal').onclick = e=>{ if(e.target.id==='recipeImportModal') document.getElementById('recipeImportModal').classList.remove('open'); };
 document.getElementById('recipeImportBtn').onclick = ()=>{
   const status = document.getElementById('recipeImportStatus');
   const raw = document.getElementById('recipeImportInput').value.trim();
@@ -3940,6 +4069,7 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
   renderRecipes();
   status.textContent = `✓ ${nRec} recette(s) et ${nIng} ingrédient(s) importés.`;
   document.getElementById('recipeImportInput').value = '';
+  setTimeout(()=>{ document.getElementById('recipeImportModal').classList.remove('open'); status.textContent=''; }, 1200);
 };
 
 /* ============ ONGLET MENUS ============ */
@@ -5011,7 +5141,7 @@ document.getElementById('importFile').onchange = (e)=>{
   reader.onload = (ev)=>{
     try{
       const imported = JSON.parse(ev.target.result);
-      state = migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported})));
+      state = migrateMantras(migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported}))));
       persistState();
       render();
     }catch(err){ alert("Fichier invalide."); }
