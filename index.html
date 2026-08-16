@@ -144,6 +144,19 @@
 
   /* Grille de vignettes : scan visuel rapide, détail en modal plein écran */
   .recipe-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .cat-manage-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line);}
+  .cat-manage-emoji{font-size:1.3rem; width:30px; text-align:center; flex-shrink:0;}
+  .cat-manage-label{flex:1; font-size:0.85rem;}
+  .cat-manage-count{font-size:0.68rem; color:var(--text-dim); font-family:'JetBrains Mono',monospace;}
+  .cat-manage-btn{background:none; border:none; cursor:pointer; font-size:0.95rem; flex-shrink:0; padding:4px;}
+  .icon-picker{max-height:200px; overflow-y:auto; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:8px; margin:8px 0;}
+  .icon-picker-group{font-size:0.66rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin:6px 2px 3px;}
+  .icon-picker-grid{display:flex; flex-wrap:wrap; gap:4px;}
+  .icon-picker-btn{
+    width:36px; height:36px; font-size:1.2rem; border-radius:8px; border:1px solid transparent;
+    background:var(--panel); cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .icon-picker-btn.on{border-color:var(--accent); background:var(--panel-2);}
   .recipe-tile{
     background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden;
     cursor:pointer; display:flex; flex-direction:column;
@@ -1265,11 +1278,23 @@
     <div class="card">
       <h2 style="display:flex; align-items:center; gap:8px;">
         <span style="flex:1;">Recettes <span class="tag mono" id="recipeCount"></span></span>
+        <button class="modal-close" id="catManageOpenBtn" title="Gérer mes catégories">⚙️</button>
         <button class="modal-close" id="recipeImportOpenBtn" title="Importer une recette">📥</button>
       </h2>
       <div id="recipeList" style="margin-top:14px;"></div>
     </div>
   </div>
+
+<div class="modal-overlay" id="catManageModal">
+  <div class="modal-box" style="max-height:85vh; overflow-y:auto;">
+    <div class="modal-header">
+      <h3>Mes catégories</h3>
+      <button class="modal-close" id="catManageModalClose">✕</button>
+    </div>
+    <div id="catManageList" style="margin-bottom:14px;"></div>
+    <div id="catManageForm"></div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="recipeImportModal">
   <div class="modal-box" style="max-height:85vh; overflow-y:auto;">
@@ -1946,9 +1971,24 @@ const SEED_INGREDIENTS = {
 
 /* ---------- ÉTAT ---------- */
 // Catégories de plats et saisons (multi-sélection ; seasons vide = toute l'année)
-const MEAL_CATS = {
+// Sert uniquement de graine au premier chargement : la version vivante est state.mealCats (éditable via ⚙️).
+const SEED_MEAL_CATS = {
   vege:"🥬 Végétarien", poisson:"🐟 Poisson & mer", oeufs_fromage:"🥚 Œufs & fromage",
   mijotes:"🍲 Mijotés & soupes", salades:"🥗 Salades & bowls", autres:"🍰 Autres"
+};
+// Bibliothèque d'icônes proposée pour la création/édition de catégories, groupée par thème.
+const CAT_ICON_LIBRARY = {
+  "Plats composés": ["🥪","🍔","🍕","🌮","🌯","🥙","🧆","🥟","🍢"],
+  "Pâtes, riz & céréales": ["🍝","🍜","🍚","🍛","🥘","🫓"],
+  "Bowls & salades": ["🥗","🍣","🍱","🥣"],
+  "Mijotés & gratins": ["🍲","🫕","🥧"],
+  "Poisson & mer": ["🐟","🍤","🦪"],
+  "Œufs & fromage": ["🥚","🍳","🧀"],
+  "Végétal": ["🥬","🌱","🥦","🍆","🥕","🍄","🫘","🥑"],
+  "Viandes": ["🥩","🍗"],
+  "Boulange & petit-déj": ["🍞","🥐","🥞","🧇","☕"],
+  "Desserts & douceurs": ["🍰","🧁","🍪","🍨","🍫","🍎"],
+  "Divers": ["🍟","🍹","🥫"]
 };
 const SEASONS = {printemps:"Printemps", ete:"Été", automne:"Automne", hiver:"Hiver"};
 function currentSeason(){
@@ -2038,6 +2078,7 @@ const DEFAULT_STATE = {
   goalsByWeek:{}, // { 'iso-lundi': {footing:[7 bool], hiit:[7 int], ...} } — multi-semaines, jamais écrasé
   weeklyGoals:null, // legacy — migré vers goalsByWeek au chargement
   mantras:null, // seedé depuis SEED_MANTRAS au chargement, puis entièrement éditable
+  mealCats:null, // seedé depuis SEED_MEAL_CATS au chargement, puis entièrement éditable
   lastExport:null,
   archives:[],
   dishes:{},
@@ -2179,6 +2220,15 @@ function migrateMantras(s){
   }
   return s;
 }
+// Migration catégories de plats : au premier chargement on copie le seed dans le state ; ensuite le
+// state fait foi. "autres" est garanti présent (filet de sécurité pour les réaffectations à la suppression).
+function migrateMealCats(s){
+  if(!s.mealCats){
+    s.mealCats = structuredClone(SEED_MEAL_CATS);
+  }
+  if(!s.mealCats.autres) s.mealCats.autres = "🍰 Autres";
+  return s;
+}
 // Migration objectifs : l'ancien format ne stockait qu'une semaine (weeklyGoals, écrasée à chaque
 // changement de semaine). Le nouveau format goalsByWeek conserve toutes les semaines, clé = lundi ISO.
 function migrateGoals(s){
@@ -2195,10 +2245,10 @@ function migrateGoals(s){
 function loadState(){
   try{
     const raw = localStorage.getItem('carnet-de-route');
-    if(!raw) return migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))));
+    if(!raw) return migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))))));
     const merged = {...structuredClone(DEFAULT_STATE), ...JSON.parse(raw)};
-    return migrateMantras(migrateGoals(migrateMenus(migrateIngredients(merged))));
-  }catch(e){ return migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))))); }
+    return migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(merged)))));
+  }catch(e){ return migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))))); }
 }
 function persistState(){
   try{ localStorage.setItem('carnet-de-route', JSON.stringify(state)); }
@@ -3868,7 +3918,7 @@ function renderRecipes(){
   const cats = [...new Set(allNames.map(n=>state.dishes[n].mealCat||'autres'))];
   const chips = `<div class="mp-cat-chips" style="margin-bottom:10px;">
     <button class="mp-chip ${!recipeFilterCat?'on':''}" data-c="">Tous</button>
-    ${cats.map(c=>`<button class="mp-chip ${recipeFilterCat===c?'on':''}" data-c="${c}">${MEAL_CATS[c]||c}</button>`).join('')}
+    ${cats.map(c=>`<button class="mp-chip ${recipeFilterCat===c?'on':''}" data-c="${c}">${state.mealCats[c]||c}</button>`).join('')}
   </div>`;
   const names = allNames.filter(n=>!recipeFilterCat || (state.dishes[n].mealCat||'autres')===recipeFilterCat);
   // Vignettes : photo (ou emoji de catégorie), nom, kcal/portion. Le détail vit dans un modal.
@@ -3876,7 +3926,7 @@ function renderRecipes(){
     const dish = state.dishes[n];
     const t = dishTotals(dish);
     const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
-    const catEmoji = (MEAL_CATS[dish.mealCat||'autres']||'🍽️').split(' ')[0];
+    const catEmoji = (state.mealCats[dish.mealCat||'autres']||'🍽️').split(' ')[0];
     const visual = dish.photo
       ? `<img class="recipe-tile-photo" src="${dish.photo}" alt="${n}" loading="lazy">`
       : `<div class="recipe-tile-emoji">${catEmoji}</div>`;
@@ -3915,12 +3965,12 @@ function openRecipeModal(name){
   document.getElementById('recipeModalBody').innerHTML = `
     ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${name}" style="margin-bottom:10px;">` : ''}
     <div class="recipe-meta" style="display:flex; align-items:center; gap:8px;">
-      <span style="flex:1;">${MEAL_CATS[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</span>
+      <span style="flex:1;">${state.mealCats[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</span>
       <button id="recipeEditToggle" style="background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px 8px; cursor:pointer; flex-shrink:0;">✏️</button>
     </div>
     <div class="recipe-cat-edit" id="recipeEditPanel" style="display:none; margin-top:10px;">
       <select class="recipe-cat-sel" id="recipeModalCatSel">
-        ${Object.entries(MEAL_CATS).map(([k,v])=>`<option value="${k}" ${(dish.mealCat||'autres')===k?'selected':''}>${v}</option>`).join('')}
+        ${Object.entries(state.mealCats).map(([k,v])=>`<option value="${k}" ${(dish.mealCat||'autres')===k?'selected':''}>${v}</option>`).join('')}
       </select>
       <div class="recipe-season-chips">
         ${Object.entries(SEASONS).map(([k,v])=>`<button class="mp-chip season-chip ${(dish.seasons||[]).includes(k)?'on':''}" data-s="${k}">${v}</button>`).join('')}
@@ -4052,7 +4102,7 @@ RÈGLES :
 1. "ingredientsNouveaux" : liste TOUS les ingrédients de la recette avec leurs macros pour 100 g (p = protéines, f = lipides, c = glucides, en grammes). Ceux que je possède déjà seront ignorés à l'import, donc n'omets rien.
 2. "cat" doit être une de ces valeurs exactes : ${Object.keys(FOOD_CATEGORIES).join(', ')}.
 3. Dans "ingredients", "name" doit correspondre EXACTEMENT à une clé de "ingredientsNouveaux", et "grams" est la quantité totale pour la recette entière (convertis les cuillères, verres, pièces en grammes).
-4. "mealCat" : une de ces valeurs exactes : ${Object.keys(MEAL_CATS).join(', ')}.
+4. "mealCat" : une de ces valeurs exactes : ${Object.keys(state.mealCats).join(', ')}.
 5. "seasons" : sous-ensemble de ${Object.keys(SEASONS).join(', ')} — ou [] si la recette convient toute l'année.
 6. "steps" : les étapes complètes mais concises, une phrase par étape.
 7. Noms en français, sans marque commerciale.`;
@@ -4098,7 +4148,7 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
         steps: r.steps||[],
         source: r.source||'',
         photo: r.photo||null,
-        mealCat: MEAL_CATS[r.mealCat] ? r.mealCat : 'autres',
+        mealCat: state.mealCats[r.mealCat] ? r.mealCat : 'autres',
         seasons: Array.isArray(r.seasons) ? r.seasons.filter(s=>SEASONS[s]) : []
       };
       nRec++;
@@ -4112,6 +4162,141 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
   document.getElementById('recipeImportInput').value = '';
   setTimeout(()=>{ document.getElementById('recipeImportModal').classList.remove('open'); status.textContent=''; }, 1200);
 };
+
+/* ---------- Gestion des catégories de plats (⚙️) ---------- */
+let catManageMode = 'view'; // 'view' | 'edit' | 'create'
+let catManageEditKey = null;
+let catManageIcon = '🍽️';
+let catManageLabel = '';
+
+function catDishCounts(){
+  const counts = {};
+  Object.values(state.dishes).forEach(d=>{
+    const c = d.mealCat || 'autres';
+    counts[c] = (counts[c]||0) + 1;
+  });
+  return counts;
+}
+function slugifyCatKey(label){
+  const base = label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'categorie';
+  let key = base, i = 2;
+  while(state.mealCats[key]) key = `${base}_${i++}`;
+  return key;
+}
+function openCatManageModal(){
+  catManageMode = 'view';
+  renderCatManage();
+  document.getElementById('catManageModal').classList.add('open');
+}
+document.getElementById('catManageOpenBtn').onclick = openCatManageModal;
+document.getElementById('catManageModalClose').onclick = ()=>document.getElementById('catManageModal').classList.remove('open');
+document.getElementById('catManageModal').onclick = e=>{ if(e.target.id==='catManageModal') document.getElementById('catManageModal').classList.remove('open'); };
+
+function renderCatManage(){
+  const counts = catDishCounts();
+  const listEl = document.getElementById('catManageList');
+  listEl.innerHTML = Object.entries(state.mealCats).map(([key,val])=>{
+    const [emoji,...rest] = val.split(' ');
+    const label = rest.join(' ');
+    const n = counts[key]||0;
+    const isAutres = key==='autres';
+    return `
+      <div class="cat-manage-row">
+        <span class="cat-manage-emoji">${emoji}</span>
+        <span class="cat-manage-label">${label} <span class="cat-manage-count">${n} plat${n>1?'s':''}</span></span>
+        <button class="cat-manage-btn" data-edit="${key}" title="Modifier">✏️</button>
+        ${isAutres ? '' : `<button class="cat-manage-btn" data-del="${key}" title="Supprimer" style="color:var(--danger);">✕</button>`}
+      </div>`;
+  }).join('');
+  listEl.querySelectorAll('[data-edit]').forEach(btn=>{
+    btn.onclick = ()=>{
+      catManageMode = 'edit';
+      catManageEditKey = btn.dataset.edit;
+      const [emoji,...rest] = state.mealCats[catManageEditKey].split(' ');
+      catManageIcon = emoji;
+      catManageLabel = rest.join(' ');
+      renderCatManageForm();
+    };
+  });
+  listEl.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const key = btn.dataset.del;
+      const n = counts[key]||0;
+      if(n===0){
+        if(!confirm(`Supprimer la catégorie « ${state.mealCats[key]} » ?`)) return;
+        delete state.mealCats[key];
+        persistState();
+        renderRecipes();
+        renderCatManage();
+        return;
+      }
+      // Des plats sont rattachés : demande la catégorie de repli avant de supprimer (fusion de fait).
+      const others = Object.entries(state.mealCats).filter(([k])=>k!==key);
+      const choice = prompt(
+        `${n} plat(s) sont dans « ${state.mealCats[key]} ». Vers quelle catégorie les déplacer avant suppression ?\n\n` +
+        others.map(([k,v],i)=>`${i+1}. ${v}`).join('\n') + `\n\nTape un numéro (ou annule) :`
+      );
+      if(choice===null) return;
+      const idx = parseInt(choice) - 1;
+      if(isNaN(idx) || !others[idx]){ alert("Numéro invalide — suppression annulée."); return; }
+      const targetKey = others[idx][0];
+      Object.values(state.dishes).forEach(d=>{ if((d.mealCat||'autres')===key) d.mealCat = targetKey; });
+      delete state.mealCats[key];
+      persistState();
+      renderRecipes();
+      renderCatManage();
+    };
+  });
+  renderCatManageForm();
+}
+function renderCatManageForm(){
+  const formEl = document.getElementById('catManageForm');
+  if(catManageMode==='view'){
+    formEl.innerHTML = `<button class="add-btn" id="catManageAddBtn">+ Ajouter une catégorie</button>`;
+    document.getElementById('catManageAddBtn').onclick = ()=>{
+      catManageMode = 'create';
+      catManageEditKey = null;
+      catManageIcon = '🍽️';
+      catManageLabel = '';
+      renderCatManageForm();
+    };
+    return;
+  }
+  const iconGroups = Object.entries(CAT_ICON_LIBRARY).map(([group,icons])=>`
+    <div class="icon-picker-group">${group}</div>
+    <div class="icon-picker-grid">
+      ${icons.map(ic=>`<button type="button" class="icon-picker-btn ${catManageIcon===ic?'on':''}" data-icon="${ic}">${ic}</button>`).join('')}
+    </div>`).join('');
+  formEl.innerHTML = `
+    <div class="check-sub" style="margin-bottom:6px;">${catManageMode==='create' ? 'Nouvelle catégorie' : 'Modifier la catégorie'}</div>
+    <input type="text" id="catManageLabelInput" placeholder="Nom de la catégorie" value="${catManageLabel.replace(/"/g,'&quot;')}">
+    <div class="icon-picker" id="catManageIconPicker">${iconGroups}</div>
+    <div class="check-sub" style="margin-bottom:8px;">Sélection : <span style="font-size:1.2rem;">${catManageIcon}</span></div>
+    <div style="display:flex; gap:8px;">
+      <button class="add-btn" id="catManageSaveBtn" style="margin:0; flex:1;">✓ Enregistrer</button>
+      <button class="add-btn" id="catManageCancelBtn" style="margin:0; flex:0 0 auto; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">Annuler</button>
+    </div>`;
+  document.getElementById('catManageIconPicker').querySelectorAll('.icon-picker-btn').forEach(btn=>{
+    btn.onclick = ()=>{ catManageIcon = btn.dataset.icon; renderCatManageForm(); };
+  });
+  document.getElementById('catManageLabelInput').oninput = e=>{ catManageLabel = e.target.value; };
+  document.getElementById('catManageCancelBtn').onclick = ()=>{ catManageMode = 'view'; renderCatManageForm(); };
+  document.getElementById('catManageSaveBtn').onclick = ()=>{
+    const label = (document.getElementById('catManageLabelInput').value||'').trim();
+    if(!label){ alert("Donne un nom à la catégorie."); return; }
+    const value = `${catManageIcon} ${label}`;
+    if(catManageMode==='create'){
+      state.mealCats[slugifyCatKey(label)] = value;
+    }else{
+      state.mealCats[catManageEditKey] = value;
+    }
+    persistState();
+    catManageMode = 'view';
+    renderRecipes();
+    renderCatManage();
+  };
+}
 
 /* ============ ONGLET MENUS ============ */
 let menuWeekOffset = 0;   // 0 = semaine courante, 1 = suivante…
@@ -4228,7 +4413,7 @@ function renderMenuPick(){
       const cats = [...new Set(names.map(n=>state.dishes[n].mealCat||'autres'))];
       const chips = `<div class="mp-cat-chips">
         <button class="mp-chip ${!menuPickCat?'on':''}" data-c="">Tous</button>
-        ${cats.map(c=>`<button class="mp-chip ${menuPickCat===c?'on':''}" data-c="${c}">${MEAL_CATS[c]||c}</button>`).join('')}
+        ${cats.map(c=>`<button class="mp-chip ${menuPickCat===c?'on':''}" data-c="${c}">${state.mealCats[c]||c}</button>`).join('')}
       </div>`;
       const filtered = names.filter(n=>!menuPickCat || (state.dishes[n].mealCat||'autres')===menuPickCat)
         .sort((a,b)=>(dishInSeason(state.dishes[b])?1:0)-(dishInSeason(state.dishes[a])?1:0) || a.localeCompare(b));
@@ -5182,7 +5367,7 @@ document.getElementById('importFile').onchange = (e)=>{
   reader.onload = (ev)=>{
     try{
       const imported = JSON.parse(ev.target.result);
-      state = migrateMantras(migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported}))));
+      state = migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported})))));
       persistState();
       render();
     }catch(err){ alert("Fichier invalide."); }
