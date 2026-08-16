@@ -3925,6 +3925,11 @@ function openRecipeModal(name){
       <div class="recipe-season-chips">
         ${Object.entries(SEASONS).map(([k,v])=>`<button class="mp-chip season-chip ${(dish.seasons||[]).includes(k)?'on':''}" data-s="${k}">${v}</button>`).join('')}
       </div>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+        <button class="add-btn" id="recipeModalPhotoBtn" style="margin:0; flex:1; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">📷 ${dish.photo?'Changer la photo':'Ajouter une photo'}</button>
+        ${dish.photo?'<button class="recipe-del-btn" id="recipeModalPhotoDelBtn" style="margin:0;">✕ Retirer</button>':''}
+      </div>
+      <input type="file" id="recipeModalPhotoInput" accept="image/*" style="display:none;">
       <button class="recipe-del-btn" id="recipeModalDelBtn" style="margin-top:10px;">✕ Supprimer ce plat</button>
     </div>
     <div class="recipe-ing-list">${ingHtml}</div>
@@ -3968,6 +3973,41 @@ function openRecipeModal(name){
   document.getElementById('recipeModalPlanBtn').onclick = ()=>{
     closeRecipeModal();
     openPlanFromRecipe(name);
+  };
+  document.getElementById('recipeModalPhotoBtn').onclick = ()=>{
+    document.getElementById('recipeModalPhotoInput').click();
+  };
+  document.getElementById('recipeModalPhotoInput').onchange = e=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    // Redimensionnement obligatoire : une photo de téléphone (3-5 Mo) exploserait le quota localStorage (~5 Mo).
+    // 400 px de large en JPEG 0.7 ≈ 30-50 Ko par vignette.
+    const img = new Image();
+    img.onload = ()=>{
+      const maxW = 400;
+      const scale = Math.min(1, maxW/img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width*scale);
+      canvas.height = Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      dish.photo = canvas.toDataURL('image/jpeg', 0.7);
+      URL.revokeObjectURL(img.src);
+      persistState(); // alerte "Stockage plein" intégrée si le quota est dépassé
+      renderRecipes();
+      openRecipeModal(name); // ré-ouvre pour afficher la photo et le bouton Retirer
+      document.getElementById('recipeEditPanel').style.display = 'block';
+    };
+    img.onerror = ()=>{ alert("Impossible de lire cette image."); URL.revokeObjectURL(img.src); };
+    img.src = URL.createObjectURL(file);
+  };
+  const photoDelBtn = document.getElementById('recipeModalPhotoDelBtn');
+  if(photoDelBtn) photoDelBtn.onclick = ()=>{
+    if(!confirm("Retirer la photo de ce plat ?")) return;
+    dish.photo = null;
+    persistState();
+    renderRecipes();
+    openRecipeModal(name);
+    document.getElementById('recipeEditPanel').style.display = 'block';
   };
   document.getElementById('recipeModalDelBtn').onclick = ()=>{
     if(confirm(`Supprimer le plat « ${name} » ?`)){
@@ -4066,6 +4106,7 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
   }
   if(nRec===0){ status.textContent = "Aucune recette trouvée dans ce JSON."; return; }
   persistState();
+  recipeFilterCat = ''; // reset du filtre : la recette importée doit être visible immédiatement, quelle que soit sa catégorie
   renderRecipes();
   status.textContent = `✓ ${nRec} recette(s) et ${nIng} ingrédient(s) importés.`;
   document.getElementById('recipeImportInput').value = '';
