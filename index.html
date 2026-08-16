@@ -142,9 +142,18 @@
     font-family:'Inter',sans-serif; font-weight:600;
   }
 
-  .recipe-card{background:var(--panel); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden;}
-  .recipe-photo{width:100%; height:140px; object-fit:cover; display:block;}
-  .recipe-head{padding:12px 14px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  /* Grille de vignettes : scan visuel rapide, détail en modal plein écran */
+  .recipe-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .recipe-tile{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    cursor:pointer; display:flex; flex-direction:column;
+  }
+  .recipe-tile-photo{width:100%; height:90px; object-fit:cover; display:block;}
+  .recipe-tile-emoji{width:100%; height:90px; display:flex; align-items:center; justify-content:center; font-size:2.2rem; background:var(--panel-2);}
+  .recipe-tile-body{padding:8px 10px 10px;}
+  .recipe-tile-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.8rem; line-height:1.25;}
+  .recipe-tile-meta{font-size:0.66rem; color:var(--text-dim); margin-top:3px; font-family:'JetBrains Mono',monospace;}
+  .recipe-photo{width:100%; height:140px; object-fit:cover; display:block; border-radius:10px;}
   .recipe-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem;}
   .recipe-meta{font-size:0.72rem; color:var(--text-dim); margin-top:2px;}
   .recipe-detail{padding:0 14px 14px; border-top:1px solid var(--line);}
@@ -670,16 +679,12 @@
     line-height:1.3;
   }
   .goal-day.on{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700;}
-  .goal-days-hiit{display:flex; flex-direction:column; gap:6px;}
-  .goal-day-hiit{
-    display:flex; align-items:center; justify-content:space-between; gap:10px;
-    padding:8px 10px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line);
-    color:var(--text-dim);
+  .goal-day-hiit-chip{position:relative; user-select:none; -webkit-user-select:none; touch-action:manipulation;}
+  .gd-count{
+    position:absolute; top:-7px; right:-5px; min-width:17px; height:17px; line-height:17px;
+    background:var(--text); color:var(--bg,#fff); border-radius:9px; font-size:0.62rem; font-weight:700;
+    padding:0 4px; box-shadow:0 1px 3px rgba(0,0,0,0.25);
   }
-  .hiit-stepper{display:flex; align-items:center; gap:8px; border:1px solid var(--line); background:var(--panel); border-radius:8px; padding:3px 6px;}
-  .hiit-step-btn{width:24px; height:24px; border-radius:6px; border:none; background:var(--panel-2); color:var(--text); font-size:1rem; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
-  .hiit-step-val{font-family:'JetBrains Mono',monospace; font-size:0.8rem; font-weight:700; min-width:16px; text-align:center;}
-
   /* BILAN : synthèse + conseils dynamiques */
   .bilan-synth-text{
     background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
@@ -1090,7 +1095,11 @@
   <!-- OBJECTIFS DE LA SEMAINE -->
   <div class="card">
     <h2>Objectifs de la semaine</h2>
-    <div class="check-sub" id="goalsWeekLabel" style="margin-bottom:14px;"></div>
+    <div class="menu-week-nav">
+      <button id="goalsPrevWeek">‹</button>
+      <div class="menu-week-label" id="goalsWeekLabel"></div>
+      <button id="goalsNextWeek">›</button>
+    </div>
     <div class="disclaimer" id="goalsReminder" style="display:none;">C'est dimanche — pense à définir tes objectifs sport pour la semaine qui arrive.</div>
 
     <div id="goalsGrid"></div>
@@ -1258,7 +1267,9 @@
 
       <details id="recipeImportDetails">
         <summary>Importer une recette (JSON)</summary>
-        <textarea id="recipeImportInput" rows="6" placeholder="Colle ici le JSON généré par Claude…" style="margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;"></textarea>
+        <button class="add-btn" id="recipePromptBtn" style="margin-top:8px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">📋 Copier le prompt d'extraction</button>
+        <div class="check-sub" id="recipePromptStatus"></div>
+        <textarea id="recipeImportInput" rows="6" placeholder="Colle ici le JSON généré par l'IA…" style="margin-top:8px; font-family:'JetBrains Mono',monospace; font-size:0.75rem;"></textarea>
         <button class="add-btn" id="recipeImportBtn" style="margin-top:8px;">Importer</button>
         <div class="check-sub" id="recipeImportStatus"></div>
       </details>
@@ -1372,6 +1383,16 @@
 </div>
 
 <!-- POP-UP LOG RAPIDE -->
+<div class="modal-overlay" id="recipeModal">
+  <div class="modal-box" style="max-height:88vh; overflow-y:auto;">
+    <div class="modal-header">
+      <h3 id="recipeModalTitle" style="text-align:left;"></h3>
+      <button class="modal-close" id="recipeModalClose">✕</button>
+    </div>
+    <div id="recipeModalBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="quickLogModal">
   <div class="modal-box">
     <div class="modal-header">
@@ -1991,7 +2012,8 @@ const DEFAULT_STATE = {
     }
   },
   xp:0,
-  weeklyGoals:{weekStart:null, activities:{}},
+  goalsByWeek:{}, // { 'iso-lundi': {footing:[7 bool], hiit:[7 int], ...} } — multi-semaines, jamais écrasé
+  weeklyGoals:null, // legacy — migré vers goalsByWeek au chargement
   lastExport:null,
   archives:[],
   dishes:{},
@@ -2036,7 +2058,7 @@ function switchTab(name){
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.toggle('on', b.dataset.tab===navKey));
   document.querySelectorAll('.sub-tab').forEach(b=>b.classList.toggle('on', b.dataset.go===name));
   if(name==='pesees'){ drawWeighinChart(); drawInbodyCompositionChart(); drawInbodyMetricChart(); }
-  if(name==='objectifs') renderGoalsPage();
+  if(name==='objectifs'){ goalsViewMonday = null; renderGoalsPage(); }
   if(name==='recettes') renderRecipes();
   if(name==='menus') renderMenus();
   if(name==='semaine' && document.getElementById('bilanDetails').open) drawCharts(getPeriodInfo());
@@ -2071,6 +2093,14 @@ function migrateIngredients(s){
       });
       s.seedVersion = 3;
     }
+    // Migration seed v4 : rattrape les entrées ajoutées au seed après que l'utilisateur soit déjà en v3
+    // (ex. "Fromage (générique)" utilisé par les quick-logs). Jamais destructif.
+    if((s.seedVersion||0) < 4){
+      Object.entries(SEED_INGREDIENTS).forEach(([name,v])=>{
+        if(!s.ingredients[name]) s.ingredients[name] = structuredClone(v);
+      });
+      s.seedVersion = 4;
+    }
     return s;
   }
   
@@ -2081,7 +2111,7 @@ function migrateIngredients(s){
     });
   }
   s.ingredients = merged;
-  s.seedVersion = 3;
+  s.seedVersion = 4;
   if(!s.categoryOrder || !s.categoryOrder.length) s.categoryOrder = Object.keys(FOOD_CATEGORIES);
   return s;
 }
@@ -2112,13 +2142,26 @@ function migrateMenus(s){
   }
   return s;
 }
+// Migration objectifs : l'ancien format ne stockait qu'une semaine (weeklyGoals, écrasée à chaque
+// changement de semaine). Le nouveau format goalsByWeek conserve toutes les semaines, clé = lundi ISO.
+function migrateGoals(s){
+  if(!s.goalsByWeek) s.goalsByWeek = {};
+  if(s.weeklyGoals && s.weeklyGoals.weekStart && s.weeklyGoals.activities){
+    if(!s.goalsByWeek[s.weeklyGoals.weekStart]) s.goalsByWeek[s.weeklyGoals.weekStart] = s.weeklyGoals.activities;
+  }
+  s.weeklyGoals = null;
+  Object.values(s.goalsByWeek).forEach(acts=>{
+    if(acts.hiit) acts.hiit = acts.hiit.map(v => typeof v === 'boolean' ? (v?1:0) : v);
+  });
+  return s;
+}
 function loadState(){
   try{
     const raw = localStorage.getItem('carnet-de-route');
-    if(!raw) return migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)));
+    if(!raw) return migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))));
     const merged = {...structuredClone(DEFAULT_STATE), ...JSON.parse(raw)};
-    return migrateMenus(migrateIngredients(merged));
-  }catch(e){ return migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))); }
+    return migrateGoals(migrateMenus(migrateIngredients(merged)));
+  }catch(e){ return migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))); }
 }
 function persistState(){
   try{ localStorage.setItem('carnet-de-route', JSON.stringify(state)); }
@@ -2507,34 +2550,40 @@ function dowIndexMondayBased(date){
 function targetGoalWeekMonday(){
   const today = todayDate();
   const thisMonday = getMonday(today);
-  // le dimanche, on prépare la semaine suivante
+  // le dimanche, on ouvre par défaut sur la semaine suivante (préparation) — sans rien effacer
   return (today.getDay()===0) ? addDays(thisMonday,7) : thisMonday;
 }
-function ensureGoalsForWeek(monday){
+// Lecture : retourne les activités de la semaine (null si jamais renseignée et create=false).
+// Écriture (create=true) : crée une semaine vierge sans jamais toucher aux autres semaines.
+function goalsForWeek(monday, create=false){
   const iso = isoDate(monday);
-  if(state.weeklyGoals.weekStart !== iso){
+  if(!state.goalsByWeek[iso]){
+    if(!create) return null;
     const activities = {};
     GOAL_ACTIVITIES.forEach(a=>{ activities[a] = new Array(7).fill(a==='hiit' ? 0 : false); });
-    state.weeklyGoals = {weekStart: iso, activities};
+    state.goalsByWeek[iso] = activities;
   }
-  // Migration : anciennes semaines où hiit était stocké en booléen (true/false)
-  const hiitDays = state.weeklyGoals.activities.hiit;
-  if(hiitDays){
-    state.weeklyGoals.activities.hiit = hiitDays.map(v => typeof v === 'boolean' ? (v?1:0) : v);
-  }
+  // rattrape une activité ajoutée à GOAL_ACTIVITIES après coup
+  const acts = state.goalsByWeek[iso];
+  GOAL_ACTIVITIES.forEach(a=>{ if(!acts[a]) acts[a] = new Array(7).fill(a==='hiit' ? 0 : false); });
+  return acts;
 }
+let goalsViewMonday = null; // lundi de la semaine affichée dans l'onglet Objectifs (null = défaut)
 function renderGoalsPage(){
-  const monday = targetGoalWeekMonday();
-  ensureGoalsForWeek(monday);
+  if(!goalsViewMonday) goalsViewMonday = targetGoalWeekMonday();
+  const monday = goalsViewMonday;
+  const iso = isoDate(monday);
+  const acts = goalsForWeek(monday, true); // création paresseuse : n'écrase jamais une autre semaine
   const sunday = addDays(monday,6);
   const today = todayDate();
-  const isNextWeek = today.getDay()===0;
+  const thisMondayIso = isoDate(getMonday(today));
+  const weekTag = iso===thisMondayIso ? ' · en cours' : (iso===isoDate(addDays(getMonday(today),7)) ? ' · à venir' : '');
   document.getElementById('goalsWeekLabel').innerHTML =
-    `Semaine du ${monday.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} au ${sunday.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}`
-    + (isNextWeek ? `<br><strong>C'est dimanche : tu prépares la semaine qui commence demain, pas aujourd'hui.</strong>` : '');
+    `Semaine du ${monday.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} au ${sunday.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}${weekTag}`;
 
-  const showReminder = isNextWeek && state.weeklyGoals.weekStart===isoDate(addDays(getMonday(today),7))
-    && Object.values(state.weeklyGoals.activities).every(days=>days.every(v=>!v));
+  // Rappel du dimanche : la semaine qui commence demain n'a encore aucun objectif
+  const nextActs = state.goalsByWeek[isoDate(addDays(getMonday(today),7))];
+  const showReminder = today.getDay()===0 && (!nextActs || Object.values(nextActs).every(days=>days.every(v=>!v)));
   document.getElementById('goalsReminder').style.display = showReminder ? 'block' : 'none';
 
   const dayDates = GOAL_DAYS.map((lbl,i)=>addDays(monday,i));
@@ -2542,21 +2591,14 @@ function renderGoalsPage(){
   const grid = document.getElementById('goalsGrid');
   grid.innerHTML = GOAL_ACTIVITIES.map(act=>{
     const cfg = SPORT_ACTIVITIES[act];
-    const days = state.weeklyGoals.activities[act];
+    const days = acts[act];
     if(act==='hiit'){
+      // Rangée compacte : chip par jour avec badge de séries. Tap = +1, appui long = −1.
       return `
         <div class="goal-row" data-activity="${act}">
-          <div class="goal-row-label">${cfg.icon} ${cfg.label}</div>
-          <div class="goal-days-hiit">
-            ${GOAL_DAYS.map((lbl,i)=>`
-              <div class="goal-day-hiit" data-day="${i}">
-                <span style="font-size:0.72rem;">${lbl} ${dayDates[i].getDate()}/${dayDates[i].getMonth()+1}</span>
-                <div class="hiit-stepper">
-                  <button type="button" class="hiit-step-btn" data-dir="-1" data-day="${i}">−</button>
-                  <span class="hiit-step-val" id="hiitGoalVal-${i}">${days[i]}</span>
-                  <button type="button" class="hiit-step-btn" data-dir="1" data-day="${i}">+</button>
-                </div>
-              </div>`).join('')}
+          <div class="goal-row-label">${cfg.icon} ${cfg.label} <span class="check-sub" style="font-weight:400; font-size:0.7rem;">tap = +1 série · appui long = −1</span></div>
+          <div class="goal-days">
+            ${GOAL_DAYS.map((lbl,i)=>`<div class="goal-day goal-day-hiit-chip${days[i]>0?' on':''}" data-day="${i}">${lbl}<br><span style="font-size:0.58rem; opacity:0.75;">${dayDates[i].getDate()}/${dayDates[i].getMonth()+1}</span><span class="gd-count" id="hiitGoalVal-${i}"${days[i]>0?'':' style="display:none;"'}>${days[i]}</span></div>`).join('')}
           </div>
         </div>`;
     }
@@ -2573,26 +2615,45 @@ function renderGoalsPage(){
     el.onclick = ()=>{
       const act = el.closest('.goal-row').dataset.activity;
       const day = parseInt(el.dataset.day);
-      state.weeklyGoals.activities[act][day] = !state.weeklyGoals.activities[act][day];
+      acts[act][day] = !acts[act][day];
       el.classList.toggle('on');
       persistState(); // autosauvegarde : sans ça, un rechargement de la PWA faisait revenir les anciennes valeurs
       renderHeroGoals(getDay(isoDate(selectedDate)));
     };
   });
 
-  grid.querySelectorAll('.hiit-step-btn').forEach(el=>{
-    el.onclick = ()=>{
-      const day = parseInt(el.dataset.day);
-      const dir = parseInt(el.dataset.dir);
-      const cur = state.weeklyGoals.activities.hiit[day];
-      const next = Math.max(0, cur + dir);
-      state.weeklyGoals.activities.hiit[day] = next;
-      document.getElementById(`hiitGoalVal-${day}`).textContent = next;
-      persistState(); // autosauvegarde : la valeur ne dépend plus du bouton Enregistrer
+  // HIIT : tap court = +1, appui long (500 ms) = −1. contextmenu bloqué pour l'appui long mobile.
+  grid.querySelectorAll('.goal-day-hiit-chip').forEach(el=>{
+    const day = parseInt(el.dataset.day);
+    let pressTimer = null, longFired = false;
+    const apply = (delta)=>{
+      const next = Math.max(0, acts.hiit[day] + delta);
+      acts.hiit[day] = next;
+      const badge = el.querySelector('.gd-count');
+      badge.textContent = next;
+      badge.style.display = next>0 ? '' : 'none';
+      el.classList.toggle('on', next>0);
+      persistState();
       renderHeroGoals(getDay(isoDate(selectedDate)));
     };
+    el.onpointerdown = ()=>{
+      longFired = false;
+      pressTimer = setTimeout(()=>{ longFired = true; apply(-1); }, 500);
+    };
+    const cancel = ()=>{ clearTimeout(pressTimer); };
+    el.onpointerup = ()=>{ cancel(); if(!longFired) apply(1); };
+    el.onpointerleave = cancel;
+    el.oncontextmenu = e=>{ e.preventDefault(); return false; };
   });
 }
+document.getElementById('goalsPrevWeek').onclick = ()=>{
+  goalsViewMonday = addDays(goalsViewMonday || targetGoalWeekMonday(), -7);
+  renderGoalsPage();
+};
+document.getElementById('goalsNextWeek').onclick = ()=>{
+  goalsViewMonday = addDays(goalsViewMonday || targetGoalWeekMonday(), 7);
+  renderGoalsPage();
+};
 document.getElementById('saveGoalsBtn').onclick = ()=>{
   persistState();
   renderHeroGoals(getDay(isoDate(selectedDate)));
@@ -2604,19 +2665,16 @@ document.getElementById('saveGoalsBtn').onclick = ()=>{
 
 function renderHeroGoals(day){
   // Visuel uniquement : une pastille par activité prévue aujourd'hui, cochée si déjà faite.
-  // Lecture seule : ne modifie jamais state.weeklyGoals (on peut consulter n'importe quel jour passé/futur ici).
+  // Lecture seule : ne crée jamais de semaine dans goalsByWeek (on peut consulter n'importe quel jour passé/futur ici).
   const el = document.getElementById('heroGoals');
   const shownDate = selectedDate;
-  const monday = getMonday(shownDate);
-  if(!state.weeklyGoals || !state.weeklyGoals.activities || state.weeklyGoals.weekStart !== isoDate(monday)){
-    el.innerHTML = '';
-    return;
-  }
+  const acts = goalsForWeek(getMonday(shownDate)); // lecture seule : null si semaine jamais renseignée
+  if(!acts){ el.innerHTML = ''; return; }
   const idx = dowIndexMondayBased(shownDate);
-  const planned = GOAL_ACTIVITIES.filter(act => state.weeklyGoals.activities[act] && state.weeklyGoals.activities[act][idx]);
+  const planned = GOAL_ACTIVITIES.filter(act => acts[act] && acts[act][idx]);
   if(!planned.length){ el.innerHTML = ''; return; }
   const doneTypes = new Set((day.sessions||[]).filter(s=>!s.notDone).map(s=>s.type));
-  const hiitTarget = state.weeklyGoals.activities.hiit ? state.weeklyGoals.activities.hiit[idx] : 0;
+  const hiitTarget = acts.hiit ? acts.hiit[idx] : 0;
   const hiitDone = (day.sessions||[]).filter(s=>!s.notDone && s.type==='hiit').length;
   el.innerHTML = planned.map(act=>{
     const cfg = SPORT_ACTIVITIES[act];
@@ -2960,8 +3018,17 @@ const QUICK_LOGS = [
 // Eau : hors macros, comptabilisée séparément en mL avec objectif journalier (state.waterGoalMl)
 const WATER_GLASS_ML = 200;
 let qlCurrent = null, qlCount = 1;
+// Auto-réparation : si un ingrédient de quick-log manque dans la base utilisateur
+// (ancien state jamais migré, entrée supprimée par erreur), on le réinjecte depuis le seed.
+function qlIngredient(name){
+  if(!state.ingredients[name] && SEED_INGREDIENTS[name]){
+    state.ingredients[name] = structuredClone(SEED_INGREDIENTS[name]);
+    persistState();
+  }
+  return state.ingredients[name];
+}
 function qlKcalFor(ql, count){
-  const ing = state.ingredients[ql.name];
+  const ing = qlIngredient(ql.name);
   if(!ing) return 0;
   const g = ql.unit*count;
   return Math.round((ing.p*4 + ing.f*9 + ing.c*4 + (ing.a||0)*7) * g/100);
@@ -3001,7 +3068,7 @@ function updateQlDisplay(){
 document.getElementById('qlMinus').onclick = ()=>{ if(qlCount>1){ qlCount--; updateQlDisplay(); } };
 document.getElementById('qlPlus').onclick = ()=>{ qlCount++; updateQlDisplay(); };
 document.getElementById('qlValidate').onclick = ()=>{
-  const ing = state.ingredients[qlCurrent.name];
+  const ing = qlIngredient(qlCurrent.name);
   if(!ing){ alert(`« ${qlCurrent.name} » est introuvable dans la base ingrédients.`); return; }
   const g = qlCurrent.unit*qlCount;
   const iso = isoDate(selectedDate);
@@ -3485,11 +3552,8 @@ function updateBilanSynthesis(day, needToday, apportToday, balance, selIso){
 
   // Objectif HIIT du jour, si la semaine affichée correspond à une semaine d'objectifs enregistrée
   const dObj = new Date(selIso+"T00:00:00");
-  const monday = getMonday(dObj);
-  let hiitTarget = null;
-  if(state.weeklyGoals.weekStart === isoDate(monday)){
-    hiitTarget = state.weeklyGoals.activities.hiit[dowIndexMondayBased(dObj)];
-  }
+  const weekActs = goalsForWeek(getMonday(dObj));
+  const hiitTarget = (weekActs && weekActs.hiit) ? weekActs.hiit[dowIndexMondayBased(dObj)] : null;
 
   const avgDiff = weeklyAvgDiff(selIso, computeTDEE());
 
@@ -3683,113 +3747,178 @@ function renderRecipes(){
     ${cats.map(c=>`<button class="mp-chip ${recipeFilterCat===c?'on':''}" data-c="${c}">${MEAL_CATS[c]||c}</button>`).join('')}
   </div>`;
   const names = allNames.filter(n=>!recipeFilterCat || (state.dishes[n].mealCat||'autres')===recipeFilterCat);
-  list.innerHTML = chips + names.map((n,i)=>{
+  // Vignettes : photo (ou emoji de catégorie), nom, kcal/portion. Le détail vit dans un modal.
+  list.innerHTML = chips + `<div class="recipe-grid">` + names.map((n,i)=>{
     const dish = state.dishes[n];
     const t = dishTotals(dish);
     const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
-    const seasonTxt = (dish.seasons&&dish.seasons.length) ? dish.seasons.map(s=>SEASONS[s]).join('/') : 'Toute l\'année';
-    const ingHtml = dish.ingredients.map(it=>`<div>• ${it.name} — ${it.grams}g</div>`).join('');
-    const stepsHtml = (dish.steps && dish.steps.length)
-      ? `<ol class="recipe-steps">${dish.steps.map(s=>`<li>${s}</li>`).join('')}</ol>`
-      : `<div class="check-sub">Pas d'étapes enregistrées pour ce plat.</div>`;
-    const catEdit = `<div class="recipe-cat-edit">
-      <select class="recipe-cat-sel" data-n="${n.replace(/"/g,'&quot;')}">
+    const catEmoji = (MEAL_CATS[dish.mealCat||'autres']||'🍽️').split(' ')[0];
+    const visual = dish.photo
+      ? `<img class="recipe-tile-photo" src="${dish.photo}" alt="${n}" loading="lazy">`
+      : `<div class="recipe-tile-emoji">${catEmoji}</div>`;
+    return `
+      <div class="recipe-tile" data-i="${i}">
+        ${visual}
+        <div class="recipe-tile-body">
+          <div class="recipe-tile-name">${dishInSeason(dish)&&(dish.seasons||[]).length?'🌱 ':''}${n}</div>
+          <div class="recipe-tile-meta">${perPortion} kcal/port. · ${dish.portions}p</div>
+        </div>
+      </div>`;
+  }).join('') + `</div>`;
+
+  list.querySelectorAll('.mp-chip').forEach(ch=>{
+    ch.onclick = ()=>{ recipeFilterCat = ch.dataset.c; renderRecipes(); };
+  });
+  list.querySelectorAll('.recipe-tile').forEach(tile=>{
+    tile.onclick = ()=>openRecipeModal(names[parseInt(tile.dataset.i)]);
+  });
+}
+
+/* Modal détail recette — consultation d'abord, édition (catégorie/saisons) repliée derrière ✏️ */
+let recipeModalName = null;
+function openRecipeModal(name){
+  const dish = state.dishes[name];
+  if(!dish) return;
+  recipeModalName = name;
+  const t = dishTotals(dish);
+  const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
+  const seasonTxt = (dish.seasons&&dish.seasons.length) ? dish.seasons.map(s=>SEASONS[s]).join('/') : 'Toute l\'année';
+  const ingHtml = dish.ingredients.map(it=>`<div>• ${it.name} — ${it.grams}g</div>`).join('');
+  const stepsHtml = (dish.steps && dish.steps.length)
+    ? `<ol class="recipe-steps">${dish.steps.map(s=>`<li>${s}</li>`).join('')}</ol>`
+    : `<div class="check-sub">Pas d'étapes enregistrées pour ce plat.</div>`;
+  document.getElementById('recipeModalTitle').textContent = name;
+  document.getElementById('recipeModalBody').innerHTML = `
+    ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${name}" style="margin-bottom:10px;">` : ''}
+    <div class="recipe-meta" style="display:flex; align-items:center; gap:8px;">
+      <span style="flex:1;">${MEAL_CATS[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</span>
+      <button id="recipeEditToggle" style="background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px 8px; cursor:pointer; flex-shrink:0;">✏️</button>
+    </div>
+    <div class="recipe-cat-edit" id="recipeEditPanel" style="display:none; margin-top:10px;">
+      <select class="recipe-cat-sel" id="recipeModalCatSel">
         ${Object.entries(MEAL_CATS).map(([k,v])=>`<option value="${k}" ${(dish.mealCat||'autres')===k?'selected':''}>${v}</option>`).join('')}
       </select>
       <div class="recipe-season-chips">
-        ${Object.entries(SEASONS).map(([k,v])=>`<button class="mp-chip season-chip ${(dish.seasons||[]).includes(k)?'on':''}" data-n="${n.replace(/"/g,'&quot;')}" data-s="${k}">${v}</button>`).join('')}
+        ${Object.entries(SEASONS).map(([k,v])=>`<button class="mp-chip season-chip ${(dish.seasons||[]).includes(k)?'on':''}" data-s="${k}">${v}</button>`).join('')}
       </div>
-    </div>`;
-    return `
-      <div class="recipe-card">
-        ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${n}">` : ''}
-        <div class="recipe-head" data-i="${i}">
-          <div>
-            <div class="recipe-name">${dishInSeason(dish)&&(dish.seasons||[]).length?'🌱 ':''}${n}</div>
-            <div class="recipe-meta">${MEAL_CATS[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</div>
-          </div>
-          <span>▾</span>
-        </div>
-        <div class="recipe-detail" style="display:none;">
-          ${catEdit}
-          <div class="recipe-ing-list">${ingHtml}</div>
-          ${stepsHtml}
-          <div class="recipe-actions">
-            <input type="number" class="recipe-qty" value="1" min="0.5" step="0.5">
-            <button class="add-btn recipe-log-btn" data-i="${i}">Logger dans le jour</button>
-          </div>
-          <button class="add-btn recipe-plan-btn" data-n="${n.replace(/"/g,'&quot;')}" style="background:var(--panel-2); color:var(--text); border:1px solid var(--line);">🗓️ Planifier dans les menus</button>
-          <button class="recipe-del-btn" data-i="${i}">✕ Supprimer ce plat</button>
-        </div>
-      </div>`;
-  }).join('');
+      <button class="recipe-del-btn" id="recipeModalDelBtn" style="margin-top:10px;">✕ Supprimer ce plat</button>
+    </div>
+    <div class="recipe-ing-list">${ingHtml}</div>
+    ${stepsHtml}
+    <div class="recipe-actions">
+      <input type="number" class="recipe-qty" id="recipeModalQty" value="1" min="0.5" step="0.5">
+      <button class="add-btn" id="recipeModalLogBtn" style="margin-bottom:0;">Logger dans le jour</button>
+    </div>
+    <button class="add-btn" id="recipeModalPlanBtn" style="margin-top:10px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">🗓️ Planifier dans les menus</button>`;
 
-  list.querySelectorAll('.mp-chip:not(.season-chip)').forEach(ch=>{
-    ch.onclick = ()=>{ recipeFilterCat = ch.dataset.c; renderRecipes(); };
-  });
-  list.querySelectorAll('.recipe-cat-sel').forEach(sel=>{
-    sel.onchange = ()=>{ state.dishes[sel.dataset.n].mealCat = sel.value; persistState(); renderRecipes(); };
-    sel.onclick = e=>e.stopPropagation();
-  });
-  list.querySelectorAll('.season-chip').forEach(ch=>{
-    ch.onclick = e=>{
-      e.stopPropagation();
-      const d = state.dishes[ch.dataset.n];
-      if(!d.seasons) d.seasons = [];
-      const idx = d.seasons.indexOf(ch.dataset.s);
-      if(idx>=0) d.seasons.splice(idx,1); else d.seasons.push(ch.dataset.s);
+  document.getElementById('recipeEditToggle').onclick = ()=>{
+    const p = document.getElementById('recipeEditPanel');
+    p.style.display = p.style.display==='none' ? 'block' : 'none';
+  };
+  document.getElementById('recipeModalCatSel').onchange = e=>{
+    dish.mealCat = e.target.value; persistState(); renderRecipes();
+  };
+  document.getElementById('recipeModalBody').querySelectorAll('.season-chip').forEach(ch=>{
+    ch.onclick = ()=>{
+      if(!dish.seasons) dish.seasons = [];
+      const idx = dish.seasons.indexOf(ch.dataset.s);
+      if(idx>=0) dish.seasons.splice(idx,1); else dish.seasons.push(ch.dataset.s);
+      ch.classList.toggle('on');
       persistState(); renderRecipes();
     };
   });
-  list.querySelectorAll('.recipe-head').forEach(head=>{
-    head.onclick = ()=>{
-      const detail = head.nextElementSibling;
-      detail.style.display = detail.style.display==='none' ? 'block' : 'none';
-    };
-  });
-  list.querySelectorAll('.recipe-log-btn').forEach(btn=>{
-    btn.onclick = ()=>{
-      const name = names[parseInt(btn.dataset.i)];
-      const dish = state.dishes[name];
-      const qtyInput = btn.closest('.recipe-detail').querySelector('.recipe-qty');
-      const qty = parseFloat(qtyInput.value)||0;
-      if(qty<=0){ alert("Indique un nombre de portions valide."); return; }
-      const t = dishTotals(dish);
-      const r = qty/dish.portions;
-      const iso = isoDate(selectedDate);
-      const day = getDay(iso);
-      day.foods.push({name, grams:Math.round(t.grams*r), unitCount:qty, unitLabel:'portion(s)', p:t.p*r, f:t.f*r, c:t.c*r});
-      setDay(iso, day);
-      render();
-      btn.textContent = "✓ Ajouté";
-      setTimeout(()=>{ btn.textContent = "Logger dans le jour"; }, 1500);
-    };
-  });
-  list.querySelectorAll('.recipe-plan-btn').forEach(btn=>{
-    btn.onclick = ()=>openPlanFromRecipe(btn.dataset.n);
-  });
-  list.querySelectorAll('.recipe-del-btn').forEach(btn=>{
-    btn.onclick = ()=>{
-      const name = names[parseInt(btn.dataset.i)];
-      if(confirm(`Supprimer le plat « ${name} » ?`)){
-        delete state.dishes[name];
-        persistState();
-        renderRecipes();
-      }
-    };
-  });
+  document.getElementById('recipeModalLogBtn').onclick = ()=>{
+    const qty = parseFloat(document.getElementById('recipeModalQty').value)||0;
+    if(qty<=0){ alert("Indique un nombre de portions valide."); return; }
+    const tt = dishTotals(dish);
+    const r = qty/dish.portions;
+    const iso = isoDate(selectedDate);
+    const day = getDay(iso);
+    day.foods.push({name, grams:Math.round(tt.grams*r), unitCount:qty, unitLabel:'portion(s)', p:tt.p*r, f:tt.f*r, c:tt.c*r});
+    setDay(iso, day);
+    render();
+    const btn = document.getElementById('recipeModalLogBtn');
+    btn.textContent = "✓ Ajouté";
+    setTimeout(()=>{ btn.textContent = "Logger dans le jour"; }, 1500);
+  };
+  document.getElementById('recipeModalPlanBtn').onclick = ()=>{
+    closeRecipeModal();
+    openPlanFromRecipe(name);
+  };
+  document.getElementById('recipeModalDelBtn').onclick = ()=>{
+    if(confirm(`Supprimer le plat « ${name} » ?`)){
+      delete state.dishes[name];
+      persistState();
+      closeRecipeModal();
+      renderRecipes();
+    }
+  };
+  document.getElementById('recipeModal').classList.add('open');
 }
+function closeRecipeModal(){
+  document.getElementById('recipeModal').classList.remove('open');
+  recipeModalName = null;
+}
+document.getElementById('recipeModalClose').onclick = closeRecipeModal;
+document.getElementById('recipeModal').onclick = e=>{ if(e.target.id==='recipeModal') closeRecipeModal(); };
+// Prompt d'extraction : à coller dans une IA avec la photo de la recette.
+// Le format demandé correspond EXACTEMENT à ce que le parseur d'import ci-dessous accepte.
+function buildRecipeExtractPrompt(){
+  return `Tu es un extracteur de recettes pour une application de suivi nutritionnel. Je te fournis une photo (ou le texte) d'une recette de livre de cuisine. Régime : végétarien étendu au poisson — si la recette contient de la viande ou de la charcuterie, propose une substitution végétarienne ou au poisson et signale-la dans les étapes.
+
+TÂCHE : extrais la recette et réponds UNIQUEMENT avec un JSON valide, sans aucun texte autour, sans balises markdown, au format exact suivant :
+
+{
+  "ingredientsNouveaux": {
+    "Nom ingrédient": {"p": 0.0, "f": 0.0, "c": 0.0, "cat": "categorie"}
+  },
+  "recettes": {
+    "Nom du plat": {
+      "ingredients": [{"name": "Nom ingrédient", "grams": 100}],
+      "portions": 4,
+      "steps": ["Étape 1…", "Étape 2…"],
+      "source": "Titre du livre, p. XX",
+      "mealCat": "vege",
+      "seasons": ["hiver"]
+    }
+  }
+}
+
+RÈGLES :
+1. "ingredientsNouveaux" : liste TOUS les ingrédients de la recette avec leurs macros pour 100 g (p = protéines, f = lipides, c = glucides, en grammes). Ceux que je possède déjà seront ignorés à l'import, donc n'omets rien.
+2. "cat" doit être une de ces valeurs exactes : ${Object.keys(FOOD_CATEGORIES).join(', ')}.
+3. Dans "ingredients", "name" doit correspondre EXACTEMENT à une clé de "ingredientsNouveaux", et "grams" est la quantité totale pour la recette entière (convertis les cuillères, verres, pièces en grammes).
+4. "mealCat" : une de ces valeurs exactes : ${Object.keys(MEAL_CATS).join(', ')}.
+5. "seasons" : sous-ensemble de ${Object.keys(SEASONS).join(', ')} — ou [] si la recette convient toute l'année.
+6. "steps" : les étapes complètes mais concises, une phrase par étape.
+7. Noms en français, sans marque commerciale.`;
+}
+document.getElementById('recipePromptBtn').onclick = async ()=>{
+  const status = document.getElementById('recipePromptStatus');
+  const text = buildRecipeExtractPrompt();
+  try{
+    await navigator.clipboard.writeText(text);
+    status.textContent = '✓ Prompt copié — colle-le dans ton IA avec la photo de la recette.';
+  }catch(e){
+    if(navigator.share){ try{ await navigator.share({text}); }catch(err){} }
+    else status.textContent = "Copie indisponible sur ce navigateur.";
+  }
+};
 document.getElementById('recipeImportBtn').onclick = ()=>{
   const status = document.getElementById('recipeImportStatus');
   const raw = document.getElementById('recipeImportInput').value.trim();
   if(!raw){ status.textContent = "Colle d'abord un JSON."; return; }
   let data;
-  try{ data = JSON.parse(raw); }
+  // Tolère les balises \`\`\`json que certaines IA ajoutent malgré la consigne
+  try{ data = JSON.parse(raw.replace(/^```(json)?/m,'').replace(/```$/m,'').trim()); }
   catch(e){ status.textContent = "JSON invalide — vérifie le format."; return; }
   let nIng = 0, nRec = 0;
   if(data.ingredientsNouveaux){
     Object.entries(data.ingredientsNouveaux).forEach(([name,v])=>{
-      if(!state.ingredients[name]){ state.ingredients[name] = v; nIng++; }
+      if(!state.ingredients[name]){
+        state.ingredients[name] = {p:v.p||0, f:v.f||0, c:v.c||0, cat: FOOD_CATEGORIES[v.cat] ? v.cat : 'autres'};
+        nIng++;
+      }
     });
   }
   if(data.recettes){
@@ -3799,7 +3928,9 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
         portions: r.portions||1,
         steps: r.steps||[],
         source: r.source||'',
-        photo: r.photo||null
+        photo: r.photo||null,
+        mealCat: MEAL_CATS[r.mealCat] ? r.mealCat : 'autres',
+        seasons: Array.isArray(r.seasons) ? r.seasons.filter(s=>SEASONS[s]) : []
       };
       nRec++;
     });
@@ -4735,17 +4866,23 @@ function buildProspectPrompt(){
     };
     menuLines.push(`${MENU_DAYS_FR[dowIndexMondayBased(d)]} ${iso} : midi = ${fmtSlot('midi')} ; soir = ${fmtSlot('soir')}`);
   }
+  // Les 7 prochains jours peuvent chevaucher deux semaines d'objectifs : on inclut les deux si renseignées
   let goalLines = 'Aucun objectif sportif renseigné pour cette période.';
-  if(state.weeklyGoals && state.weeklyGoals.weekStart && state.weeklyGoals.activities){
-    const acts = Object.entries(state.weeklyGoals.activities)
+  const goalBlocks = [];
+  const mondays = [...new Set([isoDate(getMonday(addDays(todayDate(),1))), isoDate(getMonday(addDays(todayDate(),7)))])];
+  mondays.forEach(mIso=>{
+    const weekActs = state.goalsByWeek[mIso];
+    if(!weekActs) return;
+    const acts = Object.entries(weekActs)
       .filter(([,days])=>Array.isArray(days) && days.some(Boolean))
       .map(([act,days])=>{
         const cfg = SPORT_ACTIVITIES[act] || {label:act};
-        const jours = days.map((on,i)=>on?MENU_DAYS_FR[i]:null).filter(Boolean).join(', ');
+        const jours = days.map((on,i)=>on?(act==='hiit'?`${MENU_DAYS_FR[i]} (${on} série${on>1?'s':''})`:MENU_DAYS_FR[i]):null).filter(Boolean).join(', ');
         return `- ${cfg.label} : ${jours}`;
       });
-    if(acts.length) goalLines = `Objectifs (semaine du ${state.weeklyGoals.weekStart}) :\n${acts.join('\n')}`;
-  }
+    if(acts.length) goalBlocks.push(`Objectifs (semaine du ${mIso}) :\n${acts.join('\n')}`);
+  });
+  if(goalBlocks.length) goalLines = goalBlocks.join('\n\n');
   return `${state.aiRole}
 
 CONTEXTE : je te transmets mon plan pour les 7 prochains jours. Profil : ${state.sex==='F'?'femme':'homme'}, ${state.age} ans, ${state.weightKg} kg, besoin de base estimé ${computeTDEE()} kcal/j (hors sport).
@@ -4860,7 +4997,7 @@ document.getElementById('newPeriodBtn').onclick = ()=>{
   state.days = {};
   state.weighins = {};
   state.inbodyScans = {};
-  state.weeklyGoals = {weekStart:null, activities:{}};
+  state.goalsByWeek = {};
   state.startDate = isoDate(todayDate());
   persistState();
   render();
@@ -4874,7 +5011,7 @@ document.getElementById('importFile').onchange = (e)=>{
   reader.onload = (ev)=>{
     try{
       const imported = JSON.parse(ev.target.result);
-      state = {...structuredClone(DEFAULT_STATE), ...imported};
+      state = migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported})));
       persistState();
       render();
     }catch(err){ alert("Fichier invalide."); }
