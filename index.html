@@ -4284,15 +4284,30 @@ function renderModalRecentsGrid(){
     };
   });
 }
-function dishTotals(dish){
-  // Recalcul dynamique depuis la base ingrédients : corriger un ingrédient met à jour tous les plats
+function dishAutoTotals(dish){
+  // Calcul de référence depuis la base ingrédients — ignore toute valeur manuelle.
   let grams=0,p=0,f=0,c=0;
-  dish.ingredients.forEach(it=>{
+  (dish.ingredients||[]).forEach(it=>{
     const ref = state.ingredients[it.name];
     if(!ref) return;
     grams+=it.grams; p+=ref.p*it.grams/100; f+=ref.f*it.grams/100; c+=ref.c*it.grams/100;
   });
   return {grams,p,f,c,kcal:Math.round(p*4+c*4+f*9)};
+}
+function dishTotals(dish){
+  // Recalcul dynamique depuis la base ingrédients : corriger un ingrédient met à jour tous les plats.
+  // Si des valeurs nutritionnelles manuelles ont été saisies (par portion, ex. étiquette du livre), elles priment.
+  const auto = dishAutoTotals(dish);
+  if(dish.macroOverride){
+    const portions = dish.portions||1;
+    const o = dish.macroOverride;
+    return {
+      grams: auto.grams, // le poids reste calculé depuis les ingrédients (utile pour la liste de courses)
+      p: (o.p||0)*portions, f: (o.f||0)*portions, c: (o.c||0)*portions,
+      kcal: Math.round((o.kcal||0)*portions)
+    };
+  }
+  return auto;
 }
 
 /* ---------- ONGLET RECETTES ---------- */
@@ -4342,6 +4357,10 @@ function openRecipeModal(name){
   if(!dish) return;
   recipeModalName = name;
   const t = dishTotals(dish);
+  const auto = dishAutoTotals(dish);
+  const portionsN = dish.portions||1;
+  const autoPP = {kcal:Math.round(auto.kcal/portionsN), p:+(auto.p/portionsN).toFixed(1), f:+(auto.f/portionsN).toFixed(1), c:+(auto.c/portionsN).toFixed(1)};
+  const manualPP = dish.macroOverride || autoPP;
   const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
   const seasonTxt = (dish.seasons&&dish.seasons.length) ? dish.seasons.map(s=>SEASONS[s]).join('/') : 'Toute l\'année';
   const ingHtml = dish.ingredients.map(it=>`<div>• ${it.name} — ${it.grams}g</div>`).join('');
@@ -4352,7 +4371,7 @@ function openRecipeModal(name){
   document.getElementById('recipeModalBody').innerHTML = `
     ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${name}" style="margin-bottom:10px;">` : ''}
     <div class="recipe-meta" style="display:flex; align-items:center; gap:8px;">
-      <span style="flex:1;">${state.mealCats[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</span>
+      <span style="flex:1;" id="recipeModalMetaSpan">${state.mealCats[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion${dish.macroOverride?' ✋':''} · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</span>
       <button id="recipeEditToggle" style="background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px 8px; cursor:pointer; flex-shrink:0;">✏️</button>
     </div>
     <div class="recipe-cat-edit" id="recipeEditPanel" style="display:none; margin-top:10px;">
@@ -4362,6 +4381,17 @@ function openRecipeModal(name){
       <div class="recipe-season-chips">
         ${Object.entries(SEASONS).map(([k,v])=>`<button class="mp-chip season-chip ${(dish.seasons||[]).includes(k)?'on':''}" data-s="${k}">${v}</button>`).join('')}
       </div>
+      <label style="display:flex; align-items:center; gap:6px; font-size:0.82rem; cursor:pointer; margin-top:12px;">
+        <input type="checkbox" id="recipeManualMacroChk" ${dish.macroOverride?'checked':''}>
+        Valeurs nutritionnelles manuelles (par portion, remplace le calcul automatique)
+      </label>
+      <div id="recipeManualMacroFields" style="display:${dish.macroOverride?'flex':'none'}; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:70px;"><div class="check-sub">Kcal</div><input type="number" id="recipeMacroKcal" value="${manualPP.kcal}" min="0" step="1"></div>
+        <div style="flex:1; min-width:70px;"><div class="check-sub">Protéines g</div><input type="number" id="recipeMacroP" value="${manualPP.p}" min="0" step="0.1"></div>
+        <div style="flex:1; min-width:70px;"><div class="check-sub">Glucides g</div><input type="number" id="recipeMacroC" value="${manualPP.c}" min="0" step="0.1"></div>
+        <div style="flex:1; min-width:70px;"><div class="check-sub">Lipides g</div><input type="number" id="recipeMacroF" value="${manualPP.f}" min="0" step="0.1"></div>
+      </div>
+      <div class="check-sub" style="margin-top:4px;">Valeurs par portion (comme sur l'étiquette du livre). Calcul auto actuel : ${autoPP.kcal} kcal · P ${autoPP.p}g · G ${autoPP.c}g · L ${autoPP.f}g.</div>
       <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
         <button class="add-btn" id="recipeModalPhotoBtn" style="margin:0; flex:1; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">📷 ${dish.photo?'Changer la photo':'Ajouter une photo'}</button>
         ${dish.photo?'<button class="recipe-del-btn" id="recipeModalPhotoDelBtn" style="margin:0;">✕ Retirer</button>':''}
@@ -4391,6 +4421,36 @@ function openRecipeModal(name){
       if(idx>=0) dish.seasons.splice(idx,1); else dish.seasons.push(ch.dataset.s);
       ch.classList.toggle('on');
       persistState(); renderRecipes();
+    };
+  });
+  const syncMetaSpan = ()=>{
+    const tt = dishTotals(dish);
+    const pp = dish.portions ? Math.round(tt.kcal/dish.portions) : tt.kcal;
+    document.getElementById('recipeModalMetaSpan').textContent =
+      `${state.mealCats[dish.mealCat||'autres']} · ${seasonTxt} · ${pp} kcal/portion${dish.macroOverride?' ✋':''} · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}`;
+  };
+  document.getElementById('recipeManualMacroChk').onchange = e=>{
+    document.getElementById('recipeManualMacroFields').style.display = e.target.checked ? 'flex' : 'none';
+    if(e.target.checked){
+      dish.macroOverride = {
+        kcal: parseFloat(document.getElementById('recipeMacroKcal').value)||autoPP.kcal,
+        p: parseFloat(document.getElementById('recipeMacroP').value)||autoPP.p,
+        f: parseFloat(document.getElementById('recipeMacroF').value)||autoPP.f,
+        c: parseFloat(document.getElementById('recipeMacroC').value)||autoPP.c
+      };
+    } else { delete dish.macroOverride; }
+    persistState(); renderRecipes(); syncMetaSpan();
+  };
+  ['recipeMacroKcal','recipeMacroP','recipeMacroF','recipeMacroC'].forEach(id=>{
+    document.getElementById(id).onchange = ()=>{
+      if(!document.getElementById('recipeManualMacroChk').checked) return;
+      dish.macroOverride = {
+        kcal: parseFloat(document.getElementById('recipeMacroKcal').value)||0,
+        p: parseFloat(document.getElementById('recipeMacroP').value)||0,
+        f: parseFloat(document.getElementById('recipeMacroF').value)||0,
+        c: parseFloat(document.getElementById('recipeMacroC').value)||0
+      };
+      persistState(); renderRecipes(); syncMetaSpan();
     };
   });
   document.getElementById('recipeModalLogBtn').onclick = ()=>{
@@ -4480,7 +4540,8 @@ TÂCHE : extrais la recette et réponds UNIQUEMENT avec un JSON valide, sans auc
       "steps": ["Étape 1…", "Étape 2…"],
       "source": "Titre du livre, p. XX",
       "mealCat": "vege",
-      "seasons": ["hiver"]
+      "seasons": ["hiver"],
+      "macroOverride": {"kcal": 589, "p": 23, "c": 36, "f": 39}
     }
   }
 }
@@ -4492,7 +4553,8 @@ RÈGLES :
 4. "mealCat" : une de ces valeurs exactes : ${Object.keys(state.mealCats).join(', ')}.
 5. "seasons" : sous-ensemble de ${Object.keys(SEASONS).join(', ')} — ou [] si la recette convient toute l'année.
 6. "steps" : les étapes complètes mais concises, une phrase par étape.
-7. Noms en français, sans marque commerciale.`;
+7. Noms en français, sans marque commerciale.
+8. "macroOverride" : si la page affiche des valeurs nutritionnelles PAR PORTION (kcal, protéines, glucides, lipides), reporte-les ici telles quelles — elles priment sur le calcul automatique depuis les ingrédients dans l'app. Si aucune valeur n'est imprimée sur la page, omets entièrement ce champ.`;
 }
 document.getElementById('recipePromptBtn').onclick = async ()=>{
   const status = document.getElementById('recipePromptStatus');
@@ -4536,7 +4598,10 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
         source: r.source||'',
         photo: r.photo||null,
         mealCat: state.mealCats[r.mealCat] ? r.mealCat : 'autres',
-        seasons: Array.isArray(r.seasons) ? r.seasons.filter(s=>SEASONS[s]) : []
+        seasons: Array.isArray(r.seasons) ? r.seasons.filter(s=>SEASONS[s]) : [],
+        macroOverride: (r.macroOverride && typeof r.macroOverride==='object')
+          ? {kcal:+r.macroOverride.kcal||0, p:+r.macroOverride.p||0, f:+r.macroOverride.f||0, c:+r.macroOverride.c||0}
+          : null
       };
       nRec++;
     });
@@ -5542,10 +5607,12 @@ const AI_OUTPUT_RETRO = `FORMAT DE SORTIE ATTENDU (max 400 mots) :
 3. 🍽️ 1 conseil nutrition actionnable pour la semaine suivante
 4. 🏃 1 conseil sport actionnable pour la semaine suivante`;
 
-const AI_OUTPUT_PROSPECT = `FORMAT DE SORTIE ATTENDU (max 300 mots) :
-1. ✅ Validation globale du plan (cohérence calories/objectifs)
-2. ⚠️ Déséquilibres éventuels (protéines, répétitions de plats, jours à risque)
-3. 🔧 2 ajustements maximum, concrets et faciles à appliquer`;
+const AI_OUTPUT_PROSPECT = `FORMAT DE SORTIE ATTENDU (max 400 mots) :
+1. 🔍 Analyse critique plats × sport : pour chaque jour, les repas prévus sont-ils cohérents avec la charge d'entraînement (repos, séance légère, séance intense) ? Signale précisément les jours mal calibrés (trop lourd un jour de repos, trop léger un jour d'entraînement intense, etc.)
+2. ✅ Validation globale du plan (cohérence calories/objectifs sur la semaine)
+3. ⚠️ Déséquilibres éventuels (protéines, répétitions de plats, repas trop caloriques, jours à risque)
+4. 🔁 Remplacements concrets : pour chaque repas problématique identifié en 1 ou 3, propose un plat de la bibliothèque fournie ci-dessous en remplacement, formulé ainsi : "remplace [plat prévu] par [plat de la bibliothèque]"
+5. 🔧 1 ajustement supplémentaire maximum si pertinent`;
 
 function aiDayLine(iso){
   const day = state.days[iso] ? getDay(iso) : null;
@@ -5556,7 +5623,8 @@ function aiDayLine(iso){
   const tdee = computeTDEE();
   const need = tdee + sportTotalKcal(day);
   const parts = [];
-  parts.push(`${Math.round(t.kcal)} kcal ingérées / besoin ${need} kcal (écart ${Math.round(t.kcal-need)})`);
+  const ecart = Math.round(t.kcal-need);
+  parts.push(`${Math.round(t.kcal)} kcal ingérées / besoin ${need} kcal (écart ${ecart}${ecart>300?' ⚠️ dépassement notable':''})`);
   parts.push(`macros P${Math.round(t.p)}g L${Math.round(t.f)}g G${Math.round(t.c)}g`);
   if(day.sessions.length){
     parts.push('sport : ' + day.sessions.filter(s=>!s.notDone).map(s=>{
@@ -5590,24 +5658,45 @@ ${weighs.length ? '\nPESÉES DE LA SEMAINE :\n' + weighs.join('\n') : ''}
 ${AI_OUTPUT_RETRO}`;
 }
 
+// Synthèse de tous les plats déjà enregistrés, triée par catégorie puis kcal — sert de base à l'IA
+// pour proposer des remplacements concrets ("remplace X par Y") dans le prompt prospectif.
+function buildDishLibrarySummary(){
+  const names = Object.keys(state.dishes);
+  if(!names.length) return 'Aucun plat enregistré dans la bibliothèque.';
+  const rows = names.map(n=>{
+    const dish = state.dishes[n];
+    const t = dishTotals(dish);
+    const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
+    return {n, cat: state.mealCats[dish.mealCat||'autres']||dish.mealCat||'autres', kcal:perPortion, inSeason: dishInSeason(dish)};
+  }).sort((a,b)=> a.cat.localeCompare(b.cat) || a.kcal-b.kcal);
+  return rows.map(r=>`- ${r.n} (${r.cat}) : ~${r.kcal} kcal/portion${r.inSeason?' 🌱':''}`).join('\n');
+}
+
 function buildProspectPrompt(){
   // Semaine à venir = les 7 prochains jours (demain -> J+7)
+  const tdee = computeTDEE();
+  const HIGH_KCAL_RATIO = 0.45; // un plat qui dépasse 45% du besoin de base sur un seul repas est signalé
+  const highKcalThreshold = Math.round(tdee * HIGH_KCAL_RATIO);
+  const flagged = [];
   const menuLines = [];
   for(let i=1;i<=7;i++){
     const iso = isoDate(addDays(todayDate(),i));
     const d = new Date(iso+'T12:00:00');
+    const dayLabel = MENU_DAYS_FR[dowIndexMondayBased(d)];
     const plan = state.mealPlan[iso];
-    const fmtSlot = key=>{
+    const fmtSlot = (key,slotLabel)=>{
       const items = (plan && plan[key]) || [];
       if(!items.length) return 'libre';
       return items.map(it=>{
         if(it.type==='food') return `${it.name} ${it.grams}g`;
         const dish = state.dishes[it.name];
-        const kcal = dish ? Math.round(dishTotals(dish).kcal/(dish.portions||1)) : '?';
-        return `${it.name}${it.leftover?' (restes)':''} [~${kcal} kcal/portion]`;
+        const kcal = dish ? Math.round(dishTotals(dish).kcal/(dish.portions||1)) : null;
+        const isHigh = kcal!=null && kcal > highKcalThreshold;
+        if(isHigh) flagged.push(`${dayLabel} ${iso} (${slotLabel}) : ${it.name} ~${kcal} kcal/portion`);
+        return `${it.name}${it.leftover?' (restes)':''} [~${kcal ?? '?'} kcal/portion${isHigh?' ⚠️ élevé':''}]`;
       }).join(' + ');
     };
-    menuLines.push(`${MENU_DAYS_FR[dowIndexMondayBased(d)]} ${iso} : midi = ${fmtSlot('midi')} ; soir = ${fmtSlot('soir')}`);
+    menuLines.push(`${dayLabel} ${iso} : midi = ${fmtSlot('midi','midi')} ; soir = ${fmtSlot('soir','soir')}`);
   }
   // Les 7 prochains jours peuvent chevaucher deux semaines d'objectifs : on inclut les deux si renseignées
   let goalLines = 'Aucun objectif sportif renseigné pour cette période.';
@@ -5628,13 +5717,17 @@ function buildProspectPrompt(){
   if(goalBlocks.length) goalLines = goalBlocks.join('\n\n');
   return `${state.aiRole}
 
-CONTEXTE : je te transmets mon plan pour les 7 prochains jours. Profil : ${state.sex==='F'?'femme':'homme'}, ${state.age} ans, ${state.weightKg} kg, besoin de base estimé ${computeTDEE()} kcal/j (hors sport).
+CONTEXTE : je te transmets mon plan pour les 7 prochains jours. Profil : ${state.sex==='F'?'femme':'homme'}, ${state.age} ans, ${state.weightKg} kg, besoin de base estimé ${tdee} kcal/j (hors sport).
 
 OBJECTIFS SPORTIFS :
 ${goalLines}
 
 MENUS PLANIFIÉS ("libre" = créneau non planifié, "(restes)" = portion d'un plat déjà cuisiné) :
 ${menuLines.join('\n')}
+${flagged.length ? '\n⚠️ REPAS REPÉRÉS COMME ÉLEVÉS EN CALORIES (seuil : '+highKcalThreshold+' kcal/portion, soit 45% du besoin de base) :\n'+flagged.join('\n') : ''}
+
+BIBLIOTHÈQUE DE PLATS DÉJÀ ENREGISTRÉS (🌱 = de saison actuellement) — utilise-la pour proposer des remplacements concrets, pas des plats inventés :
+${buildDishLibrarySummary()}
 
 ${AI_OUTPUT_PROSPECT}`;
 }
