@@ -90,6 +90,35 @@
   .badges-group{display:flex; flex-direction:row; align-items:center; gap:5px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end;}
   .hero-streak.habit-badge{cursor:pointer;}
   .hero-streak.habit-badge.on{background:rgba(95,115,85,0.35); border-color:var(--sage);}
+  .hero-streak.alcohol-badge{cursor:pointer;}
+  .hero-streak.alcohol-badge.sec{background:rgba(95,115,85,0.35); border-color:var(--sage);}
+  .hero-streak.alcohol-badge.bu{background:rgba(168,79,63,0.18); border-color:var(--danger);}
+  .heatmap-scroll{overflow-x:auto; padding-bottom:6px;}
+  .heatmap{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,1fr); gap:3px; width:max-content;}
+  .hm-cell{width:13px; height:13px; border-radius:3px; cursor:pointer;}
+  .hm-cell.sec{background:var(--sage);}
+  .hm-cell.bu{background:var(--danger);}
+  .hm-cell.neutre{background:var(--panel-2); border:1px solid var(--line);}
+  .hm-months{display:flex; gap:3px; font-size:0.65rem; color:var(--text-dim); margin-bottom:4px; width:max-content;}
+  .hm-months span{width:13px; flex-shrink:0; overflow:visible; white-space:nowrap;}
+  .legend{display:flex; gap:14px; margin-top:12px; font-size:0.72rem; color:var(--text-dim); flex-wrap:wrap;}
+  .legend .dot{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px;}
+  .legend .dot.sec{background:var(--sage);} .legend .dot.bu{background:var(--danger);} .legend .dot.neutre{background:var(--panel-2); border:1px solid var(--line);}
+  .stats-row{display:flex; gap:10px;}
+  .stats-row .stat{flex:1; background:var(--panel-2); border-radius:10px; padding:12px 8px; text-align:center;}
+  .stats-row .stat .num{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.25rem; color:var(--accent);}
+  .stats-row .stat .lbl{font-size:0.65rem; color:var(--text-dim); margin-top:2px;}
+  .am-total{display:flex; align-items:baseline; gap:8px; margin-bottom:14px;}
+  .am-total .val{font-family:'JetBrains Mono',monospace; font-weight:700; font-size:1.7rem; color:var(--text);}
+  .am-total .delta{font-family:'JetBrains Mono',monospace; font-size:0.8rem; padding:2px 8px; border-radius:10px;}
+  .am-total .delta.up{background:rgba(168,79,63,0.15); color:var(--danger);}
+  .am-total .delta.down{background:rgba(95,115,85,0.2); color:var(--sage);}
+  .am-total .delta.flat{background:var(--panel-2); color:var(--text-dim);}
+  .am-row{display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-top:1px solid var(--line); font-size:0.85rem;}
+  .am-row:first-of-type{border-top:none;}
+  .am-row .am-name{display:flex; align-items:center; gap:8px;}
+  .am-row .am-val{font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-size:0.8rem;}
+  .am-empty{color:var(--text-dim); font-size:0.85rem; text-align:center; padding:12px 0;}
 
   .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px;}
   .card h2{font-size:1rem; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between;}
@@ -1160,6 +1189,7 @@
     <div class="mantra-top">
       <button class="motiv-btn" id="motivBtn">💬 Motivation</button>
       <span class="hero-streak" id="streakBadge"><span class="hi">🔥</span><span class="hn">0</span></span>
+      <span class="hero-streak alcohol-badge" id="alcoholBadge"><span class="hi">🍺</span><span class="hn">0</span></span>
     </div>
     <div class="quick-logs" id="quickLogs"></div>
     <div class="hero-goals" id="heroGoals"></div>
@@ -1739,6 +1769,45 @@
     </div>
   </details>
   </div><!-- /tab reglages -->
+
+  <div class="tab-page" data-tab="alcool">
+  <!-- ALCOOL -->
+  <div class="day-nav-bar">
+    <button type="button" class="day-nav-btn" id="alcoolBackBtn" aria-label="Retour">‹</button>
+    <span class="day-nav-label" style="pointer-events:none;">🍺 Suivi alcool</span>
+    <span style="width:34px;"></span>
+  </div>
+
+  <div class="card">
+    <div class="stats-row" id="alcoolStatsRow"></div>
+  </div>
+
+  <div class="card">
+    <h2>Ce mois-ci <span class="tag mono" id="alcoolMonthLabel"></span></h2>
+    <div class="check-sub" style="margin-bottom:10px;">Comparé au mois précédent. 1 verre standard = 10g d'alcool pur (repère officiel santé publique).</div>
+    <div id="alcoolMonthCard"></div>
+  </div>
+
+  <div class="card">
+    <h2>Tendance</h2>
+    <div class="check-sub" style="margin-bottom:6px;">Verres standards consommés, par mois.</div>
+    <canvas id="chartAlcoolTrend" height="140"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>Historique <span class="tag mono" id="alcoolRangeLabel"></span></h2>
+    <div class="check-sub" style="margin-bottom:10px;">Un jour sans alcool loggé compte comme sobre. Tape un carré pour voir le détail du jour.</div>
+    <div class="heatmap-scroll" id="alcoolHeatmapScroll">
+      <div class="hm-months" id="alcoolHeatmapMonths"></div>
+      <div class="heatmap" id="alcoolHeatmap"></div>
+    </div>
+    <div class="legend">
+      <span><i class="dot sec"></i>Sobre</span>
+      <span><i class="dot bu"></i>Alcool</span>
+      <span><i class="dot neutre"></i>À venir</span>
+    </div>
+  </div>
+  </div><!-- /tab alcool -->
 
 </div>
 
@@ -3637,11 +3706,227 @@ function updateSeal(day){
     sealed ? 'Journée scellée ✓' : `Pour sceller : ${missing.join(' + ')}`;
   const streak = computeStreak();
   document.getElementById('streakBadge').querySelector('.hn').textContent = streak;
+  renderAlcoholBadge();
 
   if(sealed && lastSealedState===false && isoDate(selectedDate)===isoDate(todayDate())){
     fireConfetti();
   }
   lastSealedState = sealed;
+}
+
+/* ===== SUIVI ALCOOL ===== */
+// Chaque aliment loggé porte déjà un champ .a (grammes d'alcool pur pour la portion, voir qlValidate
+// et les modales d'ajout). Un jour "avec alcool" = au moins un aliment du jour a un .a > 0.
+// Règle retenue : jour non loggé = sec par défaut (rétroactif), pas de distinction scellé/non scellé.
+const ALCOHOL_WEEKS = 26; // ~6 mois affichés dans la heatmap ; ajustable si besoin de plus de recul
+
+function dayHasAlcohol(iso){
+  const day = state.days[iso];
+  if(!day || !day.foods) return false;
+  return day.foods.some(f=>(f.a||0)>0);
+}
+
+function computeAlcoholStreak(){
+  // Streak de jours secs consécutifs en remontant depuis aujourd'hui (aujourd'hui inclus,
+  // même en cours de journée : "sec" tant qu'aucun alcool n'a été loggé).
+  let streak = 0;
+  let d = todayDate();
+  while(streak<3650){
+    if(dayHasAlcohol(isoDate(d))) break;
+    streak++;
+    d = addDays(d,-1);
+  }
+  return streak;
+}
+
+function computeAlcoholRecord(days){
+  // days : liste ordonnée {iso, status} sur la période affichée. Plus long streak "sec" trouvé.
+  let best=0, cur=0;
+  days.forEach(({status})=>{
+    if(status==='sec'){ cur++; best=Math.max(best,cur); }
+    else if(status==='bu'){ cur=0; }
+  });
+  return best;
+}
+
+function renderAlcoholBadge(){
+  const badge = document.getElementById('alcoholBadge');
+  if(!badge) return;
+  const streak = computeAlcoholStreak();
+  const todayBu = dayHasAlcohol(isoDate(todayDate()));
+  badge.querySelector('.hn').textContent = streak;
+  badge.classList.toggle('sec', !todayBu);
+  badge.classList.toggle('bu', todayBu);
+}
+
+function renderAlcoholPage(){
+  const today = todayDate();
+  const todayIso = isoDate(today);
+  const totalDays = ALCOHOL_WEEKS*7;
+
+  // Aligne le début de la plage sur un lundi pour que chaque colonne = une semaine complète
+  let start = addDays(today, -(totalDays-1));
+  const dow = start.getDay(); // 0=dim..6=sam
+  start = addDays(start, -(dow===0 ? 6 : dow-1));
+
+  const days = [];
+  let d = new Date(start);
+  while(isoDate(d) <= todayIso){
+    const iso = isoDate(d);
+    days.push({iso, status: dayHasAlcohol(iso) ? 'bu' : 'sec'});
+    d = addDays(d,1);
+  }
+  while(days.length%7!==0) days.push({iso:null, status:'neutre'}); // complète la dernière colonne
+
+  const secCount = days.filter(x=>x.status==='sec').length;
+  const loggedCount = days.filter(x=>x.iso).length;
+  const pct = loggedCount ? Math.round(secCount/loggedCount*100) : 0;
+  const record = computeAlcoholRecord(days);
+  const currentStreak = computeAlcoholStreak();
+
+  document.getElementById('alcoolStatsRow').innerHTML = `
+    <div class="stat"><div class="num">${currentStreak}</div><div class="lbl">jours sobres</div></div>
+    <div class="stat"><div class="num">${record}</div><div class="lbl">meilleure série</div></div>
+    <div class="stat"><div class="num">${pct}%</div><div class="lbl">% sobres (${ALCOHOL_WEEKS*7}j)</div></div>
+  `;
+  document.getElementById('alcoolRangeLabel').textContent = `${ALCOHOL_WEEKS} semaines`;
+  renderAlcoholMonthCard();
+  drawAlcoholTrendChart();
+
+  const hm = document.getElementById('alcoolHeatmap');
+  hm.innerHTML = '';
+  days.forEach(({iso,status})=>{
+    const cell = document.createElement('div');
+    cell.className = 'hm-cell '+status;
+    if(iso){
+      const d2 = new Date(iso+'T00:00:00');
+      const label = d2.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long'});
+      cell.title = label;
+      cell.onclick = ()=>alert(status==='bu' ? `${label} — alcool consommé` : `${label} — jour sobre`);
+    }
+    hm.appendChild(cell);
+  });
+
+  // Un label par colonne (semaine), affiché seulement quand le mois change
+  const monthsWrap = document.getElementById('alcoolHeatmapMonths');
+  monthsWrap.innerHTML = '';
+  const weekCount = days.length/7;
+  let lastMonth = null;
+  for(let w=0; w<weekCount; w++){
+    const firstDayOfCol = days[w*7];
+    const span = document.createElement('span');
+    if(firstDayOfCol.iso){
+      const m = firstDayOfCol.iso.slice(0,7);
+      if(m!==lastMonth){
+        span.textContent = new Date(firstDayOfCol.iso+'T00:00:00').toLocaleDateString('fr-FR',{month:'short'});
+        lastMonth = m;
+      }
+    }
+    monthsWrap.appendChild(span);
+  }
+}
+document.getElementById('alcoholBadge').onclick = ()=>{ switchTab('alcool'); renderAlcoholPage(); };
+document.getElementById('alcoolBackBtn').onclick = ()=>switchTab('jour');
+
+// --- Détail par type + comparatif mensuel + tendance ---
+// 1 verre standard = 10g d'alcool pur (repère Santé publique France), utilisé comme unité commune
+// pour comparer bière/vin/spiritueux entre eux malgré leurs volumes très différents.
+const ALCOHOL_TYPES = {
+  biere:{icon:'🍺', label:'Bière'},
+  vin:{icon:'🍷', label:'Vin'},
+  spiritueux:{icon:'🥃', label:'Spiritueux / autres'}
+};
+function alcoholTypeOf(name){
+  if(/^Bière/i.test(name)) return 'biere';
+  if(/^Vin/i.test(name)) return 'vin';
+  return 'spiritueux';
+}
+function computeAlcoholMonthStats(year, month){
+  let totalL=0, totalKcal=0, totalG=0;
+  const byType = {biere:{l:0,kcal:0,g:0}, vin:{l:0,kcal:0,g:0}, spiritueux:{l:0,kcal:0,g:0}};
+  Object.keys(state.days).forEach(iso=>{
+    const d = new Date(iso+'T00:00:00');
+    if(d.getFullYear()!==year || d.getMonth()!==month) return;
+    getDay(iso).foods.forEach(f=>{
+      if(!(f.a>0)) return;
+      const type = alcoholTypeOf(f.name);
+      const liters = (f.grams||0)/1000; // approximation densité ≈ 1 (boissons), suffisant pour un ordre de grandeur
+      const kcal = foodKcal(f);
+      totalL+=liters; totalKcal+=kcal; totalG+=f.a;
+      byType[type].l+=liters; byType[type].kcal+=kcal; byType[type].g+=f.a;
+    });
+  });
+  return {totalL, totalKcal, totalG, verres: totalG/10, byType};
+}
+function renderAlcoholMonthCard(){
+  const today = todayDate();
+  const y=today.getFullYear(), m=today.getMonth();
+  const prevD = new Date(y, m-1, 1);
+  const cur = computeAlcoholMonthStats(y,m);
+  const prev = computeAlcoholMonthStats(prevD.getFullYear(), prevD.getMonth());
+  document.getElementById('alcoolMonthLabel').textContent = today.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+
+  let deltaHtml;
+  if(prev.verres>0){
+    const pct = Math.round((cur.verres-prev.verres)/prev.verres*100);
+    const cls = pct<0 ? 'down' : (pct>0 ? 'up' : 'flat');
+    deltaHtml = `<span class="delta ${cls}">${pct>0?'+':''}${pct}% vs ${prevD.toLocaleDateString('fr-FR',{month:'long'})}</span>`;
+  } else if(cur.verres>0){
+    deltaHtml = `<span class="delta up">mois précédent sobre</span>`;
+  } else {
+    deltaHtml = `<span class="delta down">0 les 2 mois 👍</span>`;
+  }
+
+  const rows = Object.entries(ALCOHOL_TYPES).map(([key,meta])=>{
+    const t = cur.byType[key];
+    if(!t.l) return '';
+    return `<div class="am-row">
+      <span class="am-name">${meta.icon} ${meta.label}</span>
+      <span class="am-val">${t.l.toFixed(1)} L · ${Math.round(t.kcal)} kcal · ${(t.g/10).toFixed(1)} verres</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('alcoolMonthCard').innerHTML = cur.totalG===0
+    ? `<div class="am-empty">Aucun alcool loggé ce mois-ci 🎉</div>`
+    : `
+    <div class="am-total">
+      <span class="val">${cur.verres.toFixed(1)}</span>
+      <span>verres standards</span>
+      ${deltaHtml}
+    </div>
+    ${rows}
+    <div class="am-row" style="border-top:2px solid var(--line); margin-top:4px; font-weight:600;">
+      <span class="am-name">Total</span>
+      <span class="am-val">${cur.totalL.toFixed(1)} L (~${cur.totalL.toFixed(1)} bouteille(s) 1L) · ${Math.round(cur.totalKcal)} kcal</span>
+    </div>`;
+}
+function drawAlcoholTrendChart(){
+  const h=140;
+  const {ctx,w} = setupCanvas('chartAlcoolTrend', h);
+  const today = todayDate();
+  const months = [];
+  for(let i=5;i>=0;i--){
+    const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
+    months.push(d);
+  }
+  const stats = months.map(d=>computeAlcoholMonthStats(d.getFullYear(), d.getMonth()));
+  const maxV = Math.max(1, ...stats.map(s=>s.verres));
+  const n = months.length;
+  const groupW = w/n;
+  const barW = Math.min(28, groupW*0.5);
+  ctx.font = '9px Inter, sans-serif'; ctx.textAlign='center';
+  stats.forEach((s,i)=>{
+    const barH = (s.verres/maxV)*(h-30);
+    const x = i*groupW + groupW/2 - barW/2;
+    ctx.fillStyle = s.verres>0 ? '#a84f3f' : '#5f7355';
+    ctx.fillRect(x, h-24-barH, barW, Math.max(barH, s.verres>0?2:0));
+    ctx.fillStyle='#847d6f';
+    ctx.fillText(months[i].toLocaleDateString('fr-FR',{month:'short'}), i*groupW+groupW/2, h-8);
+    if(s.verres>0){
+      ctx.fillStyle='#2a2621';
+      ctx.fillText(s.verres.toFixed(1), i*groupW+groupW/2, Math.max(10, h-28-barH));
+    }
+  });
 }
 
 function renderWeekDots(info, weekIdx){
