@@ -712,7 +712,7 @@
   .bilan-tip.warn{border-left-color:var(--danger);}
   .bilan-tip.good{border-left-color:var(--success);}
   .bilan-tip-icon{flex-shrink:0;}
-  .hero-goals{display:flex; gap:6px; flex-wrap:nowrap; margin-top:10px; min-height:38px;}
+  .hero-goals{display:flex; gap:6px; flex-wrap:nowrap; margin-top:10px; min-height:32px;}
   .goal-pill{
     display:inline-flex; align-items:center; justify-content:center; position:relative;
     width:36px; height:36px; border-radius:12px; font-size:1.15rem; flex-shrink:0;
@@ -865,8 +865,8 @@
     transition:transform .16s ease, background .16s ease;
   }
   .ql-icon:hover{background:rgba(255,255,255,.17);}
-  .hero-goals{margin-top:13px;}
-  .goal-pill{width:38px; height:38px; border-color:rgba(255,255,255,.18);}
+  .hero-goals{margin-top:8px;}
+  .goal-pill{width:32px; height:32px; border-color:rgba(255,255,255,.18);}
   .water-row{margin-top:14px;}
   .water-gauge{height:8px; background:rgba(255,255,255,.14);}
   .water-gauge-fill{background:linear-gradient(90deg,#8ec8e4,#d2edf7);}
@@ -912,14 +912,14 @@
 
   /* Jauge calorique */
   .kcal-gauge{
-    margin-top:14px;
-    padding:14px 18px 10px;
+    margin-top:10px;
+    padding:11px 18px 8px;
     border:1px solid var(--line-soft);
     border-radius:16px;
     background:rgba(255,253,249,.86);
     box-shadow:var(--shadow-sm);
   }
-  .kcal-gauge-outer{height:12px; margin:23px 0 20px;}
+  .kcal-gauge-outer{height:12px; margin:17px 0 14px;}
   .kcal-gauge-clip{height:12px; border:0; background:#e7e1d6;}
   .kcal-gauge-mid{top:-4px; height:20px; border-radius:2px;}
   .kcal-gauge-bubble{padding:4px 8px; box-shadow:0 4px 12px rgba(0,0,0,.16);}
@@ -1118,7 +1118,7 @@
   @media (max-width:560px){
     .wrap{padding:12px 12px 24px;}
     .home-synth{gap:9px;}
-    .synth-item{min-height:138px; padding:15px 8px 12px;}
+    .synth-item{min-height:118px; padding:11px 8px 9px;}
     .synth-galet{width:min(21vw,78px); min-width:64px;}
     .mantra-card,.mantra-card.compact{padding:16px; border-radius:20px;}
     .card{padding:17px 15px;}
@@ -1304,137 +1304,87 @@
     <div class="macro-total"><span>Total dépense sport du jour</span><span class="val" id="sportTotalKcal">0 kcal</span></div>
 
     <div class="wizard" id="sportWizard">
-      <!-- CHOIX ACTIVITE -->
+      <!-- CHOIX ACTIVITE : toujours visible, on peut changer d'activité sans changer de page -->
       <div class="wizard-step" data-step="choose">
         <label class="field-inline">Choisir une activité</label>
         <div class="icon-grid" id="sportActivityGrid"></div>
       </div>
 
-      <!-- GENERIQUE : DUREE (tapis, footing, padel, tennis, natation) -->
-      <div class="wizard-step" data-step="duration" style="display:none;">
+      <!-- GENERIQUE : durée + vitesse (si pertinent) + calories, tout sur une page -->
+      <div class="sport-fields" id="sportFieldsGeneric" style="display:none;">
         <label class="field-inline" id="durationLabel">Durée (min)</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" id="sportDurationMinus">−</button>
           <div class="stepper-val mono" id="sportDurationVal">30</div>
           <button type="button" class="stepper-btn" id="sportDurationPlus">+</button>
         </div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="choose">← Précédent</button>
-          <button class="btn-sm" id="durationNextBtn">Suivant →</button>
-        </div>
-      </div>
 
-      <!-- GENERIQUE : VITESSE (tapis, footing) -->
-      <div class="wizard-step" data-step="speed" style="display:none;">
-        <label class="field-inline">Vitesse (km/h)</label>
-        <input type="number" id="sportSpeedInput" step="0.1" min="0" value="8">
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="duration">← Précédent</button>
-          <button class="btn-sm wizard-next" data-wizard="sportWizard" data-goto="kcal">Suivant →</button>
+        <div id="sportSpeedGroup" style="display:none;">
+          <label class="field-inline" style="margin-top:14px;">Vitesse (km/h)</label>
+          <input type="number" id="sportSpeedInput" step="0.1" min="0" value="8">
         </div>
-      </div>
 
-      <!-- GENERIQUE : CALORIES + ESTIMATION -->
-      <div class="wizard-step" data-step="kcal" style="display:none;">
-        <label class="field-inline">Calories dépensées (ce que tu ressens/mesures)</label>
+        <label class="field-inline" style="margin-top:14px;">Calories dépensées (ce que tu ressens/mesures)</label>
         <input type="number" id="sportKcalInput" min="0" placeholder="ex: 320">
         <div class="est-box">Estimation de l'app : <strong id="sportKcalEstDisplay">–</strong> kcal</div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" id="kcalPrevBtn" data-wizard="sportWizard">← Précédent</button>
-          <button class="add-btn" id="sportGenericFinishBtn">Enregistrer la séance</button>
-        </div>
+
+        <button class="add-btn" id="sportGenericFinishBtn" style="margin-top:16px;">Enregistrer la séance</button>
       </div>
 
-      <!-- MARCHE : PAS -->
-      <div class="wizard-step" data-step="marche" style="display:none;">
+      <!-- MARCHE : pas -->
+      <div class="sport-fields" id="sportFieldsMarche" style="display:none;">
         <label class="field-inline">Nombre de pas</label>
         <input type="number" id="marcheSteps" step="500" min="0" placeholder="ex: 6000">
         <div class="est-box">Estimation calories : <strong id="marcheKcalEst">–</strong> kcal</div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="choose">← Précédent</button>
-          <button class="add-btn" id="marcheFinishBtn">Enregistrer la séance</button>
-        </div>
+        <button class="add-btn" id="marcheFinishBtn" style="margin-top:16px;">Enregistrer la séance</button>
       </div>
 
-      <!-- HIIT : sequence complete -->
-
-      <div class="wizard-step" data-step="hiit-pushups" style="display:none;">
+      <!-- HIIT : les 6 champs sur une seule page -->
+      <div class="sport-fields" id="sportFieldsHiit" style="display:none;">
         <label class="field-inline">Pompes</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" data-hstep="pushups" data-inc="-5">−</button>
           <div class="stepper-val mono" id="hiitPushupsVal">0</div>
           <button type="button" class="stepper-btn" data-hstep="pushups" data-inc="5">+</button>
         </div>
-        <button type="button" class="check-sub" id="hiitNotDoneLink" style="background:none; border:none; text-decoration:underline; padding:0; margin-top:10px; cursor:pointer;">Séance non faite aujourd'hui</button>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="choose">← Précédent</button>
-          <button class="btn-sm wizard-next" data-wizard="sportWizard" data-goto="hiit-abs-face">Suivant →</button>
-        </div>
-      </div>
 
-      <div class="wizard-step" data-step="hiit-abs-face" style="display:none;">
-        <label class="field-inline">Abdos — de face</label>
+        <label class="field-inline" style="margin-top:14px;">Abdos — de face</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" data-hstep="absFace" data-inc="-5">−</button>
           <div class="stepper-val mono" id="hiitAbsFaceVal">0</div>
           <button type="button" class="stepper-btn" data-hstep="absFace" data-inc="5">+</button>
         </div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="hiit-pushups">← Précédent</button>
-          <button class="btn-sm wizard-next" data-wizard="sportWizard" data-goto="hiit-abs-droit">Suivant →</button>
-        </div>
-      </div>
 
-      <div class="wizard-step" data-step="hiit-abs-droit" style="display:none;">
-        <label class="field-inline">Abdos — côté droit</label>
+        <label class="field-inline" style="margin-top:14px;">Abdos — côté droit</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" data-hstep="absDroit" data-inc="-5">−</button>
           <div class="stepper-val mono" id="hiitAbsDroitVal">0</div>
           <button type="button" class="stepper-btn" data-hstep="absDroit" data-inc="5">+</button>
         </div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="hiit-abs-face">← Précédent</button>
-          <button class="btn-sm wizard-next" data-wizard="sportWizard" data-goto="hiit-abs-gauche">Suivant →</button>
-        </div>
-      </div>
 
-      <div class="wizard-step" data-step="hiit-abs-gauche" style="display:none;">
-        <label class="field-inline">Abdos — côté gauche</label>
+        <label class="field-inline" style="margin-top:14px;">Abdos — côté gauche</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" data-hstep="absGauche" data-inc="-5">−</button>
           <div class="stepper-val mono" id="hiitAbsGaucheVal">0</div>
           <button type="button" class="stepper-btn" data-hstep="absGauche" data-inc="5">+</button>
         </div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="hiit-abs-droit">← Précédent</button>
-          <button class="btn-sm wizard-next" data-wizard="sportWizard" data-goto="hiit-gainage">Suivant →</button>
-        </div>
-      </div>
 
-      <div class="wizard-step" data-step="hiit-gainage" style="display:none;">
-        <label class="field-inline">Gainage (minutes)</label>
+        <label class="field-inline" style="margin-top:14px;">Gainage (minutes)</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" data-hstep="gainageMin" data-inc="-1">−</button>
           <div class="stepper-val mono" id="hiitGainageVal">0</div>
           <button type="button" class="stepper-btn" data-hstep="gainageMin" data-inc="1">+</button>
         </div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="hiit-abs-gauche">← Précédent</button>
-          <button class="btn-sm wizard-next" data-wizard="sportWizard" data-goto="hiit-tractions">Suivant →</button>
-        </div>
-      </div>
 
-      <div class="wizard-step" data-step="hiit-tractions" style="display:none;">
-        <label class="field-inline">Tractions</label>
+        <label class="field-inline" style="margin-top:14px;">Tractions</label>
         <div class="stepper">
           <button type="button" class="stepper-btn" data-hstep="tractions" data-inc="-1">−</button>
           <div class="stepper-val mono" id="hiitTractionsVal">0</div>
           <button type="button" class="stepper-btn" data-hstep="tractions" data-inc="1">+</button>
         </div>
-        <div class="btn-row" style="margin-top:16px;">
-          <button class="btn-sm wizard-prev" data-wizard="sportWizard" data-goto="hiit-gainage">← Précédent</button>
-          <button class="add-btn" id="hiitFinishBtn">Enregistrer la séance</button>
-        </div>
+
+        <button type="button" class="check-sub" id="hiitNotDoneLink" style="background:none; border:none; text-decoration:underline; padding:0; margin-top:14px; cursor:pointer;">Séance non faite aujourd'hui</button>
+        <button class="add-btn" id="hiitFinishBtn" style="margin-top:16px;">Enregistrer la séance</button>
       </div>
     </div>
   </div>
@@ -2871,18 +2821,24 @@ function initSportActivityGrid(){
 }
 function selectSportActivity(key){
   currentSportActivity = key;
+  document.querySelectorAll('#sportActivityGrid .icon-tile').forEach(b=>b.classList.toggle('on', b.dataset.val===key));
   const cfg = SPORT_ACTIVITIES[key];
+  document.getElementById('sportFieldsGeneric').style.display = 'none';
+  document.getElementById('sportFieldsMarche').style.display = 'none';
+  document.getElementById('sportFieldsHiit').style.display = 'none';
   if(cfg.fields.includes('steps')){
-    wizardShowStep('sportWizard','marche');
     document.getElementById('marcheSteps').value = '';
     document.getElementById('marcheKcalEst').textContent = '–';
+    document.getElementById('sportFieldsMarche').style.display = 'block';
   } else if(cfg.fields.includes('hiit')){
     resetHiitFields();
-    wizardShowStep('sportWizard','hiit-pushups');
+    document.getElementById('sportFieldsHiit').style.display = 'block';
   } else {
     document.getElementById('durationLabel').textContent = `Durée (min) — ${cfg.label}`;
+    document.getElementById('sportSpeedGroup').style.display = cfg.fields.includes('speed') ? 'block' : 'none';
+    document.getElementById('sportKcalInput').value = '';
     setSportDuration(30);
-    wizardShowStep('sportWizard','duration');
+    document.getElementById('sportFieldsGeneric').style.display = 'block';
   }
 }
 function allIngredients(){ return state.ingredients; }
@@ -2902,30 +2858,20 @@ initSportActivityGrid();
 
 /* ---------- STEPPER DUREE SPORT ---------- */
 let sportDurationValue = 30;
+function updateGenericKcalEstimate(){
+  if(!currentSportActivity) return;
+  const cfg = SPORT_ACTIVITIES[currentSportActivity];
+  if(!cfg || cfg.fields.includes('steps') || cfg.fields.includes('hiit')) return;
+  document.getElementById('sportKcalEstDisplay').textContent = estimateKcalFromDuration(currentSportActivity, sportDurationValue);
+}
 function setSportDuration(val){
   sportDurationValue = Math.max(5, Math.min(240, val));
   document.getElementById('sportDurationVal').textContent = sportDurationValue;
+  updateGenericKcalEstimate();
 }
 document.getElementById('sportDurationMinus').onclick = ()=>setSportDuration(sportDurationValue-5);
 document.getElementById('sportDurationPlus').onclick = ()=>setSportDuration(sportDurationValue+5);
-document.getElementById('durationNextBtn').onclick = ()=>{
-  const cfg = SPORT_ACTIVITIES[currentSportActivity];
-  if(cfg.fields.includes('speed')){
-    wizardShowStep('sportWizard','speed');
-  } else {
-    document.getElementById('sportKcalInput').value = '';
-    document.getElementById('sportKcalEstDisplay').textContent = estimateKcalFromDuration(currentSportActivity, sportDurationValue);
-    document.getElementById('kcalPrevBtn').dataset.goto = 'duration';
-    wizardShowStep('sportWizard','kcal');
-  }
-};
-
-/* ---------- ETAPE VITESSE -> CALORIES ---------- */
-document.querySelector('.wizard-step[data-step="speed"] .wizard-next').addEventListener('click', ()=>{
-  document.getElementById('sportKcalInput').value = '';
-  document.getElementById('sportKcalEstDisplay').textContent = estimateKcalFromDuration(currentSportActivity, sportDurationValue);
-  document.getElementById('kcalPrevBtn').dataset.goto = 'speed';
-});
+document.getElementById('sportSpeedInput').addEventListener('input', updateGenericKcalEstimate);
 
 function drawWeighinChart(){
   const metric = document.getElementById('weighinMetric').value;
@@ -3924,7 +3870,14 @@ function addSportSession(session){
   day.sessions.push(session);
   setDay(iso, day);
   render();
-  wizardShowStep('sportWizard','choose');
+  resetSportForm();
+}
+function resetSportForm(){
+  currentSportActivity = null;
+  document.querySelectorAll('#sportActivityGrid .icon-tile').forEach(b=>b.classList.remove('on'));
+  document.getElementById('sportFieldsGeneric').style.display = 'none';
+  document.getElementById('sportFieldsMarche').style.display = 'none';
+  document.getElementById('sportFieldsHiit').style.display = 'none';
 }
 
 document.getElementById('sportGenericFinishBtn').onclick = ()=>{
@@ -4209,6 +4162,7 @@ function resetWizards(page){
     if(!steps.length) return;
     wizardShowStep(w.id, steps[0].dataset.step);
   });
+  if(page.querySelector('#sportWizard')) resetSportForm();
 }
 function wizardShowStep(wizardId, stepKey){
   document.querySelectorAll(`#${wizardId} .wizard-step`).forEach(el=>{
