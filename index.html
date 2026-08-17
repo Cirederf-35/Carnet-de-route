@@ -560,8 +560,8 @@
   #dayOverview{display:flex; flex-direction:column; min-height:calc(100vh - 110px); min-height:calc(100dvh - 110px);}
   .mantra-card{flex-shrink:0;}
   .home-synth{
-    flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
-    gap:8px; margin-top:8px; min-height:0; place-items:center; align-content:center;
+    display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+    gap:8px; margin-top:8px; place-items:center; align-content:center;
     position:relative;
   }
 
@@ -631,7 +631,7 @@
   .synth-item{cursor:pointer;}
 
   /* JAUGE CALORIQUE (page d'accueil) */
-  .kcal-gauge{width:100%; padding:2px 22px 4px; margin-top:auto; flex-shrink:0;}
+  .kcal-gauge{width:100%; padding:2px 22px 4px; margin-top:16px; flex-shrink:0;}
 
   /* Jauge d'apport absolu : échelle de 0 à 1,5x le besoin du jour.
      La couleur ne va que jusqu'au niveau actuel (apport), pas au-delà. Le repère "besoin"
@@ -712,13 +712,19 @@
   .bilan-tip.warn{border-left-color:var(--danger);}
   .bilan-tip.good{border-left-color:var(--success);}
   .bilan-tip-icon{flex-shrink:0;}
-  .hero-goals{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; min-height:0;}
+  .hero-goals{display:flex; gap:6px; flex-wrap:nowrap; margin-top:10px; min-height:38px;}
   .goal-pill{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:36px; height:36px; border-radius:50%; font-size:1.15rem;
-    background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.22); opacity:0.6;
+    display:inline-flex; align-items:center; justify-content:center; position:relative;
+    width:36px; height:36px; border-radius:12px; font-size:1.15rem; flex-shrink:0;
+    background:transparent; border:1px solid transparent; opacity:0.22;
   }
+  .goal-pill.planned{background:rgba(255,255,255,0.16); border-color:rgba(255,255,255,0.28); opacity:1;}
   .goal-pill.done{background:rgba(255,255,255,0.32); border-color:#fff; opacity:1;}
+  .goal-pill .check-badge{
+    position:absolute; bottom:-3px; right:-3px; width:16px; height:16px; border-radius:50%;
+    background:#6fbf73; border:2px solid rgba(255,255,255,0.9); font-size:0.6rem; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:700; line-height:1;
+  }
   .goal-chip{display:inline-block; background:rgba(255,255,255,0.16); border-radius:10px; padding:2px 8px; margin:2px 3px 2px 0;}
   .goal-chip.done{background:rgba(255,255,255,0.32); text-decoration:line-through; opacity:0.8;}
 
@@ -2484,9 +2490,11 @@ let currentTab = 'jour';
 function updateScrollLock(){
   // Le scroll ne se bloque que sur l'écran d'accueil du jour (blobs+jauge) — les pages de
   // saisie (Sommeil/Sport/Alimentation/Bilan) et les autres onglets restent scrollables normalement.
+  // 'auto' et non 'hidden' : filet de sécurité invisible si le contenu venait à dépasser un écran
+  // (ex. petit téléphone, barre d'adresse visible) — sans ça, le surplus devient inatteignable.
   const locked = currentTab==='jour' && !activeDaySection;
-  document.body.style.overflow = locked ? 'hidden' : '';
-  document.documentElement.style.overflow = locked ? 'hidden' : '';
+  document.body.style.overflow = locked ? 'auto' : '';
+  document.documentElement.style.overflow = locked ? 'auto' : '';
 }
 
 function switchTab(name){
@@ -3213,22 +3221,23 @@ document.getElementById('saveGoalsBtn').onclick = ()=>{
 };
 
 function renderHeroGoals(day){
-  // Visuel uniquement : une pastille par activité prévue aujourd'hui, cochée si déjà faite.
+  // Visuel uniquement : les 6 activités sont toujours affichées, ordre fixe (repère visuel stable,
+  // hauteur de carte constante). Pâle = pas prévue aujourd'hui, pleine = prévue, coche = faite.
   // Lecture seule : ne crée jamais de semaine dans goalsByWeek (on peut consulter n'importe quel jour passé/futur ici).
   const el = document.getElementById('heroGoals');
   const shownDate = selectedDate;
   const acts = goalsForWeek(getMonday(shownDate)); // lecture seule : null si semaine jamais renseignée
-  if(!acts){ el.innerHTML = ''; return; }
   const idx = dowIndexMondayBased(shownDate);
-  const planned = GOAL_ACTIVITIES.filter(act => acts[act] && acts[act][idx]);
-  if(!planned.length){ el.innerHTML = ''; return; }
   const doneTypes = new Set((day.sessions||[]).filter(s=>!s.notDone).map(s=>s.type));
-  const hiitTarget = acts.hiit ? acts.hiit[idx] : 0;
+  const hiitTarget = acts && acts.hiit ? acts.hiit[idx] : 0;
   const hiitDone = (day.sessions||[]).filter(s=>!s.notDone && s.type==='hiit').length;
-  el.innerHTML = planned.map(act=>{
+  el.innerHTML = GOAL_ACTIVITIES.map(act=>{
     const cfg = SPORT_ACTIVITIES[act];
-    const isDone = act==='hiit' ? (hiitDone >= hiitTarget && hiitTarget>0) : doneTypes.has(act);
-    return `<span class="goal-pill ${isDone?'done':''}" title="${cfg.label}${act==='hiit'?` (${hiitDone}/${hiitTarget})`:''}">${cfg.icon}</span>`;
+    const isPlanned = !!(acts && acts[act] && acts[act][idx]);
+    const isDone = act==='hiit' ? (hiitDone >= hiitTarget && hiitTarget>0) : (isPlanned && doneTypes.has(act));
+    const cls = isDone ? 'done' : (isPlanned ? 'planned' : '');
+    const title = `${cfg.label}${act==='hiit' && isPlanned ? ` (${hiitDone}/${hiitTarget})` : ''}`;
+    return `<span class="goal-pill ${cls}" title="${title}">${cfg.icon}${isDone?'<span class="check-badge">✓</span>':''}</span>`;
   }).join('');
 }
 
