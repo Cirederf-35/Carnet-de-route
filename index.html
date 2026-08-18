@@ -75,6 +75,13 @@
   .mantra-card:active{transform:scale(0.98);}
   .mantra-top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
   .mantra-hint{font-size:0.64rem; color:rgba(255,255,255,0.65); margin-top:6px; font-style:italic;}
+  .motiv-ctx-btn{position:relative;}
+  .icon-barred{position:relative; display:inline-block;}
+  .icon-barred::after{
+    content:''; position:absolute; top:50%; left:9%; right:9%; height:2px;
+    background:#e5484d; transform:translateY(-50%) rotate(-40deg); border-radius:2px; pointer-events:none;
+  }
+  #motivThumbUp.liked{transform:scale(1.15); filter:drop-shadow(0 0 4px rgba(240,200,105,0.7));}
   .mantra-cat{font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.08em; color:#f0c869; display:block;}
   .mantra-text{
     font-family:'Space Grotesk',sans-serif; font-size:1.05rem; font-weight:500; line-height:1.32; margin-top:6px;
@@ -1189,7 +1196,7 @@
     <div class="mantra-top">
       <button class="motiv-btn" id="motivBtn">💬 Motivation</button>
       <span class="hero-streak" id="streakBadge"><span class="hi">🔥</span><span class="hn">0</span></span>
-      <span class="hero-streak alcohol-badge" id="alcoholBadge"><span class="hi">🍺</span><span class="hn">0</span></span>
+      <span class="hero-streak alcohol-badge" id="alcoholBadge"><span class="hi icon-barred">🍺</span><span class="hn">0</span></span>
     </div>
     <div class="quick-logs" id="quickLogs"></div>
     <div class="hero-goals" id="heroGoals"></div>
@@ -1829,8 +1836,34 @@
       <button class="modal-close" id="motivModalClose">✕</button>
     </div>
     <div id="motivViewPanel">
-      <div class="mantra-text" id="motivModalText" style="margin-bottom:16px;">—</div>
-      <button class="add-btn" id="motivAnotherBtn">🎲 Une autre</button>
+      <div id="motivLanding" style="text-align:center; padding:10px 0 4px;">
+        <div class="check-sub" style="margin-bottom:12px;">Choisis ton contexte</div>
+        <div id="motivCtxRow" style="display:flex; flex-wrap:wrap; justify-content:center; gap:10px;"></div>
+      </div>
+      <div id="motivResult" style="display:none;">
+        <button id="motivBackBtn" style="background:none; border:none; color:var(--muted,#9a9a9a); font-size:0.78rem; cursor:pointer; padding:0 0 10px;">← Contextes</button>
+        <div id="motivResultView">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+            <button id="motivThumbDown" title="Pas pertinente" style="font-size:1.3rem; background:none; border:none; cursor:pointer; flex-shrink:0;">👎</button>
+            <div class="mantra-text" id="motivModalText" style="flex:1; text-align:center; cursor:pointer;" title="Toucher pour modifier">—</div>
+            <button id="motivThumbUp" title="Utile" style="font-size:1.3rem; background:none; border:none; cursor:pointer; flex-shrink:0;">👍</button>
+          </div>
+          <div class="mantra-hint" style="text-align:center; margin-bottom:8px;">Touche la citation pour la modifier ou changer sa rubrique</div>
+          <div id="motivThumbDownMenu" style="display:none; justify-content:center; gap:8px; margin-bottom:12px;">
+            <button class="add-btn" id="motivDeleteBtn" style="background:var(--danger,#e5484d);">🗑 Supprimer</button>
+            <button class="add-btn" id="motivSkipBtn">⏭ Une autre</button>
+          </div>
+          <button class="add-btn" id="motivAnotherBtn">🎲 Une autre</button>
+        </div>
+        <div id="motivEditPanel" style="display:none;">
+          <textarea id="motivEditText" rows="3" style="margin-bottom:8px; width:100%;"></textarea>
+          <select id="motivEditCat" style="margin-bottom:10px; width:100%;"></select>
+          <div style="display:flex; gap:8px;">
+            <button class="add-btn" id="motivEditSaveBtn" style="flex:1;">💾 Enregistrer</button>
+            <button class="add-btn" id="motivEditCancelBtn" style="flex:1; background:var(--muted,#666);">✕ Annuler</button>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="motivManagePanel" style="display:none;">
       <div class="mp-chips" id="motivCatChips" style="margin-bottom:10px;"></div>
@@ -1986,46 +2019,103 @@ const WEEK_PLANS = [
   {sport:"Consolidation, pas de nouveauté", food:"Stabilisation complète", indicator:"Bilan global période"}
 ];
 
+// Catégories de motivation : un seul axe unifié (fini le doublon catégorie de ton + tag contexte,
+// source de confusion). Chaque motivation appartient directement à une des rubriques ci-dessous.
+const MOTIV_CATS = [
+  {id:'sport',        icon:'🏃',  label:'Flemme sport'},
+  {id:'fatigue',      icon:'😮\u200d💨', label:'Fatigue'},
+  {id:'faim',         icon:'🍫',  label:'Faim'},
+  {id:'alcool',       icon:'🍷',  label:'Alcool', barred:true},
+  {id:'demotivation', icon:'🧠',  label:'Démotivation globale'},
+  {id:'citations',    icon:'📖',  label:'Citations'},
+  {id:'general',      icon:'💬',  label:'Général'}
+];
+function catInfo(id){ return MOTIV_CATS.find(c=>c.id===id) || null; }
+const CAT_ORDER = MOTIV_CATS.map(c=>c.id);
+// Remappage depuis les anciens schémas (versions précédentes à 8 puis 5 rubriques de contexte,
+// utilisé uniquement lors de la migration d'un état déjà existant en local).
+const CTX_REMAP = {grignotage:'faim', social:'alcool', ecart:'demotivation', procrastination:'demotivation', objectif:'demotivation', sommeil:null};
+
 // Sert uniquement de graine au premier chargement : ensuite tout vit dans state.mantras (éditable via ⚙️ du popup).
+// Chaque item est {text, likes, dislikes} — la rubrique elle-même (clé de l'objet) fait office de catégorie.
 const SEED_MANTRAS = {
-  discipline:{label:"Discipline", items:[
-    "La motivation est temporaire. La discipline dure.",
-    "Je ne cherche pas la perfection, je cherche la constance.",
-    "Une mauvaise journée ne remet rien en cause. Je reprends immédiatement.",
-    "Je compare la personne d'aujourd'hui à celle d'hier, pas aux autres.",
-    "Petits efforts répétés valent mieux que grandes résolutions."
+  sport:{label:"Flemme sport", items:[
+    {text:"Je n'ai jamais regretté une séance faite, seulement celles que j'ai sautées.", likes:0, dislikes:0},
+    {text:"10 minutes valent mieux que 0. Je commence, la motivation suit.", likes:0, dislikes:0},
+    {text:"Le corps ne demande qu'à démarrer. C'est la tête qui négocie.", likes:0, dislikes:0},
+    {text:"Une fois lancé, l'envie d'arrêter disparaît toujours plus vite que prévu.", likes:0, dislikes:0}
   ]},
-  memoire:{label:"En mémoire", items:[
-    "Je bouge aujourd'hui parce que d'autres n'en ont plus la chance.",
-    "Chaque séance est un cadeau que je ne dois pas gâcher.",
-    "Je vis, alors je vis bien — pour moi, et pour ceux qui auraient aimé pouvoir encore le faire.",
-    "Fanch, Mimi, Manue, Catherine — je porte aussi votre place aujourd'hui.",
-    "Ma santé n'est pas un acquis. Je la construis pour ne jamais la tenir pour acquise.",
-    "Certains n'ont plus le choix. Moi, j'ai encore le choix — alors je le fais.",
-    "Je n'ai pas le droit de gâcher ce que d'autres auraient tout donné pour garder.",
-    "Chaque pas est un pas que quelqu'un d'autre ne pourra plus faire.",
-    "Je respire, je bouge, je vis — trois choses que je ne dois jamais tenir pour banales.",
-    "Ce corps, je le fais vivre pour deux : pour moi, et pour leur mémoire.",
-    "Manue aurait aimé être à ma place aujourd'hui.",
-    "Fanch n'a plus cette chance. Moi si.",
-    "Je pense à Mimi quand la flemme prend le dessus — et je me lève quand même.",
-    "Catherine me rappelle que le temps n'attend personne.",
-    "On ne sait jamais combien de matins il nous reste — alors ce matin compte.",
-    "Je ne fais pas ça pour moi seul. Je le fais aussi pour ceux qui regardent d'ailleurs.",
-    "La meilleure façon d'honorer une vie perdue, c'est de ne pas gâcher la mienne.",
-    "Chaque jour est un jour que quelqu'un d'autre aurait voulu vivre.",
-    "Je n'ai pas d'excuse valable face à ceux qui n'ont plus d'options.",
-    "Vivre pleinement, c'est aussi vivre pour ceux qui ne peuvent plus le faire."
+  fatigue:{label:"Fatigue", items:[
+    {text:"La fatigue passe. L'abandon d'un objectif, moins.", likes:0, dislikes:0},
+    {text:"Je n'ai pas besoin d'être au top pour avancer, juste besoin d'avancer.", likes:0, dislikes:0},
+    {text:"Un petit geste aujourd'hui vaut mieux qu'un grand geste remis à demain.", likes:0, dislikes:0},
+    {text:"L'énergie vient souvent après l'action, pas avant.", likes:0, dislikes:0}
   ]},
-  references:{label:"Références", items:[
-    "Sylvester Stallone, 75 ans passés, prouve que la masse et la discipline n'ont pas d'âge.",
-    "Roger Federer a prolongé son sommet jusqu'à 40 ans par l'hygiène de vie, pas seulement le talent.",
-    "Mark Wahlberg construit sa forme à coups de routine stricte, pas de miracle.",
-    "Jean-Claude Van Damme continue de se battre contre l'âge par le sport, jour après jour.",
-    "Novak Djokovic : la discipline alimentaire et mentale comme moteur de longévité sportive."
+  faim:{label:"Faim", items:[
+    {text:"L'envie dure 10 minutes. La décision, elle, reste.", likes:0, dislikes:0},
+    {text:"Je peux vouloir et ne pas céder — les deux coexistent.", likes:0, dislikes:0},
+    {text:"Ce n'est pas une privation, c'est un choix aligné avec mon objectif.", likes:0, dislikes:0},
+    {text:"Boire un verre d'eau avant de trancher : la vraie faim attend, l'envie non.", likes:0, dislikes:0}
+  ]},
+  alcool:{label:"Alcool", items:[
+    {text:"Un moment convivial ne doit pas devenir une excuse récurrente.", likes:0, dislikes:0},
+    {text:"Je peux profiter sans tout déborder — le cadre reste dans ma tête.", likes:0, dislikes:0},
+    {text:"Une soirée ne défait pas des semaines de constance, sauf si j'en fais une habitude.", likes:0, dislikes:0},
+    {text:"Choisir avec plaisir plutôt que consommer par automatisme.", likes:0, dislikes:0}
+  ]},
+  demotivation:{label:"Démotivation globale", items:[
+    {text:"Un écart n'efface rien. Seul l'abandon efface.", likes:0, dislikes:0},
+    {text:"Je reprends au prochain repas, pas au prochain lundi.", likes:0, dislikes:0},
+    {text:"La constance ne veut pas dire perfection, elle veut dire retour rapide.", likes:0, dislikes:0},
+    {text:"Une chute compte pour un jour. Y rester compte pour tout.", likes:0, dislikes:0},
+    {text:"Je n'ai pas besoin d'avoir envie pour commencer, juste besoin de commencer.", likes:0, dislikes:0},
+    {text:"La tâche paraît toujours plus lourde avant qu'on ne s'y mette.", likes:0, dislikes:0},
+    {text:"2 minutes suffisent pour casser l'inertie.", likes:0, dislikes:0},
+    {text:"Remettre à demain, c'est décider deux fois de ne pas le faire.", likes:0, dislikes:0},
+    {text:"Chaque jour compte double à l'approche de l'échéance.", likes:0, dislikes:0},
+    {text:"Je récolte maintenant ce que je sème depuis des semaines — pas le moment de lâcher.", likes:0, dislikes:0},
+    {text:"La dernière ligne droite se joue sur la régularité, pas sur un sprint final.", likes:0, dislikes:0},
+    {text:"Ce que je fais aujourd'hui, je le verrai dans les résultats de demain.", likes:0, dislikes:0}
+  ]},
+  citations:{label:"Citations", items:[
+    {text:"Sylvester Stallone, 75 ans passés, prouve que la masse et la discipline n'ont pas d'âge.", likes:0, dislikes:0},
+    {text:"Roger Federer a prolongé son sommet jusqu'à 40 ans par l'hygiène de vie, pas seulement le talent.", likes:0, dislikes:0},
+    {text:"Mark Wahlberg construit sa forme à coups de routine stricte, pas de miracle.", likes:0, dislikes:0},
+    {text:"Jean-Claude Van Damme continue de se battre contre l'âge par le sport, jour après jour.", likes:0, dislikes:0},
+    {text:"Novak Djokovic : la discipline alimentaire et mentale comme moteur de longévité sportive.", likes:0, dislikes:0}
+  ]},
+  general:{label:"Général", items:[
+    {text:"La motivation est temporaire. La discipline dure.", likes:0, dislikes:0},
+    {text:"Je ne cherche pas la perfection, je cherche la constance.", likes:0, dislikes:0},
+    {text:"Une mauvaise journée ne remet rien en cause. Je reprends immédiatement.", likes:0, dislikes:0},
+    {text:"Je compare la personne d'aujourd'hui à celle d'hier, pas aux autres.", likes:0, dislikes:0},
+    {text:"Petits efforts répétés valent mieux que grandes résolutions.", likes:0, dislikes:0},
+    {text:"Chaque heure de sommeil perdue se paie le lendemain, avec intérêts.", likes:0, dislikes:0},
+    {text:"Me coucher à l'heure, c'est déjà gagner la journée de demain.", likes:0, dislikes:0},
+    {text:"L'écran peut attendre. Le corps, moins.", likes:0, dislikes:0},
+    {text:"Une bonne nuit vaut plus que n'importe quelle série.", likes:0, dislikes:0},
+    {text:"Je bouge aujourd'hui parce que d'autres n'en ont plus la chance.", likes:0, dislikes:0},
+    {text:"Chaque séance est un cadeau que je ne dois pas gâcher.", likes:0, dislikes:0},
+    {text:"Je vis, alors je vis bien — pour moi, et pour ceux qui auraient aimé pouvoir encore le faire.", likes:0, dislikes:0},
+    {text:"Fanch, Mimi, Manue, Catherine — je porte aussi votre place aujourd'hui.", likes:0, dislikes:0},
+    {text:"Ma santé n'est pas un acquis. Je la construis pour ne jamais la tenir pour acquise.", likes:0, dislikes:0},
+    {text:"Certains n'ont plus le choix. Moi, j'ai encore le choix — alors je le fais.", likes:0, dislikes:0},
+    {text:"Je n'ai pas le droit de gâcher ce que d'autres auraient tout donné pour garder.", likes:0, dislikes:0},
+    {text:"Chaque pas est un pas que quelqu'un d'autre ne pourra plus faire.", likes:0, dislikes:0},
+    {text:"Je respire, je bouge, je vis — trois choses que je ne dois jamais tenir pour banales.", likes:0, dislikes:0},
+    {text:"Ce corps, je le fais vivre pour deux : pour moi, et pour leur mémoire.", likes:0, dislikes:0},
+    {text:"Manue aurait aimé être à ma place aujourd'hui.", likes:0, dislikes:0},
+    {text:"Fanch n'a plus cette chance. Moi si.", likes:0, dislikes:0},
+    {text:"Je pense à Mimi quand la flemme prend le dessus — et je me lève quand même.", likes:0, dislikes:0},
+    {text:"Catherine me rappelle que le temps n'attend personne.", likes:0, dislikes:0},
+    {text:"On ne sait jamais combien de matins il nous reste — alors ce matin compte.", likes:0, dislikes:0},
+    {text:"Je ne fais pas ça pour moi seul. Je le fais aussi pour ceux qui regardent d'ailleurs.", likes:0, dislikes:0},
+    {text:"La meilleure façon d'honorer une vie perdue, c'est de ne pas gâcher la mienne.", likes:0, dislikes:0},
+    {text:"Chaque jour est un jour que quelqu'un d'autre aurait voulu vivre.", likes:0, dislikes:0},
+    {text:"Je n'ai pas d'excuse valable face à ceux qui n'ont plus d'options.", likes:0, dislikes:0},
+    {text:"Vivre pleinement, c'est aussi vivre pour ceux qui ne peuvent plus le faire.", likes:0, dislikes:0}
   ]}
 };
-const CAT_ORDER = ['discipline','memoire','references'];
 
 const SPORT_ACTIVITIES = {
   tapis:{label:"Tapis", icon:"🏃", met:7, fields:["duration","speed","kcal"]},
@@ -2502,7 +2592,9 @@ const DEFAULT_STATE = {
 let state = loadState();
 let selectedDate = todayDate();
 let viewedWeekIndex = null;
-let manualMantra = null; // override ponctuel du mantra du jour (reset au changement de jour)
+let todaysMantraRef = null; // {cat, idx, label, text} calculé à chaque render(), jamais affiché tant que non choisi
+let currentPick = null;     // {cat, idx} de la citation actuellement affichée dans la popup
+let lastCatUsed = null;     // id de la rubrique utilisée pour la pioche en cours (null = pioche globale/jour)
 let bilanGranularity = 'semaine';
 let currentTab = 'jour';
 
@@ -2623,15 +2715,42 @@ function migrateMenus(s){
 }
 // Migration mantras : au premier chargement on copie le seed dans le state ; ensuite le state fait foi
 // (ajouts/éditions/suppressions de l'utilisateur ne sont jamais écrasés par le seed).
+// v4 : bascule de l'ancien double axe (catégorie de ton discipline/mémoire/références + tag contexte)
+// vers un axe unique (les 7 rubriques de MOTIV_CATS). Rien n'est supprimé : chaque motivation est
+// replacée dans la rubrique correspondant à son ancien tag ctx, ou dans "Général"/"Citations" à défaut.
+const OLD_TONE_CATS = ['discipline','memoire','references'];
 function migrateMantras(s){
   if(!s.mantras){
     s.mantras = structuredClone(SEED_MANTRAS);
-  }else{
-    // rattrape une catégorie du seed absente (structure minimale garantie)
-    Object.entries(SEED_MANTRAS).forEach(([cat,v])=>{
-      if(!s.mantras[cat]) s.mantras[cat] = {label:v.label, items:[]};
-    });
+    return s;
   }
+  const isOldShape = OLD_TONE_CATS.some(cat=>s.mantras[cat]);
+  if(isOldShape){
+    const fresh = {};
+    MOTIV_CATS.forEach(c=>{ fresh[c.id] = {label:c.label, items:[]}; });
+    const moveInto = (pool, fallbackId)=>{
+      if(!pool) return;
+      pool.items.forEach(raw=>{
+        const it = typeof raw === 'string' ? {text:raw, ctx:null} : raw;
+        let ctx = it.ctx;
+        if(ctx && CTX_REMAP.hasOwnProperty(ctx)) ctx = CTX_REMAP[ctx];
+        const target = (ctx && fresh[ctx]) ? ctx : fallbackId;
+        fresh[target].items.push({text:it.text, likes:it.likes||0, dislikes:it.dislikes||0});
+      });
+    };
+    moveInto(s.mantras.discipline, 'general');
+    moveInto(s.mantras.memoire, 'general');
+    moveInto(s.mantras.references, 'citations');
+    s.mantras = fresh;
+  }
+  // rattrape une rubrique absente (structure minimale garantie, ex. ajout futur)
+  MOTIV_CATS.forEach(c=>{
+    if(!s.mantras[c.id]) s.mantras[c.id] = {label:c.label, items:[]};
+  });
+  // rattrape le format des items : anciennes phrases stockées en string -> {text, likes:0, dislikes:0}
+  Object.values(s.mantras).forEach(pool=>{
+    pool.items = pool.items.map(it => typeof it === 'string' ? {text:it, likes:0, dislikes:0} : it);
+  });
   return s;
 }
 // Migration catégories de plats : au premier chargement on copie le seed dans le state ; ensuite le
@@ -2772,41 +2891,181 @@ function activeMantraCats(){
 }
 function getMantraFor(dateIso, dayIndex){
   const cats = activeMantraCats();
-  if(!cats.length) return {cat:null, label:'Motivation', text:'Ajoute tes propres motivations via ⚙️.'};
+  if(!cats.length) return {cat:null, idx:-1, label:'Motivation', text:'Ajoute tes propres motivations via ⚙️.'};
   const cat = cats[((dayIndex%cats.length)+cats.length)%cats.length];
   const pool = state.mantras[cat];
   const idx = hashStr(dateIso) % pool.items.length;
-  return {cat, label:pool.label, text:pool.items[idx]};
+  return {cat, idx, label:pool.label, text:pool.items[idx].text};
 }
-function pickRandomMantra(excludeText){
+function allMantraItems(){
   const all = [];
   activeMantraCats().forEach(cat=>{
-    state.mantras[cat].items.forEach(text=>all.push({cat, label:state.mantras[cat].label, text}));
+    state.mantras[cat].items.forEach((it,idx)=>all.push({
+      cat, idx, label:state.mantras[cat].label, text:it.text,
+      likes:it.likes||0, dislikes:it.dislikes||0
+    }));
   });
-  const pool = all.filter(m=>m.text!==excludeText);
-  if(!pool.length) return all[0] || {cat:null, label:'Motivation', text:'Ajoute tes propres motivations via ⚙️.'};
-  return pool[Math.floor(Math.random()*pool.length)];
+  return all;
+}
+// Poids d'un item pour la pioche aléatoire : monte avec les 👍, descend avec les 👎, jamais à zéro
+// (un item disliké redevient piochable, juste plus rarement — pas besoin de le supprimer pour ça).
+function itemWeight(it){
+  return Math.max(0.15, 1 + (it.likes - it.dislikes) * 0.35);
+}
+function weightedPick(pool){
+  const total = pool.reduce((sum,it)=>sum+itemWeight(it), 0);
+  let r = Math.random()*total;
+  for(const it of pool){
+    r -= itemWeight(it);
+    if(r<=0) return it;
+  }
+  return pool[pool.length-1];
+}
+function sameItem(a,b){ return a && b && a.cat===b.cat && a.idx===b.idx; }
+function pickRandomMantra(excludeRef){
+  const all = allMantraItems();
+  const pool = all.filter(m=>!sameItem(m,excludeRef));
+  if(!pool.length) return all[0] || {cat:null, idx:-1, label:'Motivation', text:'Ajoute tes propres motivations via ⚙️.'};
+  return weightedPick(pool);
+}
+// Pioche restreinte à une rubrique donnée (fallback global si jamais elle est vide).
+function pickFromCat(catId, excludeRef){
+  const all = allMantraItems();
+  let pool = all.filter(m=>m.cat===catId && !sameItem(m,excludeRef));
+  if(!pool.length) pool = all.filter(m=>m.cat===catId);
+  if(!pool.length) return pickRandomMantra(excludeRef);
+  return weightedPick(pool);
 }
 document.getElementById('motivBtn').onclick = e=>{
   e.stopPropagation();
-  motivShowView(); // toujours ouvrir sur la vue lecture
+  motivShowView(); // toujours ouvrir sur les icônes de rubriques
   document.getElementById('motivModal').classList.add('open');
 };
-document.getElementById('motivAnotherBtn').onclick = ()=>{
-  const current = document.getElementById('motivModalText').textContent;
-  manualMantra = pickRandomMantra(current);
-  document.getElementById('motivModalCat').textContent = manualMantra.label + ' · pioché';
-  document.getElementById('motivModalText').textContent = manualMantra.text;
+
+/* --- Affichage d'une citation piochée : centralise le rendu + mémorise la référence pour les votes --- */
+function labelForPick(pick, pioche){
+  const c = catInfo(pick.cat);
+  const base = c ? `${c.icon} ${c.label}` : (pick.label||'Motivation');
+  return pioche ? base + ' · pioché' : base;
+}
+function showMantraResult(pick, pioche){
+  currentPick = {cat:pick.cat, idx:pick.idx};
+  document.getElementById('motivModalCat').textContent = labelForPick(pick, pioche);
+  document.getElementById('motivModalText').textContent = pick.text;
+  document.getElementById('motivLanding').style.display = 'none';
+  document.getElementById('motivResult').style.display = 'block';
+  document.getElementById('motivThumbDownMenu').style.display = 'none';
+  document.getElementById('motivThumbUp').classList.remove('liked');
+  motivCloseEdit();
+}
+function reroll(excludeRef){
+  const pick = lastCatUsed ? pickFromCat(lastCatUsed, excludeRef) : pickRandomMantra(excludeRef);
+  showMantraResult(pick, true);
+}
+document.getElementById('motivAnotherBtn').onclick = ()=> reroll(currentPick);
+document.getElementById('motivBackBtn').onclick = ()=>{ motivShowLanding(); };
+
+/* --- Pouces : 👍 renforce la fréquence de sortie (et enchaîne), 👎 propose suppression ou pioche suivante --- */
+function currentItem(){
+  if(!currentPick || currentPick.cat==null) return null;
+  return state.mantras[currentPick.cat].items[currentPick.idx];
+}
+document.getElementById('motivThumbUp').onclick = ()=>{
+  const it = currentItem();
+  if(!it) return;
+  it.likes = (it.likes||0) + 1;
+  persistState();
+  reroll(currentPick);
+};
+document.getElementById('motivThumbDown').onclick = ()=>{
+  const menu = document.getElementById('motivThumbDownMenu');
+  menu.style.display = menu.style.display==='none' ? 'flex' : 'none';
+};
+document.getElementById('motivDeleteBtn').onclick = ()=>{
+  const it = currentItem();
+  if(!it) return;
+  if(!confirm(`Supprimer cette motivation ?\n\n« ${it.text} »`)) return;
+  state.mantras[currentPick.cat].items.splice(currentPick.idx, 1);
+  persistState();
+  render();
+  reroll(null);
+};
+document.getElementById('motivSkipBtn').onclick = ()=>{
+  const it = currentItem();
+  if(it){ it.dislikes = (it.dislikes||0) + 1; persistState(); }
+  reroll(currentPick);
 };
 
+/* --- Édition inline : clic sur la citation -> modifier le texte et/ou changer sa rubrique --- */
+function motivOpenEdit(){
+  const it = currentItem();
+  if(!it) return;
+  document.getElementById('motivResultView').style.display = 'none';
+  document.getElementById('motivEditPanel').style.display = 'block';
+  document.getElementById('motivEditText').value = it.text;
+  document.getElementById('motivEditCat').innerHTML = MOTIV_CATS.map(c=>
+    `<option value="${c.id}" ${c.id===currentPick.cat?'selected':''}>${c.icon} ${c.label}</option>`
+  ).join('');
+}
+function motivCloseEdit(){
+  document.getElementById('motivResultView').style.display = 'block';
+  document.getElementById('motivEditPanel').style.display = 'none';
+}
+document.getElementById('motivModalText').onclick = motivOpenEdit;
+document.getElementById('motivEditCancelBtn').onclick = motivCloseEdit;
+document.getElementById('motivEditSaveBtn').onclick = ()=>{
+  const it = currentItem();
+  if(!it) return;
+  const newText = document.getElementById('motivEditText').value.trim();
+  if(!newText) return;
+  const newCat = document.getElementById('motivEditCat').value;
+  it.text = newText;
+  if(newCat !== currentPick.cat){
+    // déplace l'item vers sa nouvelle rubrique, en conservant son historique de votes
+    state.mantras[currentPick.cat].items.splice(currentPick.idx, 1);
+    state.mantras[newCat].items.push(it);
+    currentPick = {cat:newCat, idx: state.mantras[newCat].items.length - 1};
+  }
+  persistState();
+  render();
+  showMantraResult({cat:currentPick.cat, idx:currentPick.idx, text:it.text}, true);
+};
+
+/* --- Landing : rangée d'icônes centrée (🎲 mantra du jour + les 7 rubriques définies) --- */
+function renderMotivCtxRow(){
+  const diceBtn = `<button class="motiv-ctx-btn" data-cat="__jour" title="Mantra du jour" style="font-size:1.3rem; background:var(--card,rgba(255,255,255,0.06)); border:1px solid var(--line); border-radius:12px; padding:8px 12px; cursor:pointer;">🎲</button>`;
+  const catBtns = MOTIV_CATS.map(c=>
+    `<button class="motiv-ctx-btn${c.barred?' icon-barred':''}" data-cat="${c.id}" title="${c.label}" style="font-size:1.3rem; background:var(--card,rgba(255,255,255,0.06)); border:1px solid var(--line); border-radius:12px; padding:8px 12px; cursor:pointer;">${c.icon}</button>`
+  ).join('');
+  document.getElementById('motivCtxRow').innerHTML = diceBtn + catBtns;
+  document.getElementById('motivCtxRow').querySelectorAll('.motiv-ctx-btn').forEach(btn=>{
+    btn.onclick = ()=>{
+      if(btn.dataset.cat === '__jour'){
+        lastCatUsed = null;
+        showMantraResult(todaysMantraRef, false);
+        return;
+      }
+      lastCatUsed = btn.dataset.cat;
+      const pick = pickFromCat(lastCatUsed, null);
+      showMantraResult(pick, true);
+    };
+  });
+}
+
 /* --- Gestion des motivations (⚙️) : ajout / édition / suppression, tout dans le popup --- */
-let motivManageCat = 'discipline';
+let motivManageCat = 'sport';
+function motivShowLanding(){
+  document.getElementById('motivLanding').style.display = 'block';
+  document.getElementById('motivResult').style.display = 'none';
+  document.getElementById('motivModalCat').textContent = 'Motivation';
+}
 function motivShowView(){
   document.getElementById('motivViewPanel').style.display = 'block';
   document.getElementById('motivManagePanel').style.display = 'none';
   document.getElementById('motivSettingsBtn').textContent = '⚙️';
-  // re-synchronise la vue lecture (le mantra du jour peut avoir été édité/supprimé)
-  render();
+  render(); // re-synchronise todaysMantraRef (une motivation a pu être éditée/supprimée entre-temps)
+  renderMotivCtxRow();
+  motivShowLanding();
 }
 function motivShowManage(){
   document.getElementById('motivViewPanel').style.display = 'none';
@@ -2820,28 +3079,28 @@ document.getElementById('motivSettingsBtn').onclick = ()=>{
   managing ? motivShowView() : motivShowManage();
 };
 function renderMotivManage(){
-  document.getElementById('motivCatChips').innerHTML = CAT_ORDER.map(cat=>
-    `<button class="mp-chip ${motivManageCat===cat?'on':''}" data-cat="${cat}">${state.mantras[cat].label} (${state.mantras[cat].items.length})</button>`
+  document.getElementById('motivCatChips').innerHTML = MOTIV_CATS.map(c=>
+    `<button class="mp-chip ${motivManageCat===c.id?'on':''}" data-cat="${c.id}">${c.icon} ${state.mantras[c.id].label} (${state.mantras[c.id].items.length})</button>`
   ).join('');
   document.getElementById('motivCatChips').querySelectorAll('.mp-chip').forEach(ch=>{
     ch.onclick = ()=>{ motivManageCat = ch.dataset.cat; renderMotivManage(); };
   });
   const items = state.mantras[motivManageCat].items;
-  document.getElementById('motivList').innerHTML = items.length ? items.map((text,i)=>`
+  document.getElementById('motivList').innerHTML = items.length ? items.map((it,i)=>`
     <div style="display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px solid var(--line);">
-      <span style="flex:1; font-size:0.82rem; line-height:1.4;">${text}</span>
+      <span style="flex:1; font-size:0.82rem; line-height:1.4;">${it.text}</span>
       <button class="motiv-edit-btn" data-i="${i}" style="background:none; border:none; cursor:pointer; flex-shrink:0;">✏️</button>
       <button class="motiv-del-btn" data-i="${i}" style="background:none; border:none; color:var(--danger); cursor:pointer; flex-shrink:0;">✕</button>
     </div>`).join('')
-    : `<div class="check-sub">Aucune phrase dans cette catégorie — elle est sortie de la rotation quotidienne.</div>`;
+    : `<div class="check-sub">Aucune phrase dans cette rubrique — elle est sortie de la rotation quotidienne.</div>`;
   document.getElementById('motivList').querySelectorAll('.motiv-edit-btn').forEach(btn=>{
     btn.onclick = ()=>{
       const i = parseInt(btn.dataset.i);
-      const next = prompt('Modifier la motivation :', items[i]);
+      const next = prompt('Modifier la motivation :', items[i].text);
       if(next===null) return;
       const trimmed = next.trim();
       if(!trimmed) return;
-      items[i] = trimmed;
+      items[i].text = trimmed;
       persistState();
       renderMotivManage();
     };
@@ -2849,7 +3108,7 @@ function renderMotivManage(){
   document.getElementById('motivList').querySelectorAll('.motiv-del-btn').forEach(btn=>{
     btn.onclick = ()=>{
       const i = parseInt(btn.dataset.i);
-      if(!confirm(`Supprimer cette motivation ?\n\n« ${items[i]} »`)) return;
+      if(!confirm(`Supprimer cette motivation ?\n\n« ${items[i].text} »`)) return;
       items.splice(i,1);
       persistState();
       renderMotivManage();
@@ -2860,7 +3119,7 @@ document.getElementById('motivAddBtn').onclick = ()=>{
   const input = document.getElementById('motivNewInput');
   const text = input.value.trim();
   if(!text) return;
-  state.mantras[motivManageCat].items.push(text);
+  state.mantras[motivManageCat].items.push({text, likes:0, dislikes:0});
   input.value = '';
   persistState();
   renderMotivManage();
@@ -3331,9 +3590,7 @@ function render(){
   const selWeekIndex = Math.min(Math.max(Math.floor(selDayIndex/7),0),5);
   updateDayNavBar(selectedDate, isToday);
 
-  const m = manualMantra || getMantraFor(selIso, mantraDayIndex);
-  document.getElementById('motivModalCat').textContent = m.label;
-  document.getElementById('motivModalText').textContent = m.text;
+  todaysMantraRef = getMantraFor(selIso, mantraDayIndex);
   renderQuickLogs();
   renderWaterGauge();
 
