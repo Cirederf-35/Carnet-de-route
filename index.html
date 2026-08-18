@@ -2102,6 +2102,8 @@ const CAT_ORDER = MOTIV_CATS.map(c=>c.id);
 // Remappage depuis les anciens schémas (versions précédentes à 8 puis 5 rubriques de contexte,
 // utilisé uniquement lors de la migration d'un état déjà existant en local).
 const CTX_REMAP = {grignotage:'faim', social:'alcool', ecart:'demotivation', procrastination:'demotivation', objectif:'demotivation', sommeil:null};
+// Anciennes clés de catégorie (versions précédentes), utilisées uniquement par la migration v4 ci-dessous.
+const OLD_TONE_CATS = ['discipline','memoire','references'];
 
 // Sert uniquement de graine au premier chargement : ensuite tout vit dans state.mantras (éditable via ⚙️ du popup).
 // Chaque item est {text, likes, dislikes} — la rubrique elle-même (clé de l'objet) fait office de catégorie.
@@ -2785,7 +2787,6 @@ function migrateMenus(s){
 // v4 : bascule de l'ancien double axe (catégorie de ton discipline/mémoire/références + tag contexte)
 // vers un axe unique (les 7 rubriques de MOTIV_CATS). Rien n'est supprimé : chaque motivation est
 // replacée dans la rubrique correspondant à son ancien tag ctx, ou dans "Général"/"Citations" à défaut.
-const OLD_TONE_CATS = ['discipline','memoire','references'];
 function migrateMantras(s){
   if(!s.mantras){
     s.mantras = structuredClone(SEED_MANTRAS);
@@ -6414,7 +6415,10 @@ function doExport(){
   const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `carnet-de-route-${isoDate(todayDate())}.json`;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  a.download = `carnet-de-route-${isoDate(todayDate())}_${hh}h${mm}.json`;
   a.click();
   updateExportReminder();
 }
