@@ -4994,7 +4994,10 @@ function openRecipeModal(name){
   const manualPP = dish.macroOverride || autoPP;
   const perPortion = dish.portions ? Math.round(t.kcal/dish.portions) : t.kcal;
   const seasonTxt = (dish.seasons&&dish.seasons.length) ? dish.seasons.map(s=>SEASONS[s]).join('/') : 'Toute l\'année';
-  const ingHtml = dish.ingredients.map(it=>`<div>• ${it.name} — ${it.grams}g</div>`).join('');
+  const ingHtml = dish.ingredients.map(it=>{
+    const qty = it.unitCount ? `${it.unitCount} ${it.unitLabel||''}`.trim() : `${it.grams}g`;
+    return `<div>• ${it.name} — ${qty}</div>`;
+  }).join('');
   const stepsHtml = (dish.steps && dish.steps.length)
     ? `<ol class="recipe-steps">${dish.steps.map(s=>`<li>${s}</li>`).join('')}</ol>`
     : `<div class="check-sub">Pas d'étapes enregistrées pour ce plat.</div>`;
@@ -5162,11 +5165,14 @@ TÂCHE : extrais la recette et réponds UNIQUEMENT avec un JSON valide, sans auc
 
 {
   "ingredientsNouveaux": {
-    "Nom ingrédient": {"p": 0.0, "f": 0.0, "c": 0.0, "cat": "categorie"}
+    "Nom ingrédient": {"p": 0.0, "f": 0.0, "c": 0.0, "cat": "categorie", "unitWeight": 0, "unitLabel": ""}
   },
   "recettes": {
     "Nom du plat": {
-      "ingredients": [{"name": "Nom ingrédient", "grams": 100}],
+      "ingredients": [
+        {"name": "Nom ingrédient pesable", "grams": 100},
+        {"name": "Nom ingrédient comptable", "unitCount": 4}
+      ],
       "portions": 4,
       "steps": ["Étape 1…", "Étape 2…"],
       "source": "Titre du livre, p. XX",
@@ -5180,7 +5186,7 @@ TÂCHE : extrais la recette et réponds UNIQUEMENT avec un JSON valide, sans auc
 RÈGLES :
 1. "ingredientsNouveaux" : liste TOUS les ingrédients de la recette avec leurs macros pour 100 g (p = protéines, f = lipides, c = glucides, en grammes). Ceux que je possède déjà seront ignorés à l'import, donc n'omets rien.
 2. "cat" doit être une de ces valeurs exactes : ${Object.keys(FOOD_CATEGORIES).join(', ')}.
-3. Dans "ingredients", "name" doit correspondre EXACTEMENT à une clé de "ingredientsNouveaux", et "grams" est la quantité totale pour la recette entière (convertis les cuillères, verres, pièces en grammes).
+3. Dans "ingredients", pour un ingrédient qui se pèse (farine, viande, légumes en vrac...), utilise "grams" (quantité totale pour la recette entière, convertis cuillères/verres en grammes). Pour un ingrédient qui se compte naturellement sur la liste de courses (ex. "4 aubergines", "2 gousses d'ail", "1 citron", "3 brins de thym"), utilise "unitCount" (le nombre tel quel) à la place de "grams" — et renseigne alors "unitWeight" (poids moyen estimé d'une unité, en grammes) et "unitLabel" (le nom de l'unité au singulier, ex. "aubergine", "gousse d'ail", "brin de thym") dans "ingredientsNouveaux" pour cet ingrédient, afin que l'app calcule le poids automatiquement.
 4. "mealCat" : une de ces valeurs exactes : ${Object.keys(state.mealCats).join(', ')}.
 5. "seasons" : sous-ensemble de ${Object.keys(SEASONS).join(', ')} — ou [] si la recette convient toute l'année.
 6. "steps" : les étapes complètes mais concises, une phrase par étape.
@@ -5216,6 +5222,7 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
     Object.entries(data.ingredientsNouveaux).forEach(([name,v])=>{
       if(!state.ingredients[name]){
         state.ingredients[name] = {p:v.p||0, f:v.f||0, c:v.c||0, cat: FOOD_CATEGORIES[v.cat] ? v.cat : 'autres'};
+        if(v.unitWeight){ state.ingredients[name].unitWeight = +v.unitWeight; state.ingredients[name].unitLabel = v.unitLabel||''; }
         nIng++;
       }
     });
@@ -5223,7 +5230,15 @@ document.getElementById('recipeImportBtn').onclick = ()=>{
   if(data.recettes){
     Object.entries(data.recettes).forEach(([name,r])=>{
       state.dishes[name] = {
-        ingredients: r.ingredients||[],
+        ingredients: (r.ingredients||[]).map(it=>{
+          if(it.grams!=null) return {name: it.name, grams: +it.grams||0};
+          // Ingrédient comptable : poids dérivé de unitWeight (nouvel ingrédient ou déjà en base).
+          const uw = (data.ingredientsNouveaux && data.ingredientsNouveaux[it.name] && +data.ingredientsNouveaux[it.name].unitWeight)
+            || (state.ingredients[it.name] && +state.ingredients[it.name].unitWeight) || 0;
+          const label = it.unitLabel || (data.ingredientsNouveaux && data.ingredientsNouveaux[it.name] && data.ingredientsNouveaux[it.name].unitLabel)
+            || (state.ingredients[it.name] && state.ingredients[it.name].unitLabel) || '';
+          return {name: it.name, unitCount: +it.unitCount||0, unitLabel: label, grams: (+it.unitCount||0)*uw};
+        }),
         portions: r.portions||1,
         steps: r.steps||[],
         source: r.source||'',
