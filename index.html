@@ -110,6 +110,56 @@
   .hm-months span{width:13px; flex-shrink:0; overflow:visible; white-space:nowrap;}
   .legend{display:flex; gap:14px; margin-top:12px; font-size:0.72rem; color:var(--text-dim); flex-wrap:wrap;}
   .legend .dot{width:10px; height:10px; border-radius:3px; display:inline-block; margin-right:5px;}
+
+  /* --- Suivi alcool : calendrier du mois --- */
+  .cal-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+  .cal-head .m{font-size:0.82rem; font-weight:600; text-transform:capitalize;}
+  .cal-dow{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:5px;}
+  .cal-dow span{font-size:0.62rem; text-align:center; color:var(--text-dim);}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px;}
+  .cal-cell{aspect-ratio:1; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:0.62rem; font-family:'JetBrains Mono',monospace; cursor:pointer;}
+  .cal-cell.sec{background:var(--sage-soft); color:var(--sage);}
+  .cal-cell.bu{background:var(--danger); color:#fff; font-weight:600;}
+  .cal-cell.future{border:1.5px dashed var(--line); color:var(--line); cursor:default;}
+  .cal-cell.empty{visibility:hidden; cursor:default;}
+  .cal-cell.today{outline:2px solid var(--accent); outline-offset:1px;}
+  .cal-legend{display:flex; gap:14px; margin-top:12px; font-size:0.7rem; color:var(--text-dim);}
+  .cal-legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:5px; vertical-align:middle;}
+  .cal-legend i.sec{background:var(--sage);}
+  .cal-legend i.bu{background:var(--danger);}
+  .cal-legend i.future{border:1.5px dashed var(--line);}
+  .cal-total{margin-top:14px; padding-top:14px; border-top:1px solid var(--line); display:flex; align-items:baseline; gap:8px;}
+  .cal-total .num{font-family:'Space Grotesk',sans-serif; font-size:1.6rem; font-weight:700;}
+  .cal-total .lbl{font-size:0.76rem; color:var(--text-dim);}
+
+  /* --- Suivi alcool : jauge par type --- */
+  .gauge-row{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .gauge-row:last-child{margin-bottom:0;}
+  .gauge-icon{font-size:1.1rem; width:22px; text-align:center; flex-shrink:0;}
+  .gauge-name{font-size:0.78rem; width:90px; flex-shrink:0; color:var(--text-dim);}
+  .gauge-units{display:flex; gap:3px; flex:1;}
+  .gauge-unit{flex:1; max-width:16px; aspect-ratio:1; border-radius:4px; border:1.5px solid var(--line);}
+  .gauge-unit.on{background:var(--danger); border-color:var(--danger);}
+  .gauge-val{font-family:'JetBrains Mono',monospace; font-size:0.76rem; width:44px; text-align:right; flex-shrink:0;}
+  .gauge-total{margin-top:14px; padding-top:14px; border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+  .gauge-total .num{font-family:'Space Grotesk',sans-serif; font-size:1.6rem; font-weight:700;}
+  .gauge-total .delta{font-size:0.72rem; padding:3px 9px; border-radius:20px; font-weight:600;}
+  .gauge-total .delta.down{background:var(--sage-soft); color:var(--sage);}
+  .gauge-total .delta.up{background:var(--danger-soft,rgba(168,79,63,0.12)); color:var(--danger);}
+  .gauge-total .delta.flat{background:var(--panel-2); color:var(--text-dim);}
+
+  /* --- Suivi alcool : tendance en scroll horizontal --- */
+  .trend-scroll{overflow-x:auto; padding-bottom:6px;}
+  .trend-bars{display:flex; align-items:flex-end; gap:18px; height:130px; width:max-content; padding:0 4px;}
+  .trend-col{display:flex; flex-direction:column; align-items:center; gap:6px; width:34px; flex-shrink:0;}
+  .trend-bar-wrap{height:88px; display:flex; align-items:flex-end;}
+  .trend-bar{width:22px; border-radius:4px 4px 2px 2px;}
+  .trend-bar.bu{background:var(--danger);}
+  .trend-bar.sec{background:var(--sage); height:3px !important;}
+  .trend-val{font-size:0.64rem; font-family:'JetBrains Mono',monospace; color:var(--text-dim);}
+  .trend-m{font-size:0.68rem; color:var(--text-dim); text-transform:capitalize;}
+  .trend-m.current{color:var(--accent); font-weight:600;}
+  .trend-hint{font-size:0.68rem; color:var(--text-dim); margin-top:8px;}
   .legend .dot.sec{background:var(--sage);} .legend .dot.bu{background:var(--danger);} .legend .dot.neutre{background:var(--panel-2); border:1px solid var(--line);}
   .stats-row{display:flex; gap:10px;}
   .stats-row .stat{flex:1; background:var(--panel-2); border-radius:10px; padding:12px 8px; text-align:center;}
@@ -1791,19 +1841,36 @@
 
   <div class="card">
     <h2>Ce mois-ci <span class="tag mono" id="alcoolMonthLabel"></span></h2>
-    <div class="check-sub" style="margin-bottom:10px;">Comparé au mois précédent. 1 verre standard = 10g d'alcool pur (repère officiel santé publique).</div>
-    <div id="alcoolMonthCard"></div>
+    <div class="check-sub" style="margin-bottom:10px;">1 verre standard = 10g d'alcool pur (repère officiel santé publique).</div>
+    <div class="cal-head"><span class="m" id="alcoolCalMonthLabel"></span><span class="mono" id="alcoolCalProgress" style="font-size:0.72rem; color:var(--text-dim);"></span></div>
+    <div class="cal-dow"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+    <div class="cal-grid" id="alcoolCalGrid"></div>
+    <div class="cal-legend">
+      <span><i class="sec"></i>Sobre</span>
+      <span><i class="bu"></i>Alcool</span>
+      <span><i class="future"></i>À venir</span>
+    </div>
+    <div class="cal-total"><span class="num" id="alcoolCalTotal">—</span><span class="lbl">verres standards ce mois-ci</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Détail par type <span class="tag mono" id="alcoolMonthLabel2"></span></h2>
+    <div class="check-sub" style="margin-bottom:10px;">Comparé au mois précédent.</div>
+    <div id="alcoolGaugeCard"></div>
   </div>
 
   <div class="card">
     <h2>Tendance</h2>
-    <div class="check-sub" style="margin-bottom:6px;">Verres standards consommés, par mois.</div>
-    <canvas id="chartAlcoolTrend" height="140"></canvas>
+    <div class="check-sub" style="margin-bottom:6px;">Verres standards par mois, depuis août 2026. Fais glisser pour naviguer.</div>
+    <div class="trend-scroll" id="alcoolTrendScroll">
+      <div class="trend-bars" id="alcoolTrendBars"></div>
+    </div>
+    <div class="trend-hint">← fait glisser pour remonter jusqu'à août 2026</div>
   </div>
 
   <div class="card">
     <h2>Historique <span class="tag mono" id="alcoolRangeLabel"></span></h2>
-    <div class="check-sub" style="margin-bottom:10px;">Un jour sans alcool loggé compte comme sobre. Tape un carré pour voir le détail du jour.</div>
+    <div class="check-sub" style="margin-bottom:10px;">Depuis le 1ᵉʳ août 2026. Un jour sans alcool loggé compte comme sobre. Tape un carré pour voir le détail du jour.</div>
     <div class="heatmap-scroll" id="alcoolHeatmapScroll">
       <div class="hm-months" id="alcoolHeatmapMonths"></div>
       <div class="heatmap" id="alcoolHeatmap"></div>
@@ -3975,7 +4042,9 @@ function updateSeal(day){
 // Chaque aliment loggé porte déjà un champ .a (grammes d'alcool pur pour la portion, voir qlValidate
 // et les modales d'ajout). Un jour "avec alcool" = au moins un aliment du jour a un .a > 0.
 // Règle retenue : jour non loggé = sec par défaut (rétroactif), pas de distinction scellé/non scellé.
-const ALCOHOL_WEEKS = 26; // ~6 mois affichés dans la heatmap ; ajustable si besoin de plus de recul
+// Point de départ fixe du suivi : rien avant cette date n'est comptabilisé (série, jours sobres,
+// tendance, historique) — évite de compter comme "sobres" des jours antérieurs au vrai suivi.
+const ALCOHOL_EPOCH = new Date(2026,7,1); // 1er août 2026
 
 function dayHasAlcohol(iso){
   const day = state.days[iso];
@@ -3985,10 +4054,11 @@ function dayHasAlcohol(iso){
 
 function computeAlcoholStreak(){
   // Streak de jours secs consécutifs en remontant depuis aujourd'hui (aujourd'hui inclus,
-  // même en cours de journée : "sec" tant qu'aucun alcool n'a été loggé).
+  // même en cours de journée : "sec" tant qu'aucun alcool n'a été loggé), sans jamais franchir
+  // ALCOHOL_EPOCH — au-delà, il n'y a simplement plus de suivi, donc plus de "jours sobres" à compter.
   let streak = 0;
   let d = todayDate();
-  while(streak<3650){
+  while(isoDate(d) >= isoDate(ALCOHOL_EPOCH)){
     if(dayHasAlcohol(isoDate(d))) break;
     streak++;
     d = addDays(d,-1);
@@ -4019,24 +4089,27 @@ function renderAlcoholBadge(){
 function renderAlcoholPage(){
   const today = todayDate();
   const todayIso = isoDate(today);
-  const totalDays = ALCOHOL_WEEKS*7;
 
-  // Aligne le début de la plage sur un lundi pour que chaque colonne = une semaine complète
-  let start = addDays(today, -(totalDays-1));
+  // La plage démarre toujours au lundi de la semaine du 1er août 2026 (une colonne = une semaine
+  // complète) et s'étend jusqu'à aujourd'hui — elle s'allonge naturellement au fil du temps.
+  let start = new Date(ALCOHOL_EPOCH);
   const dow = start.getDay(); // 0=dim..6=sam
   start = addDays(start, -(dow===0 ? 6 : dow-1));
 
   const days = [];
   let d = new Date(start);
+  const epochIso = isoDate(ALCOHOL_EPOCH);
   while(isoDate(d) <= todayIso){
     const iso = isoDate(d);
-    days.push({iso, status: dayHasAlcohol(iso) ? 'bu' : 'sec'});
+    // Jours antérieurs au 1er août 2026 (padding d'alignement sur le lundi) : hors suivi, ni sobres ni "avec alcool"
+    const status = iso < epochIso ? 'neutre' : (dayHasAlcohol(iso) ? 'bu' : 'sec');
+    days.push({iso, status});
     d = addDays(d,1);
   }
   while(days.length%7!==0) days.push({iso:null, status:'neutre'}); // complète la dernière colonne
 
   const secCount = days.filter(x=>x.status==='sec').length;
-  const loggedCount = days.filter(x=>x.iso).length;
+  const loggedCount = days.filter(x=>x.status==='sec' || x.status==='bu').length;
   const pct = loggedCount ? Math.round(secCount/loggedCount*100) : 0;
   const record = computeAlcoholRecord(days);
   const currentStreak = computeAlcoholStreak();
@@ -4044,11 +4117,12 @@ function renderAlcoholPage(){
   document.getElementById('alcoolStatsRow').innerHTML = `
     <div class="stat"><div class="num">${currentStreak}</div><div class="lbl">jours sobres</div></div>
     <div class="stat"><div class="num">${record}</div><div class="lbl">meilleure série</div></div>
-    <div class="stat"><div class="num">${pct}%</div><div class="lbl">% sobres (${ALCOHOL_WEEKS*7}j)</div></div>
+    <div class="stat"><div class="num">${pct}%</div><div class="lbl">% sobres (${loggedCount}j)</div></div>
   `;
-  document.getElementById('alcoolRangeLabel').textContent = `${ALCOHOL_WEEKS} semaines`;
+  const weeksSinceEpoch = Math.ceil(days.length/7);
+  document.getElementById('alcoolRangeLabel').textContent = `depuis le 1ᵉʳ août 2026 · ${weeksSinceEpoch} sem.`;
   renderAlcoholMonthCard();
-  drawAlcoholTrendChart();
+  renderAlcoholTrendBars();
 
   const hm = document.getElementById('alcoolHeatmap');
   hm.innerHTML = '';
@@ -4115,13 +4189,56 @@ function computeAlcoholMonthStats(year, month){
   });
   return {totalL, totalKcal, totalG, verres: totalG/10, byType};
 }
-function renderAlcoholMonthCard(){
+// Calendrier du mois en cours (option A) : un carré par jour, lecture immédiate du motif sobre/alcool.
+function renderAlcoholCalendar(){
+  const today = todayDate();
+  const y = today.getFullYear(), m = today.getMonth();
+  const todayDay = today.getDate();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const firstOfMonth = new Date(y, m, 1);
+  const firstDow = (firstOfMonth.getDay()+6)%7; // 0=lundi..6=dimanche
+
+  document.getElementById('alcoolCalMonthLabel').textContent = today.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  document.getElementById('alcoolCalProgress').textContent = `${todayDay}/${daysInMonth}`;
+
+  const grid = document.getElementById('alcoolCalGrid');
+  grid.innerHTML = '';
+  for(let i=0;i<firstDow;i++){
+    const e = document.createElement('div'); e.className='cal-cell empty'; grid.appendChild(e);
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    const iso = isoDate(new Date(y,m,day));
+    const cell = document.createElement('div');
+    let cls = 'cal-cell ';
+    if(day>todayDay){
+      cls += 'future';
+    }else{
+      const bu = dayHasAlcohol(iso);
+      cls += bu ? 'bu' : 'sec';
+    }
+    if(day===todayDay) cls += ' today';
+    cell.className = cls;
+    cell.textContent = day;
+    if(day<=todayDay){
+      const label = new Date(y,m,day).toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'});
+      cell.title = label;
+      cell.onclick = ()=>alert(dayHasAlcohol(iso) ? `${label} — alcool consommé` : `${label} — jour sobre`);
+    }
+    grid.appendChild(cell);
+  }
+  const stats = computeAlcoholMonthStats(y,m);
+  document.getElementById('alcoolCalTotal').textContent = stats.verres.toFixed(1);
+}
+
+// Jauge par type (option B) : un carré = un verre standard, complète la vue calendrier par le détail.
+function renderAlcoholGauge(){
   const today = todayDate();
   const y=today.getFullYear(), m=today.getMonth();
   const prevD = new Date(y, m-1, 1);
   const cur = computeAlcoholMonthStats(y,m);
   const prev = computeAlcoholMonthStats(prevD.getFullYear(), prevD.getMonth());
   document.getElementById('alcoolMonthLabel').textContent = today.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  document.getElementById('alcoolMonthLabel2').textContent = today.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
 
   let deltaHtml;
   if(prev.verres>0){
@@ -4136,54 +4253,62 @@ function renderAlcoholMonthCard(){
 
   const rows = Object.entries(ALCOHOL_TYPES).map(([key,meta])=>{
     const t = cur.byType[key];
-    if(!t.l) return '';
-    return `<div class="am-row">
-      <span class="am-name">${meta.icon} ${meta.label}</span>
-      <span class="am-val">${t.l.toFixed(1)} L · ${Math.round(t.kcal)} kcal · ${(t.g/10).toFixed(1)} verres</span>
+    const verresType = t.g/10;
+    const maxUnits = 8;
+    const units = Array.from({length:maxUnits}, (_,i)=>
+      `<div class="gauge-unit${i<Math.round(verresType) ? ' on':''}"></div>`
+    ).join('');
+    return `<div class="gauge-row">
+      <span class="gauge-icon">${meta.icon}</span>
+      <span class="gauge-name">${meta.label}</span>
+      <div class="gauge-units">${units}</div>
+      <span class="gauge-val">${verresType.toFixed(1)}</span>
     </div>`;
   }).join('');
 
-  document.getElementById('alcoolMonthCard').innerHTML = cur.totalG===0
-    ? `<div class="am-empty">Aucun alcool loggé ce mois-ci 🎉</div>`
-    : `
-    <div class="am-total">
-      <span class="val">${cur.verres.toFixed(1)}</span>
-      <span>verres standards</span>
-      ${deltaHtml}
-    </div>
+  document.getElementById('alcoolGaugeCard').innerHTML = `
     ${rows}
-    <div class="am-row" style="border-top:2px solid var(--line); margin-top:4px; font-weight:600;">
-      <span class="am-name">Total</span>
-      <span class="am-val">${cur.totalL.toFixed(1)} L (~${cur.totalL.toFixed(1)} bouteille(s) 1L) · ${Math.round(cur.totalKcal)} kcal</span>
+    <div class="gauge-total">
+      <div><span class="num">${cur.verres.toFixed(1)}</span> <span style="font-size:0.76rem; color:var(--text-dim);">verres · ${cur.totalL.toFixed(1)} L · ${Math.round(cur.totalKcal)} kcal</span></div>
+      ${deltaHtml}
     </div>`;
 }
-function drawAlcoholTrendChart(){
-  const h=140;
-  const {ctx,w} = setupCanvas('chartAlcoolTrend', h);
+function renderAlcoholMonthCard(){
+  renderAlcoholCalendar();
+  renderAlcoholGauge();
+}
+
+// Tendance : barres DOM (plus de canvas) dans un conteneur scrollable, un mois = août 2026 minimum,
+// s'allonge vers la droite au fil des mois. La vue s'ouvre directement sur les mois les plus récents.
+function renderAlcoholTrendBars(){
   const today = todayDate();
   const months = [];
-  for(let i=5;i>=0;i--){
-    const d = new Date(today.getFullYear(), today.getMonth()-i, 1);
-    months.push(d);
+  let cursor = new Date(ALCOHOL_EPOCH.getFullYear(), ALCOHOL_EPOCH.getMonth(), 1);
+  const last = new Date(today.getFullYear(), today.getMonth(), 1);
+  while(cursor <= last){
+    months.push(new Date(cursor));
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
   }
   const stats = months.map(d=>computeAlcoholMonthStats(d.getFullYear(), d.getMonth()));
   const maxV = Math.max(1, ...stats.map(s=>s.verres));
-  const n = months.length;
-  const groupW = w/n;
-  const barW = Math.min(28, groupW*0.5);
-  ctx.font = '9px Inter, sans-serif'; ctx.textAlign='center';
-  stats.forEach((s,i)=>{
-    const barH = (s.verres/maxV)*(h-30);
-    const x = i*groupW + groupW/2 - barW/2;
-    ctx.fillStyle = s.verres>0 ? '#a84f3f' : '#5f7355';
-    ctx.fillRect(x, h-24-barH, barW, Math.max(barH, s.verres>0?2:0));
-    ctx.fillStyle='#847d6f';
-    ctx.fillText(months[i].toLocaleDateString('fr-FR',{month:'short'}), i*groupW+groupW/2, h-8);
-    if(s.verres>0){
-      ctx.fillStyle='#2a2621';
-      ctx.fillText(s.verres.toFixed(1), i*groupW+groupW/2, Math.max(10, h-28-barH));
-    }
+
+  const wrap = document.getElementById('alcoolTrendBars');
+  wrap.innerHTML = '';
+  months.forEach((d,i)=>{
+    const s = stats[i];
+    const isCurrent = d.getFullYear()===today.getFullYear() && d.getMonth()===today.getMonth();
+    const barH = s.verres>0 ? Math.max(4, (s.verres/maxV)*80) : 3;
+    const col = document.createElement('div');
+    col.className = 'trend-col';
+    col.innerHTML = `
+      <span class="trend-val">${s.verres>0 ? s.verres.toFixed(1) : ''}</span>
+      <div class="trend-bar-wrap"><div class="trend-bar ${s.verres>0?'bu':'sec'}" style="height:${barH}px;"></div></div>
+      <span class="trend-m${isCurrent?' current':''}">${d.toLocaleDateString('fr-FR',{month:'short'})}</span>`;
+    wrap.appendChild(col);
   });
+  // ouvre la vue sur les mois les plus récents
+  const scroller = document.getElementById('alcoolTrendScroll');
+  scroller.scrollLeft = scroller.scrollWidth;
 }
 
 function renderWeekDots(info, weekIdx){
