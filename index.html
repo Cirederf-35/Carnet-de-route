@@ -1605,8 +1605,8 @@
       </table>
     </div>
 
-    <div class="disclaimer">Champs attendus (tous optionnels sauf date et poids) : <code>date, weight, fatMass, muscleMass, score, bmi, bodyFatPct, visceralFat, water, protein, phaseAngle</code>.</div>
-    <textarea id="inbodyJsonInput" rows="5" placeholder='{"date":"2026-08-15","weight":78.4,"fatMass":14.2,"muscleMass":36.1,"score":82,"bmi":22.9,"bodyFatPct":18.1,"visceralFat":6.5,"water":45.2,"protein":12.3,"phaseAngle":6.8}' style="width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); color:var(--text); font-size:0.78rem; font-family:'JetBrains Mono',monospace; box-sizing:border-box;"></textarea>
+    <div class="disclaimer">Champs attendus (tous optionnels sauf date et poids) : <code>date, weight, fatMass, muscleMass, score, bmi, bodyFatPct, visceralFat, water, protein, phaseAngle, bmr</code>. Le champ <code>bmr</code> (métabolisme de base mesuré, en kcal) remplace la formule théorique dans tous les calculs de besoin — pense à le saisir.</div>
+    <textarea id="inbodyJsonInput" rows="5" placeholder='{"date":"2026-08-15","weight":78.4,"fatMass":14.2,"muscleMass":36.1,"score":82,"bmi":22.9,"bodyFatPct":18.1,"visceralFat":6.5,"water":45.2,"protein":12.3,"phaseAngle":6.8,"bmr":1745}' style="width:100%; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); color:var(--text); font-size:0.78rem; font-family:'JetBrains Mono',monospace; box-sizing:border-box;"></textarea>
     <button class="add-btn" id="addInbodyBtn">+ Importer ce scan (JSON)</button>
 
     <h3>Composition : masse grasse vs muscle</h3>
@@ -1622,6 +1622,7 @@
       <option value="water">Eau corporelle totale</option>
       <option value="protein">Protéines</option>
       <option value="phaseAngle">Angle de phase</option>
+      <option value="bmr">Métabolisme de base (kcal)</option>
     </select>
     <canvas id="chartInbodyMetric" height="140"></canvas>
 
@@ -1802,13 +1803,22 @@
       </div>
       <label class="field">Niveau d'activité hors sport tracké
         <select id="activityInput">
-          <option value="sedentaire">Sédentaire</option>
-          <option value="leger">Légèrement actif</option>
-          <option value="actif">Actif</option>
-          <option value="tres_actif">Très actif</option>
+          <option value="sedentaire">Sédentaire — bureau, peu de marche</option>
+          <option value="leger">Légèrement actif — un peu de marche quotidienne</option>
+          <option value="actif">Actif — beaucoup de déplacements, debout</option>
+          <option value="tres_actif">Très actif — métier physique</option>
         </select>
       </label>
-      <div class="check-sub" style="margin-bottom:14px;">Choisis le niveau qui correspond à ton quotidien hors séances loguées — le sport tracké s'ajoute par-dessus, pour ne pas compter deux fois la même dépense.</div>
+      <label class="field">Réalisme des calories sport
+        <select id="sportFactorInput">
+          <option value="1">100 % — je garde les valeurs brutes</option>
+          <option value="0.9">90 % — léger dégonflage</option>
+          <option value="0.8">80 % — recommandé</option>
+          <option value="0.7">70 % — prudent</option>
+        </select>
+      </label>
+      <div class="check-sub" style="margin-bottom:14px;">Les montres et estimateurs surévaluent la dépense sportive de 15 à 25 % : ils comptent la dépense brute, alors que seule compte la dépense <em>en plus</em> de ce que le corps aurait brûlé au repos pendant la même durée. Ce coefficient s'applique à toutes les séances.</div>
+      <div class="check-sub" style="margin-bottom:14px;">Choisis le niveau qui correspond à ton quotidien <strong>hors séances loguées</strong> — le sport tracké s'ajoute par-dessus, pour ne pas compter deux fois la même dépense. Ne compte donc PAS ton padel / running / HIIT ici.</div>
       <div class="btn-row">
         <button class="btn-sm" id="exportBtn">Exporter JSON</button>
         <button class="btn-sm" id="importBtn">Importer JSON</button>
@@ -2634,6 +2644,7 @@ const DEFAULT_STATE = {
   age:30,
   sex:"H",
   activityLevel:"leger",
+  sportFactor:0.8, // dégonflage des kcal sport saisies (voir sportFactor())
   jamaisZero:"Au moins une source de protéines + un légume, peu importe le reste.",
   ingredients:null, // migré depuis SEED_INGREDIENTS au premier chargement
   categoryOrder:Object.keys(FOOD_CATEGORIES),
@@ -2642,7 +2653,7 @@ const DEFAULT_STATE = {
   inbodyScans:{
     "2026-08-11":{
       weight:77.3, fatMass:13.7, muscleMass:35.9, score:82, bmi:24.4,
-      bodyFatPct:17.7, visceralFat:61.8, water:46.6, protein:12.6, phaseAngle:6.1
+      bodyFatPct:17.7, visceralFat:61.8, water:46.6, protein:12.6, phaseAngle:6.1, bmr:1745
     }
   },
   xp:0,
@@ -2832,6 +2843,25 @@ function migrateMealCats(s){
 }
 // Migration objectifs : l'ancien format ne stockait qu'une semaine (weeklyGoals, écrasée à chaque
 // changement de semaine). Le nouveau format goalsByWeek conserve toutes les semaines, clé = lundi ISO.
+/* Aligne state.weightKg sur la mesure la plus récente (pesée ou scan InBody).
+   Passe une seule fois, puis le poids se resynchronise à chaque nouvelle mesure saisie.
+   Une modification manuelle dans les Réglages reste donc respectée entre deux mesures. */
+function migrateProfileWeight(s){
+  if(s.profileWeightSync) return s;
+  const pts = [];
+  Object.entries(s.weighins||{}).forEach(([d,v])=>{ if(v && v.weight!=null) pts.push([d,v.weight]); });
+  Object.entries(s.inbodyScans||{}).forEach(([d,v])=>{ if(v && v.weight!=null) pts.push([d,v.weight]); });
+  if(pts.length){
+    pts.sort((a,b)=> a[0]<b[0] ? -1 : a[0]>b[0] ? 1 : 0);
+    s.weightKg = pts[pts.length-1][1];
+  }
+  // Le champ bmr n'existait pas avant cette version : on réinjecte la valeur mesurée
+  // du scan du 11/08 pour que l'historique parte du métabolisme réel et non de la formule.
+  const sc = s.inbodyScans && s.inbodyScans["2026-08-11"];
+  if(sc && sc.bmr==null) sc.bmr = 1745;
+  s.profileWeightSync = true;
+  return s;
+}
 function migrateGoals(s){
   if(!s.goalsByWeek) s.goalsByWeek = {};
   if(s.weeklyGoals && s.weeklyGoals.weekStart && s.weeklyGoals.activities){
@@ -2846,10 +2876,10 @@ function migrateGoals(s){
 function loadState(){
   try{
     const raw = localStorage.getItem('carnet-de-route');
-    if(!raw) return migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))))));
+    if(!raw) return migrateProfileWeight(migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))))));
     const merged = {...structuredClone(DEFAULT_STATE), ...JSON.parse(raw)};
-    return migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(merged)))));
-  }catch(e){ return migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE)))))); }
+    return migrateProfileWeight(migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(merged))))));
+  }catch(e){ return migrateProfileWeight(migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients(structuredClone(DEFAULT_STATE))))))); }
 }
 function persistState(){
   try{ localStorage.setItem('carnet-de-route', JSON.stringify(state)); }
@@ -2890,13 +2920,62 @@ function setDay(iso, day){ state.days[iso] = day; persistState(); }
 // Rétrocompatible : les anciennes journées cochées via l'ex-case "règle respectée" restent valides.
 function foodDone(day){ return day.foods.length>0 || day.food===true; }
 function foodKcal(f){ if(f.kcalOverride!=null) return Math.round(f.kcalOverride); return Math.round(f.p*4 + f.c*4 + f.f*9 + (f.a||0)*7); }
-const ACTIVITY_MULT = {sedentaire:1.2, leger:1.375, actif:1.55, tres_actif:1.725};
+/* Coefficients d'activité NEAT-ONLY (vie quotidienne HORS séances loguées).
+   ⚠️ Ce ne sont volontairement PAS les multiplicateurs Harris-Benedict classiques
+   (1.2 / 1.375 / 1.55 / 1.725) : ceux-là incluent déjà 3 à 5 séances de sport par semaine.
+   Comme l'appli ajoute ensuite sportTotalKcal(day) par-dessus le résultat de computeTDEE(),
+   les utiliser revenait à compter la dépense sportive deux fois (~+500 kcal/j d'erreur). */
+const ACTIVITY_MULT = {sedentaire:1.15, leger:1.25, actif:1.35, tres_actif:1.45};
 const ACTIVITY_LABEL = {sedentaire:"Sédentaire", leger:"Légèrement actif", actif:"Actif", tres_actif:"Très actif"};
-function computeTDEE(){
-  const bmr = state.sex==='F'
-    ? 10*state.weightKg + 6.25*state.heightCm - 5*state.age - 161
-    : 10*state.weightKg + 6.25*state.heightCm - 5*state.age + 5;
-  return Math.round(bmr * (ACTIVITY_MULT[state.activityLevel] || 1.375));
+
+/* Poids applicable à une date : dernière mesure connue (pesée ou scan InBody) à cette date ou avant.
+   Permet de recalculer l'historique avec le poids réel de l'époque, pas celui d'aujourd'hui.
+   Sans aucune mesure, on retombe sur state.weightKg (valeur des Réglages). */
+function measurementPoints(key){
+  const pts = [];
+  Object.entries(state.weighins||{}).forEach(([d,v])=>{ if(v && v[key]!=null) pts.push([d, v[key]]); });
+  Object.entries(state.inbodyScans||{}).forEach(([d,v])=>{ if(v && v[key]!=null) pts.push([d, v[key]]); });
+  return pts.sort((a,b)=> a[0]<b[0] ? -1 : a[0]>b[0] ? 1 : 0);
+}
+function valueAt(key, iso, fallback){
+  const pts = measurementPoints(key);
+  if(!pts.length) return fallback;
+  if(!iso) return pts[pts.length-1][1];
+  let val = null;
+  for(const [d,v] of pts){ if(d<=iso) val = v; else break; }
+  // Avant la toute première mesure : on prend la plus ancienne connue plutôt que rien.
+  return val!=null ? val : pts[0][1];
+}
+function weightAt(iso){ return valueAt('weight', iso, state.weightKg); }
+/* Recale le poids des Réglages sur la mesure la plus récente (appelé après chaque saisie). */
+function syncProfileWeight(){
+  const w = valueAt('weight', null, null);
+  if(w!=null) state.weightKg = w;
+}
+/* Métabolisme de base MESURÉ par l'InBody (champ bmr du scan). Prioritaire sur Mifflin-St Jeor :
+   il est calculé sur la masse maigre réelle, donc bien plus juste quand la masse musculaire
+   s'écarte de la moyenne de population. Repli sur la formule si aucun scan ne le renseigne. */
+function measuredBmrAt(iso){
+  const pts = Object.entries(state.inbodyScans||{})
+    .filter(([,v])=>v && v.bmr!=null)
+    .sort((a,b)=> a[0]<b[0] ? -1 : a[0]>b[0] ? 1 : 0);
+  if(!pts.length) return null;
+  if(!iso) return pts[pts.length-1][1].bmr;
+  let val = null;
+  for(const [d,v] of pts){ if(d<=iso) val = v.bmr; else break; }
+  return val!=null ? val : pts[0][1].bmr;
+}
+function bmrAt(iso){
+  const measured = measuredBmrAt(iso);
+  if(measured!=null) return measured;
+  const w = weightAt(iso);
+  return state.sex==='F'
+    ? 10*w + 6.25*state.heightCm - 5*state.age - 161
+    : 10*w + 6.25*state.heightCm - 5*state.age + 5;
+}
+/* Besoin de base HORS sport pour une date donnée. iso omis = valeurs du jour. */
+function computeTDEE(iso){
+  return Math.round(bmrAt(iso) * (ACTIVITY_MULT[state.activityLevel] || 1.25));
 }
 function dayFoodTotals(day){
   return day.foods.reduce((acc,f)=>({p:acc.p+f.p, f:acc.f+f.f, c:acc.c+f.c, kcal:acc.kcal+foodKcal(f)}), {p:0,f:0,c:0,kcal:0});
@@ -2941,7 +3020,16 @@ function sessionKcal(s){
   if(userVal>0) return Math.round(userVal);
   return s.kcalEst || 0;
 }
-function sportTotalKcal(day){ return day.sessions.reduce((sum,s)=>sum+sessionKcal(s),0); }
+/* Facteur de réalisme sur les calories sport. Les montres et estimateurs surévaluent
+   la dépense de 15-25 % (ils comptent la dépense brute, pas la dépense NETTE de ce que
+   le corps aurait consommé au repos sur la même durée). 1 = aucun ajustement. */
+function sportFactor(){
+  const f = parseFloat(state.sportFactor);
+  return (f>0 && f<=1) ? f : 0.8;
+}
+function sportTotalKcal(day){
+  return Math.round(day.sessions.reduce((sum,s)=>sum+sessionKcal(s),0) * sportFactor());
+}
 
 /* ---------- CALCULS PÉRIODE ---------- */
 const MANTRA_EPOCH = new Date(2026,0,1); // ancre fixe : jour 0 = discipline, rotation perpétuelle
@@ -3676,7 +3764,7 @@ function render(){
   updateExportReminder();
   updateEndPeriodCard(info);
 
-  const tdee = computeTDEE();
+  const tdee = computeTDEE(selIso);
   const needToday = tdee + sportTotalKcal(day);
   const apportToday = dayFoodTotals(day).kcal;
   const balance = apportToday - needToday;
@@ -3712,6 +3800,7 @@ function render(){
   document.getElementById('ageInput').value = state.age;
   document.getElementById('sexInput').value = state.sex;
   document.getElementById('activityInput').value = state.activityLevel;
+  document.getElementById('sportFactorInput').value = String(sportFactor());
 
   renderWeighins();
   renderInbody();
@@ -4432,8 +4521,8 @@ function drawLineChart(id, buckets){
 function drawDeficitWeightChart(info){
   const h=160;
   const {ctx,w} = setupCanvas('chartDeficitWeight', h);
-  const tdee = computeTDEE();
-  // Déficit cumulé : uniquement les jours où l'alimentation est renseignée (sinon apport=0 fausserait tout)
+  // Déficit cumulé : uniquement les jours où l'alimentation est renseignée (sinon apport=0 fausserait tout).
+  // Le besoin est recalculé POUR CHAQUE JOUR (poids + BMR connus à cette date), pas figé sur aujourd'hui.
   let cum=0; const defPts=[];
   for(let i=0;i<42;i++){
     const d=addDays(info.start,i);
@@ -4441,7 +4530,7 @@ function drawDeficitWeightChart(info){
     const iso=isoDate(d);
     const day = state.days[iso] ? getDay(iso) : null;
     if(day && day.foods.length>0){
-      cum += dayFoodTotals(day).kcal - (tdee + sportTotalKcal(day));
+      cum += dayFoodTotals(day).kcal - (computeTDEE(iso) + sportTotalKcal(day));
       defPts.push({dayIdx:i, val:cum});
     }
   }
@@ -4647,6 +4736,7 @@ function updateDayBadges(day){
 }
 
 function updateHomeSynth(day){
+  const synthIso = isoDate(selectedDate); // les blobs reflètent toujours le jour affiché
   // Sommeil : score Body Battery, coloré selon le seuil, avec un smiley qui reflète la qualité
   const bb = day.sleep.bodyBattery;
   const sleepEl = document.getElementById('homePct-sommeil');
@@ -4673,12 +4763,12 @@ function updateHomeSynth(day){
   if(foodKcal===0){
     alimIcon.textContent = '🍽';
   } else {
-    const gap = foodKcal - (computeTDEE()+sportKcal); // négatif = en dessous du besoin, positif = au-dessus
+    const gap = foodKcal - (computeTDEE(synthIso)+sportKcal); // négatif = en dessous du besoin, positif = au-dessus
     alimIcon.textContent = gap < -150 ? '🍲' : gap > 150 ? '🍔' : '🍛';
   }
 
   // Bilan : apport - besoin total (base + sport), harmonisé avec la page alimentation
-  const needToday = computeTDEE() + sportKcal;
+  const needToday = computeTDEE(synthIso) + sportKcal;
   const diff = foodKcal - needToday;
   document.getElementById('homePct-bilan').textContent = `${diff>=0?'+':''}${diff} kcal`;
 
@@ -4721,7 +4811,7 @@ function updateKcalGauge(foodKcal, needToday, diff){
 }
 
 // Moyenne de l'écart apport/besoin sur les jours renseignés des 7 derniers jours (tendance, pas jour isolé)
-function weeklyAvgDiff(selIso, tdee){
+function weeklyAvgDiff(selIso){
   const selDate = new Date(selIso+"T00:00:00");
   let sum = 0, count = 0;
   for(let i=0;i<7;i++){
@@ -4730,7 +4820,7 @@ function weeklyAvgDiff(selIso, tdee){
     if(!state.days[iso]) continue;
     const day = getDay(iso);
     if(day.foods.length===0 && (day.sessions||[]).length===0) continue; // jour vide, on ignore
-    sum += dayFoodTotals(day).kcal - (tdee + sportTotalKcal(day));
+    sum += dayFoodTotals(day).kcal - (computeTDEE(iso) + sportTotalKcal(day));
     count++;
   }
   return count>0 ? Math.round(sum/count) : null;
@@ -4746,7 +4836,7 @@ function updateBilanSynthesis(day, needToday, apportToday, balance, selIso){
   const weekActs = goalsForWeek(getMonday(dObj));
   const hiitTarget = (weekActs && weekActs.hiit) ? weekActs.hiit[dowIndexMondayBased(dObj)] : null;
 
-  const avgDiff = weeklyAvgDiff(selIso, computeTDEE());
+  const avgDiff = weeklyAvgDiff(selIso);
 
   // --- Texte de synthèse ---
   const parts = [];
@@ -6197,6 +6287,7 @@ document.getElementById('addWeighinBtn').onclick = ()=>{
     thigh: parseFloat(document.getElementById('weighinThigh').value)||null,
     bodyFat: parseFloat(document.getElementById('weighinBodyFat').value)||null
   };
+  syncProfileWeight();
   persistState();
   renderWeighins();
   render();
@@ -6221,8 +6312,10 @@ document.getElementById('addInbodyBtn').onclick = ()=>{
     visceralFat: parseFloat(data.visceralFat)||null,
     water: parseFloat(data.water)||null,
     protein: parseFloat(data.protein)||null,
-    phaseAngle: parseFloat(data.phaseAngle)||null
+    phaseAngle: parseFloat(data.phaseAngle)||null,
+    bmr: parseFloat(data.bmr)||null
   };
+  syncProfileWeight();
   persistState();
   document.getElementById('inbodyJsonInput').value = '';
   renderInbody();
@@ -6266,7 +6359,7 @@ function aiDayLine(iso){
   const head = `${MENU_DAYS_FR[dowIndexMondayBased(d)]} ${iso}`;
   if(!day) return `${head} : aucune donnée saisie`;
   const t = dayFoodTotals(day);
-  const tdee = computeTDEE();
+  const tdee = computeTDEE(iso);
   const need = tdee + sportTotalKcal(day);
   const parts = [];
   const ecart = Math.round(t.kcal-need);
@@ -6295,7 +6388,7 @@ function buildRetroPrompt(){
     .sort().map(([iso,w])=>`${iso} : ${w.weight ?? w} kg`);
   return `${state.aiRole}
 
-CONTEXTE : je te transmets les données brutes de mon carnet de suivi sur les 7 derniers jours. Profil : ${state.sex==='F'?'femme':'homme'}, ${state.age} ans, ${state.weightKg} kg, ${state.heightCm} cm, besoin de base estimé ${computeTDEE()} kcal/j (hors sport).
+CONTEXTE : je te transmets les données brutes de mon carnet de suivi sur les 7 derniers jours. Profil : ${state.sex==='F'?'femme':'homme'}, ${state.age} ans, ${state.weightKg} kg, ${state.heightCm} cm, besoin de base estimé ${computeTDEE()} kcal/j (hors sport, calculé sur le métabolisme de base ${measuredBmrAt(null)!=null ? 'MESURÉ à l\'InBody ('+measuredBmrAt(null)+' kcal)' : 'estimé par formule'} × coefficient d\'activité quotidienne hors séances). Les calories sport sont dégonflées de ${Math.round((1-sportFactor())*100)} % pour corriger la surestimation des estimateurs.
 
 DONNÉES DES 7 DERNIERS JOURS :
 ${lines.join('\n')}
@@ -6423,6 +6516,7 @@ document.getElementById('heightInput').onchange = (e)=>{ state.heightCm=parseFlo
 document.getElementById('ageInput').onchange = (e)=>{ state.age=parseInt(e.target.value)||30; persistState(); render(); };
 document.getElementById('sexInput').onchange = (e)=>{ state.sex=e.target.value; persistState(); render(); };
 document.getElementById('activityInput').onchange = (e)=>{ state.activityLevel=e.target.value; persistState(); render(); };
+document.getElementById('sportFactorInput').onchange = (e)=>{ state.sportFactor=parseFloat(e.target.value); persistState(); render(); };
 
 function doExport(){
   state.lastExport = isoDate(todayDate());
@@ -6496,7 +6590,7 @@ document.getElementById('importFile').onchange = (e)=>{
   reader.onload = (ev)=>{
     try{
       const imported = JSON.parse(ev.target.result);
-      state = migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported})))));
+      state = migrateProfileWeight(migrateMealCats(migrateMantras(migrateGoals(migrateMenus(migrateIngredients({...structuredClone(DEFAULT_STATE), ...imported}))))));
       persistState();
       render();
     }catch(err){ alert("Fichier invalide."); }
