@@ -249,6 +249,33 @@
   }
   .recipe-tile-photo{width:100%; height:90px; object-fit:cover; display:block;}
   .recipe-tile-emoji{width:100%; height:90px; display:flex; align-items:center; justify-content:center; font-size:2.2rem; background:var(--panel-2);}
+  .recipe-tile-visual{position:relative;}
+  .recipe-grade{
+    position:absolute; top:6px; right:6px; width:24px; height:24px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:0.8rem;
+    box-shadow:0 1px 4px rgba(0,0,0,0.25);
+  }
+  .recipe-warn{position:absolute; top:6px; left:6px; font-size:0.8rem;}
+  .score-card{background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px; margin:12px 0;}
+  .score-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .score-badge{
+    width:36px; height:36px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.05rem;
+  }
+  .score-total{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.92rem;}
+  .score-axis{margin-bottom:10px;}
+  .score-axis:last-child{margin-bottom:0;}
+  .score-axis-head{display:flex; justify-content:space-between; align-items:baseline; font-size:0.74rem; color:var(--text-dim); margin-bottom:4px; gap:8px;}
+  .score-hint{font-size:0.62rem; opacity:0.7;}
+  .score-axis-val{font-family:'JetBrains Mono',monospace; color:var(--text); font-weight:700; white-space:nowrap;}
+  .score-axis-track{height:6px; background:var(--panel); border-radius:3px; overflow:hidden;}
+  .score-axis-fill{height:6px; border-radius:3px; transition:width 0.3s;}
+  .score-warn{
+    background:rgba(226,75,74,0.12); border:1px solid rgba(226,75,74,0.4); border-radius:10px;
+    padding:9px 11px; font-size:0.72rem; line-height:1.45; margin-top:12px;
+  }
   .recipe-tile-body{padding:8px 10px 10px;}
   .recipe-tile-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.8rem; line-height:1.25;}
   .recipe-tile-meta{font-size:0.66rem; color:var(--text-dim); margin-top:3px; font-family:'JetBrains Mono',monospace;}
@@ -582,6 +609,26 @@
     background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
     width:36px; height:36px; font-size:1rem; color:var(--text-dim); cursor:pointer; flex-shrink:0;
   }
+  /* Pastille de version en pied d'accueil : discrète, mais cliquable pour l'historique */
+  .app-version{
+    display:flex; align-items:center; gap:7px; margin:26px auto 4px;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:999px;
+    padding:6px 14px 6px 10px; cursor:pointer; color:var(--text-dim);
+    transition:transform 0.15s, border-color 0.15s;
+  }
+  .app-version:active{transform:scale(.96);}
+  @media (hover:hover){ .app-version:hover{border-color:var(--accent); color:var(--text);} }
+  .app-version-logo{font-size:1.05rem; line-height:1;}
+  .app-version-num{font-family:'JetBrains Mono',monospace; font-size:0.7rem; letter-spacing:0.02em;}
+  .cl-date{font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--text-dim); text-align:center; margin-bottom:14px;}
+  .cl-list{list-style:none; padding:0; margin:0;}
+  .cl-list li{
+    position:relative; padding:0 0 0 20px; margin-bottom:11px;
+    font-size:0.82rem; line-height:1.5;
+  }
+  .cl-list li::before{content:'▸'; position:absolute; left:2px; top:0; color:var(--accent);}
+  .cl-pos{text-align:center; font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--text-dim); margin-top:16px;}
+  .modal-close:disabled{opacity:0.25; cursor:default;}
   .modal-selected-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.05rem; margin-bottom:14px;}
 
   /* EDITEUR BASE INGREDIENTS */
@@ -760,6 +807,35 @@
     font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--text-dim); white-space:nowrap;
   }
   .kcal-gauge-need .n{color:var(--text); font-weight:700;}
+
+  /* ---- Barres de répartition des macros (palette A : teal / ambre / bleu) ----
+     La couleur porte l'IDENTITÉ de la macro (stable d'un jour à l'autre).
+     Le statut passe par la position dans la bande de zone + le segment de dépassement.
+     Un liseré de 2px sépare le remplissage du dépassement : sans lui, l'ambre des
+     lipides et le rouge d'alerte se touchent et la rupture ne se voit plus. */
+  .macro-bars{margin-top:34px; display:flex; flex-direction:column; gap:11px;}
+  .macro-row{display:block;}
+  .macro-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; gap:8px;}
+  .macro-name{font-size:0.72rem; color:var(--text-dim);}
+  .macro-zone{font-size:0.62rem; color:var(--text-dim); opacity:0.7; font-family:'JetBrains Mono',monospace;}
+  .macro-val{font-family:'JetBrains Mono',monospace; font-size:0.72rem; white-space:nowrap;}
+  .macro-val .mv{color:var(--text); font-weight:700;}
+  .macro-val .md{margin-left:5px; font-size:0.66rem;}
+  .macro-val .md.ok{color:var(--text-dim);}
+  .macro-val .md.low{color:#BA7517;}
+  .macro-val .md.high{color:#d03b3b;}
+  .macro-track{position:relative; height:14px; background:var(--panel-2); border-radius:4px; overflow:hidden;}
+  .macro-zone-band{position:absolute; top:0; bottom:0; background:var(--panel); opacity:0.9;}
+  .macro-fill{position:absolute; left:0; top:4px; height:6px; border-radius:3px; transition:width 0.3s;}
+  .macro-fill.clipped{border-radius:3px 0 0 3px;}
+  .mf-p{background:#199e70;}
+  .mf-f{background:#eda100;}
+  .mf-c{background:#2a78d6;}
+  .macro-fill.low{opacity:0.5;}
+  .macro-over{position:absolute; top:4px; height:6px; width:0; border-radius:0 3px 3px 0;
+    background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
+    box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
+  .macro-foot{font-size:0.62rem; color:var(--text-dim); opacity:0.75; margin-top:2px; line-height:1.4;}
 
   /* WIZARD (saisie page par page) */
   .wizard-step{padding-top:4px;}
@@ -1332,6 +1408,48 @@
     </div>
   </div>
 
+  <div class="macro-bars" id="macroBars">
+    <div class="macro-row" data-macro="p">
+      <div class="macro-head">
+        <span class="macro-name">Protéines <span class="macro-zone" id="mzP">–</span></span>
+        <span class="macro-val"><span class="mv" id="mvP">–</span><span class="md" id="mdP"></span></span>
+      </div>
+      <div class="macro-track">
+        <div class="macro-zone-band" id="mbandP"></div>
+        <div class="macro-fill mf-p" id="mfillP"></div>
+        <div class="macro-over" id="moverP"></div>
+      </div>
+    </div>
+    <div class="macro-row" data-macro="f">
+      <div class="macro-head">
+        <span class="macro-name">Lipides <span class="macro-zone" id="mzF">–</span></span>
+        <span class="macro-val"><span class="mv" id="mvF">–</span><span class="md" id="mdF"></span></span>
+      </div>
+      <div class="macro-track">
+        <div class="macro-zone-band" id="mbandF"></div>
+        <div class="macro-fill mf-f" id="mfillF"></div>
+        <div class="macro-over" id="moverF"></div>
+      </div>
+    </div>
+    <div class="macro-row" data-macro="c">
+      <div class="macro-head">
+        <span class="macro-name">Glucides <span class="macro-zone" id="mzC">–</span></span>
+        <span class="macro-val"><span class="mv" id="mvC">–</span><span class="md" id="mdC"></span></span>
+      </div>
+      <div class="macro-track">
+        <div class="macro-zone-band" id="mbandC"></div>
+        <div class="macro-fill mf-c" id="mfillC"></div>
+        <div class="macro-over" id="moverC"></div>
+      </div>
+    </div>
+    <div class="macro-foot" id="macroFoot"></div>
+  </div>
+
+  <button class="app-version" id="appVersionBtn" title="Nouveautés">
+    <span class="app-version-logo">🧭</span>
+    <span class="app-version-num" id="appVersionNum">v—</span>
+  </button>
+
   </div><!-- /dayOverview -->
 
   <!-- PAGE DEDIEE : SOMMEIL -->
@@ -1809,6 +1927,12 @@
           <option value="tres_actif">Très actif — métier physique</option>
         </select>
       </label>
+      <div class="form-grid three">
+        <div><label class="field-inline">Déficit visé (kcal/j)</label><input type="number" id="deficitInput" min="0" max="1000" step="50"></div>
+        <div><label class="field-inline">Protéines (g/kg)</label><input type="number" id="proteinPerKgInput" min="1" max="3.5" step="0.05"></div>
+        <div><label class="field-inline">Lipides (g/kg)</label><input type="number" id="fatPerKgInput" min="0.5" max="2" step="0.05"></div>
+      </div>
+      <div class="check-sub" style="margin-bottom:14px;">Ces trois valeurs pilotent les barres de macros de l'accueil. Les protéines sont un <strong>plancher</strong> (dépasser est sans risque), les lipides un <strong>couloir</strong> de ±15 % autour de la valeur saisie, et les glucides la <strong>variable d'ajustement</strong> : ils absorbent le budget restant, donc leur cible monte les jours de sport.</div>
       <label class="field">Réalisme des calories sport
         <select id="sportFactorInput">
           <option value="1">100 % — je garde les valeurs brutes</option>
@@ -1952,6 +2076,18 @@
 </div>
 
 <!-- POP-UP LOG RAPIDE -->
+<div class="modal-overlay" id="changelogModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <button class="modal-close" id="changelogPrev" title="Version précédente">←</button>
+      <h3 id="changelogTitle">Nouveautés</h3>
+      <button class="modal-close" id="changelogNext" title="Version suivante">→</button>
+    </div>
+    <div id="changelogBody"></div>
+    <button class="add-btn" id="changelogClose" style="margin-top:16px;">Fermer</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="recipeModal">
   <div class="modal-box" style="max-height:88vh; overflow-y:auto;">
     <div class="modal-header">
@@ -2645,6 +2781,9 @@ const DEFAULT_STATE = {
   sex:"H",
   activityLevel:"leger",
   sportFactor:0.8, // dégonflage des kcal sport saisies (voir sportFactor())
+  deficitKcal:300,   // déficit visé par jour (kcal sous le besoin)
+  proteinPerKg:2.1,  // plancher protéines, en g par kg de poids
+  fatPerKg:1.05,     // centre du couloir lipides, en g par kg de poids
   jamaisZero:"Au moins une source de protéines + un légume, peu importe le reste.",
   ingredients:null, // migré depuis SEED_INGREDIENTS au premier chargement
   categoryOrder:Object.keys(FOOD_CATEGORIES),
@@ -2973,6 +3112,31 @@ function bmrAt(iso){
     ? 10*w + 6.25*state.heightCm - 5*state.age - 161
     : 10*w + 6.25*state.heightCm - 5*state.age + 5;
 }
+/* Cibles macros pour une journée.
+   Les trois macros n'ont volontairement PAS le même statut :
+   - protéines = PLANCHER. En déficit, c'est ce qui protège la masse musculaire.
+     Dépasser n'est pas un problème, donc pas de plafond ni de segment de dépassement.
+   - lipides   = COULOIR fermé. En dessous, la production hormonale décroche ;
+     au-dessus, ça consomme le budget calorique sans rassasier.
+   - glucides  = VARIABLE D'AJUSTEMENT. Ils absorbent l'énergie restante, donc leur
+     cible bouge chaque jour avec le sport : plus de séances = plus de glucides.
+   Le budget de référence est le besoin du jour MOINS le déficit visé, pas le besoin brut. */
+function macroTargets(iso, needToday){
+  const w = weightAt(iso);
+  const pFloor = Math.round(w * (parseFloat(state.proteinPerKg) || 2.1));
+  const fMid   = w * (parseFloat(state.fatPerKg) || 1.05);
+  const fLow   = Math.round(fMid * 0.85);
+  const fHigh  = Math.round(fMid * 1.15);
+  const budget = Math.max(needToday - (parseFloat(state.deficitKcal) || 0), 1200);
+  const cMid   = Math.max((budget - pFloor*4 - fMid*9) / 4, 0);
+  return {
+    budget,
+    p: {floor:pFloor, low:pFloor, high:null},
+    f: {low:fLow, high:fHigh, mid:Math.round(fMid)},
+    c: {low:Math.round(cMid*0.9), high:Math.round(cMid*1.1), mid:Math.round(cMid)}
+  };
+}
+
 /* Besoin de base HORS sport pour une date donnée. iso omis = valeurs du jour. */
 function computeTDEE(iso){
   return Math.round(bmrAt(iso) * (ACTIVITY_MULT[state.activityLevel] || 1.25));
@@ -3801,6 +3965,9 @@ function render(){
   document.getElementById('sexInput').value = state.sex;
   document.getElementById('activityInput').value = state.activityLevel;
   document.getElementById('sportFactorInput').value = String(sportFactor());
+  document.getElementById('deficitInput').value = state.deficitKcal;
+  document.getElementById('proteinPerKgInput').value = state.proteinPerKg;
+  document.getElementById('fatPerKgInput').value = state.fatPerKg;
 
   renderWeighins();
   renderInbody();
@@ -4774,6 +4941,62 @@ function updateHomeSynth(day){
 
   updateSectionStickers(day, bb, sportKcal, foodKcal, diff);
   updateKcalGauge(foodKcal, needToday, diff);
+  updateMacroBars(day, synthIso, needToday);
+}
+
+/* Une barre = une piste, une bande de zone, un remplissage et (si plafond dépassé)
+   un segment hachuré. L'échelle est propre à chaque macro : elle s'étend jusqu'au
+   plus grand entre la valeur du jour et le haut de zone, avec 18% de marge pour que
+   la bande reste toujours visible même quand l'apport est très bas. */
+function paintMacroBar(key, val, low, high, hasCeiling){
+  const band = document.getElementById('mband'+key);
+  const fill = document.getElementById('mfill'+key);
+  const over = document.getElementById('mover'+key);
+  const ref  = hasCeiling ? high : low;
+  const max  = Math.max(val, ref) * 1.18 || 1;
+  const pc   = v => Math.max(0, Math.min(100, (v/max)*100));
+
+  band.style.left  = pc(low)+'%';
+  band.style.width = (hasCeiling ? pc(high)-pc(low) : 100-pc(low))+'%';
+
+  const capped = hasCeiling && val > high;
+  fill.style.width = pc(capped ? high : val)+'%';
+  fill.classList.toggle('clipped', capped);
+  fill.classList.toggle('low', val < low);
+
+  if(capped){
+    over.style.left  = pc(high)+'%';
+    over.style.width = (pc(val)-pc(high))+'%';
+  } else {
+    over.style.width = '0%';
+  }
+}
+
+function updateMacroBars(day, iso, needToday){
+  const t = macroTargets(iso, needToday);
+  const tot = dayFoodTotals(day);
+  const P = Math.round(tot.p), F = Math.round(tot.f), C = Math.round(tot.c);
+
+  const setHead = (key, val, unitLow, unitHigh, zoneTxt) => {
+    document.getElementById('mz'+key).textContent = zoneTxt;
+    document.getElementById('mv'+key).textContent = val + ' g';
+    const d = document.getElementById('md'+key);
+    if(val === 0){ d.textContent = ''; d.className = 'md'; return; }
+    if(val < unitLow){ d.textContent = '−' + (unitLow-val); d.className = 'md low'; }
+    else if(unitHigh!=null && val > unitHigh){ d.textContent = '+' + (val-unitHigh); d.className = 'md high'; }
+    else { d.textContent = 'ok'; d.className = 'md ok'; }
+  };
+
+  setHead('P', P, t.p.floor, null, '≥ '+t.p.floor);
+  setHead('F', F, t.f.low, t.f.high, t.f.low+'–'+t.f.high);
+  setHead('C', C, t.c.low, t.c.high, t.c.low+'–'+t.c.high);
+
+  paintMacroBar('P', P, t.p.floor, null, false);
+  paintMacroBar('F', F, t.f.low, t.f.high, true);
+  paintMacroBar('C', C, t.c.low, t.c.high, true);
+
+  document.getElementById('macroFoot').textContent =
+    'Budget ' + t.budget + ' kcal (besoin ' + needToday + ' − déficit ' + (parseFloat(state.deficitKcal)||0) + '). Les glucides suivent le sport du jour.';
 }
 
 function updateKcalGauge(foodKcal, needToday, diff){
@@ -5031,8 +5254,107 @@ function dishTotals(dish){
   return auto;
 }
 
+/* ---------- HISTORIQUE DES VERSIONS ----------
+   La version la plus récente est en TÊTE de tableau. Pour publier une nouvelle version :
+   ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
+   Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
+const CHANGELOG = [
+  {v:'2.4.0', date:'23 août 2026', items:[
+    'Barres de répartition des macros sur l\'accueil, sous la jauge calorique : plancher protéines, couloir lipides, fourchette glucides qui suit le sport du jour.',
+    'Note A à E sur chaque recette, calculée sur la densité protéique, la part des lipides et la satiété.',
+    'Filtre « ⭐ A et B » dans la bibliothèque de recettes pour composer les menus plus vite.',
+    'Alerte sur les plats dont les macros manuelles ne correspondent pas aux calories saisies.',
+    'Cette pastille de version et son historique.'
+  ]},
+  {v:'2.3.0', date:'22 août 2026', items:[
+    'Correction du double comptage des calories sport : le niveau d\'activité ne couvre plus que la vie quotidienne, les séances s\'ajoutent par-dessus.',
+    'Le métabolisme de base mesuré à l\'InBody remplace la formule théorique dans tous les calculs.',
+    'Nouveau réglage « réalisme des calories sport » pour dégonfler les estimations des montres.',
+    'Le besoin est recalculé jour par jour avec le poids de l\'époque : l\'historique reflète enfin la réalité.',
+    'Le poids se synchronise automatiquement sur la dernière pesée.'
+  ]},
+  {v:'2.2.0', date:'août 2026', items:[
+    'Bibliothèque de recettes en grille avec photos et fiche plein écran.',
+    'Import de recettes par JSON avec prompt d\'extraction intégré.',
+    'Photos compressées côté navigateur avant enregistrement.'
+  ]},
+  {v:'2.1.0', date:'août 2026', items:[
+    'Page alcool : calendrier thermique, compteurs de séries et détail par type de boisson.',
+    'Système de mantras revu : sept rubriques, tirage pondéré, vote et édition en ligne.',
+    'Objectifs hebdomadaires conservés semaine après semaine.'
+  ]},
+  {v:'2.0.0', date:'2026', items:[
+    'Refonte en application installable, données stockées sur l\'appareil.',
+    'Jauge et blobs de synthèse sur l\'accueil.',
+    'Journal de sport en formulaire unique.'
+  ]}
+];
+
+function renderChangelog(){
+  const e = CHANGELOG[changelogIdx];
+  document.getElementById('changelogTitle').textContent = 'Version ' + e.v;
+  document.getElementById('changelogBody').innerHTML =
+    `<div class="cl-date">${e.date}</div>` +
+    `<ul class="cl-list">${e.items.map(i=>`<li>${i}</li>`).join('')}</ul>` +
+    `<div class="cl-pos">${changelogIdx+1} / ${CHANGELOG.length}</div>`;
+  // ← remonte dans le temps (index croissant), → revient vers le récent (index décroissant)
+  document.getElementById('changelogPrev').disabled = changelogIdx >= CHANGELOG.length-1;
+  document.getElementById('changelogNext').disabled = changelogIdx <= 0;
+}
+let changelogIdx = 0;
+
+/* ---------- NOTATION DES PLATS ----------
+   Trois axes, pondérés selon l'objectif de recomposition (perte de masse grasse, cible 13%) :
+   1. DENSITÉ PROTÉIQUE (45 pts) — g de protéines pour 100 kcal. Critère n°1 : en déficit,
+      c'est ce qui protège la masse musculaire. À 3 g/100 kcal, atteindre le plancher
+      protéines force à dépasser le budget calorique.
+   2. PART DES LIPIDES (30 pts) — % des kcal. Un plat à 60% de lipides sabote la journée
+      entière : c'est le poste qui dérape le plus facilement.
+   3. DENSITÉ ÉNERGÉTIQUE (25 pts) — kcal/100 g, inversée. Proxy de satiété : à 90 kcal/100 g
+      on mange 500 g pour 450 kcal ; à 270 kcal/100 g la même énergie tient dans 170 g.
+      En déficit permanent, c'est ce qui fait tenir ou craquer.
+   Les kcal/portion ne sont VOLONTAIREMENT pas notées : c'est une info à afficher, pas à
+   juger, puisqu'elle dépend du repas dans lequel le plat s'insère. */
+const DISH_GRADES = {
+  A:{min:80, color:'#1baf7a', ink:'#04342C', label:'très adapté à ton objectif'},
+  B:{min:65, color:'#97C459', ink:'#173404', label:'bon choix'},
+  C:{min:48, color:'#EDBF3C', ink:'#412402', label:'correct, à équilibrer sur la journée'},
+  D:{min:32, color:'#EF9F27', ink:'#412402', label:'à limiter'},
+  E:{min:0,  color:'#E24B4A', ink:'#501313', label:'occasionnel'}
+};
+function scoreProt(d){ return d>=7 ? 45 : d>=5.5 ? 34 : d>=4 ? 22 : d>=3 ? 10 : 3; }
+function scoreFat(p){  return p<=32 ? 30 : p<=40 ? 23 : p<=50 ? 13 : 4; }
+function scoreDens(k){ return k<=110 ? 25 : k<=150 ? 19 : k<=200 ? 11 : 4; }
+
+function dishScore(dish){
+  const t = dishTotals(dish);
+  const grams = t.grams || 0;
+  if(!t.kcal || t.kcal<=0 || !grams) return null; // plat incalculable : pas de note plutôt qu'une fausse note
+  const protDens = t.p / (t.kcal/100);
+  const fatPct   = (t.f*9) / t.kcal * 100;
+  const enerDens = t.kcal / grams * 100;
+  const parts = {prot:scoreProt(protDens), fat:scoreFat(fatPct), dens:scoreDens(enerDens)};
+  const total = parts.prot + parts.fat + parts.dens;
+  const grade = Object.keys(DISH_GRADES).find(g=>total>=DISH_GRADES[g].min) || 'E';
+  return {total, grade, parts, protDens, fatPct, enerDens,
+          maxes:{prot:45, fat:30, dens:25}, meta:DISH_GRADES[grade]};
+}
+
+/* Contrôle de cohérence des saisies manuelles : si les macros ne reconstituent pas les kcal
+   annoncées (à 10% près), c'est presque toujours une confusion total / par portion. */
+function macroOverrideWarning(dish){
+  const o = dish.macroOverride;
+  if(!o || !o.kcal) return null;
+  const calc = (o.p||0)*4 + (o.c||0)*4 + (o.f||0)*9;
+  if(calc<=0) return null;
+  const gap = Math.abs(calc - o.kcal) / o.kcal;
+  if(gap < 0.10) return null;
+  return {declared:Math.round(o.kcal), computed:Math.round(calc), gap:Math.round(gap*100)};
+}
+
 /* ---------- ONGLET RECETTES ---------- */
 let recipeFilterCat = ''; // filtre catégorie de l'onglet Recettes ('' = tous)
+let recipeFilterTop = false; // n'afficher que les plats notés A ou B
 function renderRecipes(){
   document.getElementById('recipeCount').textContent = `${Object.keys(state.dishes).length} plat(s)`;
   const list = document.getElementById('recipeList');
@@ -5042,8 +5364,14 @@ function renderRecipes(){
   const chips = `<div class="mp-cat-chips" style="margin-bottom:10px;">
     <button class="mp-chip ${!recipeFilterCat?'on':''}" data-c="">Tous</button>
     ${cats.map(c=>`<button class="mp-chip ${recipeFilterCat===c?'on':''}" data-c="${c}">${state.mealCats[c]||c}</button>`).join('')}
+    <button class="mp-chip grade-chip ${recipeFilterTop?'on':''}" id="recipeTopChip">⭐ A et B</button>
   </div>`;
-  const names = allNames.filter(n=>!recipeFilterCat || (state.dishes[n].mealCat||'autres')===recipeFilterCat);
+  const names = allNames.filter(n=>{
+    const dish = state.dishes[n];
+    if(recipeFilterCat && (dish.mealCat||'autres')!==recipeFilterCat) return false;
+    if(recipeFilterTop){ const sc = dishScore(dish); if(!sc || (sc.grade!=='A' && sc.grade!=='B')) return false; }
+    return true;
+  });
   // Vignettes : photo (ou emoji de catégorie), nom, kcal/portion. Le détail vit dans un modal.
   list.innerHTML = chips + `<div class="recipe-grid">` + names.map((n,i)=>{
     const dish = state.dishes[n];
@@ -5053,9 +5381,14 @@ function renderRecipes(){
     const visual = dish.photo
       ? `<img class="recipe-tile-photo" src="${dish.photo}" alt="${n}" loading="lazy">`
       : `<div class="recipe-tile-emoji">${catEmoji}</div>`;
+    const sc = dishScore(dish);
+    const badge = sc
+      ? `<div class="recipe-grade" style="background:${sc.meta.color}; color:${sc.meta.ink};">${sc.grade}</div>`
+      : '';
+    const warn = macroOverrideWarning(dish) ? `<div class="recipe-warn" title="Macros incohérentes">⚠️</div>` : '';
     return `
       <div class="recipe-tile" data-i="${i}">
-        ${visual}
+        <div class="recipe-tile-visual">${visual}${badge}${warn}</div>
         <div class="recipe-tile-body">
           <div class="recipe-tile-name">${dishInSeason(dish)&&(dish.seasons||[]).length?'🌱 ':''}${n}</div>
           <div class="recipe-tile-meta">${perPortion} kcal/port. · ${dish.portions}p</div>
@@ -5063,9 +5396,11 @@ function renderRecipes(){
       </div>`;
   }).join('') + `</div>`;
 
-  list.querySelectorAll('.mp-chip').forEach(ch=>{
+  list.querySelectorAll('.mp-chip[data-c]').forEach(ch=>{
     ch.onclick = ()=>{ recipeFilterCat = ch.dataset.c; renderRecipes(); };
   });
+  const topChip = document.getElementById('recipeTopChip');
+  if(topChip) topChip.onclick = ()=>{ recipeFilterTop = !recipeFilterTop; renderRecipes(); };
   list.querySelectorAll('.recipe-tile').forEach(tile=>{
     tile.onclick = ()=>openRecipeModal(names[parseInt(tile.dataset.i)]);
   });
@@ -5091,6 +5426,31 @@ function openRecipeModal(name){
   const stepsHtml = (dish.steps && dish.steps.length)
     ? `<ol class="recipe-steps">${dish.steps.map(s=>`<li>${s}</li>`).join('')}</ol>`
     : `<div class="check-sub">Pas d'étapes enregistrées pour ce plat.</div>`;
+  const sc = dishScore(dish);
+  const ovWarn = macroOverrideWarning(dish);
+  const axisRow = (label, hint, val, got, max, color) => `
+    <div class="score-axis">
+      <div class="score-axis-head">
+        <span>${label}${hint?` <span class="score-hint">${hint}</span>`:''}</span>
+        <span class="score-axis-val">${val}</span>
+      </div>
+      <div class="score-axis-track"><div class="score-axis-fill" style="width:${Math.round(got/max*100)}%; background:${color};"></div></div>
+    </div>`;
+  const scoreHtml = sc ? `
+    <div class="score-card">
+      <div class="score-head">
+        <div class="score-badge" style="background:${sc.meta.color}; color:${sc.meta.ink};">${sc.grade}</div>
+        <div>
+          <div class="score-total">${sc.total} / 100</div>
+          <div class="check-sub" style="margin:0;">${sc.meta.label}</div>
+        </div>
+      </div>
+      ${axisRow('Densité protéique','g/100 kcal', sc.protDens.toFixed(1), sc.parts.prot, sc.maxes.prot, sc.meta.color)}
+      ${axisRow('Part des lipides','% des kcal', Math.round(sc.fatPct)+' %', sc.parts.fat, sc.maxes.fat, sc.meta.color)}
+      ${axisRow('Satiété','kcal/100 g', Math.round(sc.enerDens), sc.parts.dens, sc.maxes.dens, sc.meta.color)}
+    </div>` : '';
+  const warnHtml = ovWarn ? `
+    <div class="score-warn">⚠️ Macros manuelles incohérentes : ${ovWarn.declared} kcal déclarées, mais les protéines, glucides et lipides saisis n'en font que ${ovWarn.computed} (${ovWarn.gap} % d'écart). Souvent une confusion entre total et par portion — à corriger via ✏️, sinon la note est faussée.</div>` : '';
   document.getElementById('recipeModalTitle').textContent = name;
   document.getElementById('recipeModalBody').innerHTML = `
     ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${name}" style="margin-bottom:10px;">` : ''}
@@ -5123,6 +5483,8 @@ function openRecipeModal(name){
       <input type="file" id="recipeModalPhotoInput" accept="image/*" style="display:none;">
       <button class="recipe-del-btn" id="recipeModalDelBtn" style="margin-top:10px;">✕ Supprimer ce plat</button>
     </div>
+    ${warnHtml}
+    ${scoreHtml}
     <div class="recipe-ing-list">${ingHtml}</div>
     ${stepsHtml}
     <div class="recipe-actions">
@@ -6364,7 +6726,8 @@ function aiDayLine(iso){
   const parts = [];
   const ecart = Math.round(t.kcal-need);
   parts.push(`${Math.round(t.kcal)} kcal ingérées / besoin ${need} kcal (écart ${ecart}${ecart>300?' ⚠️ dépassement notable':''})`);
-  parts.push(`macros P${Math.round(t.p)}g L${Math.round(t.f)}g G${Math.round(t.c)}g`);
+  const mt = macroTargets(iso, need);
+  parts.push(`macros P${Math.round(t.p)}g (cible ≥${mt.p.floor}) L${Math.round(t.f)}g (zone ${mt.f.low}-${mt.f.high}) G${Math.round(t.c)}g (zone ${mt.c.low}-${mt.c.high})`);
   if(day.sessions.length){
     parts.push('sport : ' + day.sessions.filter(s=>!s.notDone).map(s=>{
       const cfg = SPORT_ACTIVITIES[s.type] || {label:s.type};
@@ -6517,6 +6880,27 @@ document.getElementById('ageInput').onchange = (e)=>{ state.age=parseInt(e.targe
 document.getElementById('sexInput').onchange = (e)=>{ state.sex=e.target.value; persistState(); render(); };
 document.getElementById('activityInput').onchange = (e)=>{ state.activityLevel=e.target.value; persistState(); render(); };
 document.getElementById('sportFactorInput').onchange = (e)=>{ state.sportFactor=parseFloat(e.target.value); persistState(); render(); };
+document.getElementById('appVersionNum').textContent = 'v' + CHANGELOG[0].v;
+document.getElementById('appVersionBtn').onclick = ()=>{
+  changelogIdx = 0;
+  renderChangelog();
+  document.getElementById('changelogModal').classList.add('open');
+};
+document.getElementById('changelogPrev').onclick = ()=>{
+  if(changelogIdx < CHANGELOG.length-1){ changelogIdx++; renderChangelog(); }
+};
+document.getElementById('changelogNext').onclick = ()=>{
+  if(changelogIdx > 0){ changelogIdx--; renderChangelog(); }
+};
+document.getElementById('changelogClose').onclick = ()=>
+  document.getElementById('changelogModal').classList.remove('open');
+document.getElementById('changelogModal').onclick = e=>{
+  if(e.target.id==='changelogModal') e.currentTarget.classList.remove('open');
+};
+
+document.getElementById('deficitInput').onchange = (e)=>{ state.deficitKcal=parseFloat(e.target.value)||0; persistState(); render(); };
+document.getElementById('proteinPerKgInput').onchange = (e)=>{ state.proteinPerKg=parseFloat(e.target.value)||2.1; persistState(); render(); };
+document.getElementById('fatPerKgInput').onchange = (e)=>{ state.fatPerKg=parseFloat(e.target.value)||1.05; persistState(); render(); };
 
 function doExport(){
   state.lastExport = isoDate(todayDate());
