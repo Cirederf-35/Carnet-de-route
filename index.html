@@ -835,6 +835,16 @@
   .macro-over{position:absolute; top:4px; height:6px; width:0; border-radius:0 3px 3px 0;
     background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
     box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
+  .macro-ai-btn{
+    width:100%; margin-top:12px; padding:9px 12px;
+    background:var(--panel-2); color:var(--text);
+    border:1px solid var(--line); border-radius:10px;
+    font-family:'Space Grotesk',sans-serif; font-size:0.78rem; cursor:pointer;
+    transition:transform 0.15s, border-color 0.15s;
+  }
+  .macro-ai-btn:active{transform:scale(.98);}
+  @media (hover:hover){ .macro-ai-btn:hover{border-color:var(--accent);} }
+  .macro-ai-status{font-size:0.66rem; color:var(--text-dim); text-align:center; margin-top:6px; min-height:0.9rem;}
   .macro-foot{font-size:0.62rem; color:var(--text-dim); opacity:0.75; margin-top:2px; line-height:1.4;}
 
   /* WIZARD (saisie page par page) */
@@ -1443,6 +1453,8 @@
       </div>
     </div>
     <div class="macro-foot" id="macroFoot"></div>
+    <button class="macro-ai-btn" id="macroAiBtn">🍽️ Analyser ma journée</button>
+    <div class="macro-ai-status" id="macroAiStatus"></div>
   </div>
 
   <button class="app-version" id="appVersionBtn" title="Nouveautés">
@@ -1761,6 +1773,7 @@
       <button class="add-btn" id="aiRetroBtn" style="flex:1; width:auto; margin-bottom:0;">🔙 Rétrospective<br><span style="font-size:0.68rem; font-weight:400;">7 derniers jours</span></button>
       <button class="add-btn" id="aiProspectBtn" style="flex:1; width:auto; margin-bottom:0; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">🔜 Semaine à venir<br><span style="font-size:0.68rem; font-weight:400;">objectifs + menus</span></button>
     </div>
+    <button class="add-btn" id="aiNutriBtn" style="margin-top:8px; margin-bottom:0;">🍽️ Analyse nutritionniste<br><span style="font-size:0.68rem; font-weight:400;">journée affichée · remplacements chiffrés</span></button>
     <div id="aiPromptResult" style="display:none; margin-top:12px;">
       <div class="check-sub" id="aiPromptStatus" style="margin-bottom:8px;"></div>
       <details>
@@ -5259,6 +5272,13 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'2.5.0', date:'23 août 2026', items:[
+    'Nouveau prompt « Analyse nutritionniste » : bouton sous les barres de macros de l\'accueil, et dans le Bilan.',
+    'Le prompt injecte le détail aliment par aliment avec la densité protéique de chaque ligne.',
+    'Il transmet aussi tes plats notés A et B et tes habitudes réelles, pour que les remplacements proposés restent dans ton univers.',
+    'Règle permanente sur les légumineuses, avec grammages cru et cuit systématiques.',
+    'Le prompt s\'adapte : conseils sur le budget restant si la journée est en cours, rétrospective si elle est terminée.'
+  ]},
   {v:'2.4.0', date:'23 août 2026', items:[
     'Barres de répartition des macros sur l\'accueil, sous la jauge calorique : plancher protéines, couloir lipides, fourchette glucides qui suit le sport du jour.',
     'Note A à E sur chaque recette, calculée sur la densité protéique, la part des lipides et la satiété.',
@@ -6834,8 +6854,178 @@ ${buildDishLibrarySummary()}
 ${AI_OUTPUT_PROSPECT}`;
 }
 
+/* ---------- PROMPT NUTRITIONNISTE : ANALYSE D'UNE JOURNÉE ----------
+   Trois blocs sont injectés dynamiquement, chacun pour une raison distincte :
+   1. le détail aliment par aliment      -> la matière à analyser
+   2. les plats maison notés A ou B      -> le vivier des remplacements "option a"
+   3. les habitudes réelles (catégories, -> la borne qui empêche l'IA d'inventer
+      ingrédients récurrents, en-cas)       des propositions hors univers
+   Sans le bloc 3, une IA à qui on demande "propose des plats" part sur des
+   ingrédients que l'utilisateur n'achète jamais. */
+
+/* Recense les catégories et ingrédients réellement présents dans la bibliothèque,
+   pour ancrer les propositions nouvelles dans les habitudes constatées. */
+function aiHabitsBlock(){
+  const catCount = {}, ingCount = {}, snackCount = {};
+  Object.values(state.dishes).forEach(dish=>{
+    const c = dish.mealCat||'autres';
+    catCount[c] = (catCount[c]||0)+1;
+    (dish.ingredients||[]).forEach(it=>{ ingCount[it.name] = (ingCount[it.name]||0)+1; });
+  });
+  // En-cas : aliments loggés hors plats maison, sur les 30 derniers jours.
+  const since = isoDate(addDays(todayDate(),-30));
+  Object.entries(state.days).forEach(([iso,day])=>{
+    if(iso < since) return;
+    (day.foods||[]).forEach(f=>{
+      if(state.dishes[f.name]) return;
+      if((f.a||0) > 0) return; // l'alcool est traité ailleurs, pas un en-cas à reproposer
+      snackCount[f.name] = (snackCount[f.name]||0)+1;
+    });
+  });
+  const top = (obj,n,fmt)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n).map(fmt).join(', ');
+  const cats = top(catCount, 7, ([k,v])=>`${(state.mealCats[k]||k).replace(/^[^\s]+\s/,'')} (${v})`);
+  const ings = top(ingCount, 18, ([k])=>k);
+  const snacks = top(snackCount, 8, ([k])=>k);
+  const legumineuses = Object.values(state.dishes).filter(d=>
+    (d.ingredients||[]).some(it=>/lentille|pois chiche|haricot|flageolet|pois cass/i.test(it.name))).length;
+  return `Catégories que je cuisine réellement : ${cats}.
+Ingrédients récurrents dans mes recettes : ${ings}.
+En-cas et aliments hors plats les plus fréquents : ${snacks}.
+Plats de ma bibliothèque contenant une légumineuse : ${legumineuses} sur ${Object.keys(state.dishes).length}.`;
+}
+
+/* Bibliothèque filtrée sur les bonnes notes : c'est le vivier des remplacements. */
+function aiDishLibraryBlock(){
+  const rows = [];
+  Object.entries(state.dishes).forEach(([n,dish])=>{
+    const sc = dishScore(dish);
+    if(!sc || (sc.grade!=='A' && sc.grade!=='B')) return;
+    const t = dishTotals(dish), pt = dish.portions||1;
+    rows.push({n, sc, kcal:Math.round(t.kcal/pt), p:(t.p/pt).toFixed(1), f:(t.f/pt).toFixed(1), c:(t.c/pt).toFixed(1)});
+  });
+  rows.sort((a,b)=>b.sc.total-a.sc.total);
+  if(!rows.length) return 'Aucun plat noté A ou B pour l\'instant.';
+  return rows.map(r=>`  ${r.sc.grade} ${r.sc.total} — ${r.n} : ${r.kcal} kcal/portion | P ${r.p} | L ${r.f} | G ${r.c}`).join('\n');
+}
+
+/* Détail ligne par ligne. La densité protéique par aliment est LE levier d'analyse :
+   elle fait ressortir en un coup d'oeil les items qui coûtent cher pour ce qu'ils apportent. */
+function aiFoodDetailBlock(day){
+  if(!day.foods.length) return '  (aucun aliment saisi pour l\'instant)';
+  return day.foods.map(f=>{
+    const p=f.p||0, l=f.f||0, c=f.c||0, a=f.a||0;
+    const kc = p*4 + c*4 + l*9 + a*7;
+    const dens = kc>0 ? (p/(kc/100)).toFixed(1) : '—';
+    return `  - ${f.name}, ${Math.round(f.grams||0)} g : ${Math.round(kc)} kcal | P ${p.toFixed(1)} | L ${l.toFixed(1)} | G ${c.toFixed(1)} | P/100k ${dens}`;
+  }).join('\n');
+}
+
+function buildNutriPrompt(){
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  const d = new Date(iso+'T12:00:00');
+  const t = dayFoodTotals(day);
+  const tdee = computeTDEE(iso);
+  const sportK = sportTotalKcal(day);
+  const need = tdee + sportK;
+  const mt = macroTargets(iso, need);
+  const consumed = Math.round(t.kcal);
+  const rest = mt.budget - consumed;
+  const bmr = measuredBmrAt(iso);
+  // Journée en cours avant 20h : on oriente vers ce qu'il reste à manger.
+  const enCours = (iso === isoDate(todayDate())) && (new Date().getHours() < 20);
+
+  const sportTxt = day.sessions.filter(s=>!s.notDone).length
+    ? day.sessions.filter(s=>!s.notDone).map(s=>{
+        const cfg = SPORT_ACTIVITIES[s.type]||{label:s.type};
+        return `${cfg.label}${s.duration?` ${s.duration}min`:''} (${sessionKcal(s)} kcal bruts)`;
+      }).join(', ')
+    : 'repos';
+
+  const ctx = [];
+  ctx.push(`Sport : ${sportTxt}${sportK?` — ${sportK} kcal retenus après dégonflage de ${Math.round((1-sportFactor())*100)} %`:''}.`);
+  if(day.sleep && day.sleep.duration) ctx.push(`Sommeil : ${day.sleep.duration} h${day.sleep.quality?`, qualité ${day.sleep.quality}`:''}${day.sleep.note?` (${day.sleep.note})`:''}.`);
+  if(day.energy!=null) ctx.push(`Énergie ressentie : ${day.energy}/5.`);
+  if(day.note && day.note.trim()) ctx.push(`Note perso : "${day.note.trim()}".`);
+
+  return `Tu es diététicien-nutritionniste. Tu analyses une journée alimentaire réelle et tu fais des préconisations précises et chiffrées. Ton ton est direct et technique, sans moralisation ni félicitations de complaisance. Tu ne prescris aucun traitement et tu ne poses aucun diagnostic.
+
+═══ PROFIL ═══
+${state.sex==='F'?'Femme':'Homme'}, ${state.age} ans, ${weightAt(iso)} kg, ${state.heightCm} cm.
+${bmr!=null?`Métabolisme de base MESURÉ à l'InBody : ${bmr} kcal.`:'Métabolisme de base estimé par formule (pas de mesure InBody disponible).'}
+Objectif : recomposition corporelle, faire baisser la masse grasse en préservant la masse musculaire. Effort sur plusieurs mois, pas de sèche agressive.
+
+═══ CONTRAINTES ALIMENTAIRES (non négociables) ═══
+1. Pescatarien : aucune viande, aucune charcuterie. Poisson, fruits de mer, œufs et laitages autorisés.
+2. Jeûne intermittent : AUCUN repas le matin. Ne propose jamais de petit-déjeuner.
+3. Produits de supermarché français courant uniquement.
+4. Pas de complément alimentaire ni de poudre protéinée. Seule exception : les protéines de soja texturées, que j'utilise déjà.
+5. Préparation réaliste en semaine : 30 minutes maximum.
+6. Tout aliment que tu proposes DOIT être accompagné d'un grammage précis, avec la mention cru ou cuit quand cela change les valeurs (riz, pâtes, légumineuses).
+
+═══ HIÉRARCHIE DES MACROS ═══
+Les trois macros n'ont pas le même statut, n'en fais pas trois objectifs équivalents :
+- PROTÉINES : PLANCHER à ${mt.p.floor} g. Dépasser est sans risque et sans inconvénient.
+- LIPIDES : COULOIR fermé, ${mt.f.low} à ${mt.f.high} g. En dessous, la production hormonale souffre. Au-dessus, le budget calorique part sans satiété. C'est historiquement le poste qui dérape.
+- GLUCIDES : VARIABLE D'AJUSTEMENT, zone ${mt.c.low} à ${mt.c.high} g aujourd'hui. Elle monte les jours de sport intense.
+
+═══ RÈGLE PERMANENTE — LÉGUMINEUSES ═══
+Les légumineuses (lentilles vertes, corail, beluga, pois chiches, haricots blancs, rouges, flageolets, pois cassés) cochent mes trois critères simultanément : densité protéique correcte, lipides quasi nuls, satiété élevée pour une faible densité calorique. Elles sont pourtant quasi absentes de mes recettes.
+En conséquence, à CHAQUE analyse :
+- dès qu'un remplacement ou un complément peut passer par une légumineuse sans dénaturer le plat, propose-la en priorité ;
+- donne toujours le grammage CRU et l'équivalent CUIT (les légumineuses font environ 2,4 fois leur poids une fois cuites) ;
+- si aucune légumineuse n'a sa place dans la journée analysée, dis-le explicitement en une ligne plutôt que d'en forcer une. Une règle appliquée de force devient du bruit.
+
+═══ BUDGET DU JOUR — ${MENU_DAYS_FR[dowIndexMondayBased(d)]} ${iso} ═══
+Besoin : ${need} kcal (base hors sport ${tdee} + sport ${sportK}).
+Déficit visé : ${Math.round(parseFloat(state.deficitKcal)||0)} kcal. Budget cible : ${mt.budget} kcal.
+Consommé à ce stade : ${consumed} kcal. ${rest>=0?`Reste : ${rest} kcal.`:`Dépassement : +${-rest} kcal.`}
+${enCours?'La journée est EN COURS : oriente tes conseils vers ce qu\'il me reste à manger.':'La journée est TERMINÉE : fais une analyse rétrospective et des conseils pour la prochaine fois.'}
+
+═══ DÉTAIL DE CE QUE J'AI MANGÉ ═══
+(P/100k = grammes de protéines pour 100 kcal. Plus c'est haut, meilleur est le rapport pour mon objectif.)
+${aiFoodDetailBlock(day)}
+
+TOTAUX : ${consumed} kcal | P ${Math.round(t.p)} g (plancher ${mt.p.floor}${t.p>=mt.p.floor?' ✅':` ❌ manque ${Math.round(mt.p.floor-t.p)}`}) | L ${Math.round(t.f)} g (plafond ${mt.f.high}${t.f<=mt.f.high?' ✅':` ❌ +${Math.round(t.f-mt.f.high)}`}) | G ${Math.round(t.c)} g (zone ${mt.c.low}-${mt.c.high})
+
+═══ CONTEXTE DU JOUR ═══
+${ctx.join('\n')}
+
+═══ MON UNIVERS CULINAIRE (reste dedans) ═══
+${aiHabitsBlock()}
+
+═══ MES PLATS DÉJÀ ENREGISTRÉS, NOTÉS A OU B ═══
+(note sur 100 calculée sur la densité protéique, la part des lipides et la satiété)
+${aiDishLibraryBlock()}
+
+═══ CE QUE J'ATTENDS ═══
+
+1. 🎯 VERDICT — une phrase. Journée alignée sur l'objectif ou non, et pourquoi.
+
+2. ✅ CE QUI EST BIEN — 2 ou 3 choix, en citant l'aliment et son chiffre. Sois bref.
+
+3. ⚠️ CE QUI COINCE — item par item, avec le COÛT CHIFFRÉ. Exemple attendu : « 150 g de fromage = 522 kcal et 42 g de lipides, soit 45 % du plafond quotidien dans un seul aliment. » Des chiffres, pas de jugement.
+
+4. 🔁 REMPLACEMENTS — pour chaque problème identifié, DEUX options :
+   a) une option piochée dans mes plats déjà enregistrés ci-dessus ;
+   b) une option NOUVELLE, hors de ma bibliothèque, mais cohérente avec mon univers culinaire.
+   Format imposé :
+   « à la place de [X] ([n] kcal, [n] g L) → [Y], [grammage précis] ([n] kcal, [n] g L) — gain : [n] kcal et [n] g de lipides »
+
+5. ➕ CE QU'IL RESTE À MANGER — s'il reste du budget, propose 1 ou 2 options concrètes avec grammages, en visant d'abord le plancher protéines. Précise ce que chaque option apporte.
+
+6. 🆕 UNE IDÉE POUR MA BIBLIOTHÈQUE — un plat complet que je ne cuisine pas encore, cohérent avec mes goûts, avec : nom, liste d'ingrédients GRAMMÉE pour 1 portion, macros estimées, et une phrase sur ce qu'il apporte face à mon objectif.
+
+7. 📌 LA RÈGLE À RETENIR — une seule, applicable dès demain.
+
+Précise à la fin que les macros que tu estimes pour tes propositions sont approximatives et à vérifier avant de les enregistrer.
+Sois précis et chiffré partout. Maximum 700 mots.`;
+}
+
 async function aiGenerate(kind){
-  const text = kind==='retro' ? buildRetroPrompt() : buildProspectPrompt();
+  const text = kind==='retro' ? buildRetroPrompt()
+             : kind==='nutri' ? buildNutriPrompt()
+             : buildProspectPrompt();
   document.getElementById('aiPromptText').value = text;
   document.getElementById('aiPromptResult').style.display = 'block';
   let copied = false;
@@ -6845,6 +7035,17 @@ async function aiGenerate(kind){
     : 'Copie automatique indisponible : ouvre l\'aperçu ci-dessous et copie manuellement, ou utilise Partager.';
 }
 document.getElementById('aiRetroBtn').onclick = ()=>aiGenerate('retro');
+document.getElementById('aiNutriBtn').onclick = ()=>aiGenerate('nutri');
+document.getElementById('macroAiBtn').onclick = async ()=>{
+  const text = buildNutriPrompt();
+  const st = document.getElementById('macroAiStatus');
+  let copied = false;
+  try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){}
+  if(copied){ st.textContent = '✓ Prompt copié — colle-le dans ton IA.'; }
+  else if(navigator.share){ try{ await navigator.share({text}); st.textContent=''; }catch(e){ st.textContent = 'Partage annulé.'; } }
+  else { st.textContent = 'Copie indisponible — passe par 📊 Bilan › Analyse IA.'; }
+  setTimeout(()=>{ st.textContent=''; }, 6000);
+};
 document.getElementById('aiProspectBtn').onclick = ()=>aiGenerate('prospect');
 document.getElementById('aiShareBtn').onclick = async ()=>{
   const text = document.getElementById('aiPromptText').value;
