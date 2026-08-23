@@ -523,6 +523,62 @@
   }
   .menu-pill.leftover{border-style:dashed; color:var(--text-dim);}
   .menu-pill b{font-weight:400; color:var(--text-dim); cursor:pointer; padding:0 2px;}
+
+  /* ---- Tuiles de menu : le plat se reconnaît à sa photo, pas à son nom ---- */
+  .menu-tile{
+    display:flex; align-items:center; gap:10px; width:100%;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
+    padding:6px 8px 6px 6px; box-sizing:border-box;
+  }
+  .menu-tile.leftover{border-style:dashed; opacity:0.72;}
+  .mt-visual{
+    position:relative; width:46px; height:46px; flex-shrink:0; border-radius:9px;
+    overflow:hidden; background:var(--panel); display:flex; align-items:center; justify-content:center;
+  }
+  .mt-photo{width:100%; height:100%; object-fit:cover; display:block;}
+  .mt-emoji{font-size:1.25rem;}
+  .mt-grade{
+    position:absolute; bottom:2px; right:2px; width:15px; height:15px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:0.56rem;
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
+  }
+  .mt-left{
+    position:absolute; top:0; left:0; right:0; text-align:center; font-size:0.5rem;
+    background:rgba(0,0,0,.55); color:#fff; padding:1px 0; letter-spacing:0.04em;
+  }
+  .mt-body{flex:1; min-width:0;}
+  .mt-name{font-size:0.8rem; line-height:1.25; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+  .mt-meta{font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--text-dim); margin-top:2px;}
+  .mt-actions{display:flex; flex-direction:column; align-items:center; gap:4px; flex-shrink:0;}
+  .mt-actions b{font-weight:400; color:var(--text-dim); cursor:pointer; font-size:0.8rem; padding:2px 4px;}
+  .menu-pills{flex-direction:column; align-items:stretch;}
+  .menu-slot{align-items:flex-start;}
+  .menu-slot-add{width:100%; text-align:center;}
+
+  /* ---- Vue PC : la semaine entière d'un coup d'oeil, 7 colonnes ----
+     Cette media query ne concerne QUE l'onglet Cuisine › Menus. L'appli reste
+     mobile-first partout ailleurs. Même fichier, même URL : ouvrir GitHub Pages
+     sur PC suffit, aucun build séparé. */
+  @media (min-width:1000px){
+    #menuGrid{
+      display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:10px;
+      align-items:start;
+    }
+    .menu-day{margin-bottom:0; display:flex; flex-direction:column;}
+    .menu-day-head{flex-direction:column; align-items:center; gap:1px; padding:8px 4px;}
+    .menu-day-head .md-date{font-size:0.62rem;}
+    .menu-slot{flex-direction:column; align-items:stretch; gap:6px; padding:8px;}
+    .menu-slot-label{width:auto; text-align:center;}
+    .menu-tile{flex-direction:column; align-items:stretch; padding:0; overflow:hidden; gap:0;}
+    .mt-visual{width:100%; height:64px; border-radius:0;}
+    .mt-grade{width:17px; height:17px; font-size:0.6rem;}
+    .mt-body{padding:6px 7px;}
+    .mt-name{font-size:0.72rem;}
+    .mt-actions{flex-direction:row; justify-content:space-between; padding:0 7px 6px;}
+    /* .wrap est bridé à 760/820px : on l'élargit uniquement quand l'onglet Menus est ouvert. */
+    body.menus-wide .wrap{max-width:1400px;}
+  }
   .menu-slot-add{
     width:26px; height:26px; border-radius:50%; border:1px dashed var(--line);
     background:none; color:var(--text-dim); font-size:0.95rem; cursor:pointer; flex-shrink:0;
@@ -2927,6 +2983,8 @@ function switchTab(name){
   if(name==='objectifs'){ goalsViewMonday = null; renderGoalsPage(); }
   if(name==='recettes') renderRecipes();
   if(name==='menus') renderMenus();
+  // Élargit le conteneur pour la vue 7 colonnes, uniquement sur cet onglet et sur grand écran.
+  document.body.classList.toggle('menus-wide', name==='menus');
   if(name==='semaine' && document.getElementById('bilanDetails').open) drawCharts(getPeriodInfo());
   window.scrollTo(0,0);
   updateScrollLock();
@@ -5457,6 +5515,13 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'2.8.0', date:'23 août 2026', items:[
+    'Page Menus refaite : chaque plat planifié apparaît en vignette avec sa photo, sa note et ses calories par portion.',
+    'Vue PC : sur écran large, la semaine s\'affiche en 7 colonnes côte à côte. Il suffit d\'ouvrir l\'appli depuis un navigateur d\'ordinateur.',
+    'Les restes sont signalés directement sur la vignette.',
+    'L\'analyse nutritionniste ne bannit plus le skyr ni les fruits de ses propositions : ce sont des aliments de fond, la répétition y est voulue.',
+    'Elle connaît aussi ta sauce blanche skyr-moutarde-échalote et la proposera dès qu\'un plat appelle une sauce froide.'
+  ]},
   {v:'2.7.1', date:'23 août 2026', items:[
     'Correction : le libellé sous la jauge débordait de l\'écran depuis l\'ajout de la projection sport.',
     'Le besoin s\'affiche seul sous son repère, la projection sport passe sur une ligne dédiée en dessous.',
@@ -6140,14 +6205,32 @@ function renderMenus(){
         const isLeft = it.type==='dish' && it.leftover;
         const inShop = itemInShop(it) && !isLeft;
         const cartTitle = isLeft ? 'Reste — rien à acheter' : (inShop ? 'Compté dans la liste de courses' : 'Exclu de la liste de courses');
-        return `<span class="menu-pill ${isLeft?'leftover':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">`
-          + `<i class="menu-cart${inShop?' on':''}${isLeft?' locked':''}" data-cart="${idx}" title="${cartTitle}">🛒</i>`
-          + `${pillLabel(it)}<b>✕</b></span>`;
+        const dish = it.type==='dish' ? state.dishes[it.name] : null;
+        // Vignette : photo du plat si elle existe, sinon l'emoji de sa catégorie.
+        const visual = dish && dish.photo
+          ? `<img class="mt-photo" src="${dish.photo}" alt="" loading="lazy">`
+          : `<span class="mt-emoji">${dish ? (state.mealCats[dish.mealCat||'autres']||'🍽️').split(' ')[0] : '🥄'}</span>`;
+        const sc = dish ? dishScore(dish) : null;
+        const grade = sc ? `<span class="mt-grade" style="background:${sc.meta.color}; color:${sc.meta.ink};">${sc.grade}</span>` : '';
+        const t = dish ? dishTotals(dish) : null;
+        const pt = dish ? (dish.portions||1) : 1;
+        const meta = t ? `${Math.round(t.kcal/pt)} kcal · P ${Math.round(t.p/pt)}` : (it.grams ? `${it.grams} g` : '');
+        return `<div class="menu-tile ${isLeft?'leftover':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">
+          <div class="mt-visual">${visual}${grade}${isLeft?'<span class="mt-left">restes</span>':''}</div>
+          <div class="mt-body">
+            <div class="mt-name">${pillLabel(it)}</div>
+            <div class="mt-meta">${meta}</div>
+          </div>
+          <div class="mt-actions">
+            <i class="menu-cart${inShop?' on':''}${isLeft?' locked':''}" title="${cartTitle}">🛒</i>
+            <b title="Retirer">✕</b>
+          </div>
+        </div>`;
       }).join('');
       return `<div class="menu-slot">
         <span class="menu-slot-label">${lbl}</span>
         <div class="menu-pills">${pills}
-          <button class="menu-slot-add" data-iso="${iso}" data-slot="${key}">+</button>
+          <button class="menu-slot-add" data-iso="${iso}" data-slot="${key}">+ Ajouter</button>
         </div>
       </div>`;
     }).join('');
@@ -6163,7 +6246,7 @@ function renderMenus(){
   document.querySelectorAll('#menuGrid .menu-cart').forEach(x=>{
     x.onclick = e=>{
       e.stopPropagation();
-      const p = x.parentElement;
+      const p = x.closest('.menu-tile');
       const arr = slotItems(p.dataset.iso, p.dataset.slot);
       const it = arr[parseInt(p.dataset.idx)];
       if(it.type==='dish' && it.leftover) return; // rien à acheter pour un reste
@@ -6171,10 +6254,10 @@ function renderMenus(){
       persistState(); renderMenus();
     };
   });
-  document.querySelectorAll('#menuGrid .menu-pill b').forEach(x=>{
+  document.querySelectorAll('#menuGrid .menu-tile b').forEach(x=>{
     x.onclick = e=>{
       e.stopPropagation();
-      const p = x.parentElement;
+      const p = x.closest('.menu-tile');
       const arr = slotItems(p.dataset.iso, p.dataset.slot);
       arr.splice(parseInt(p.dataset.idx),1);
       cleanSlot(p.dataset.iso);
@@ -7304,7 +7387,15 @@ ${hist.rows}
 ALIMENTS REVENUS 2 FOIS OU PLUS SUR CES 7 JOURS :
 ${hist.repeats}
 
-RÈGLE ANTI-RÉPÉTITION : ne propose PAS ce qui apparaît 3 fois ou plus dans cette liste. Ce qui apparaît 2 fois, tu peux le proposer seulement si aucune alternative équivalente n'existe — et dans ce cas, dis-le explicitement. Regarde aussi la tendance sur la semaine avant de conclure sur la journée : un seul jour ne fait pas une trajectoire.` : ''}
+RÈGLE ANTI-RÉPÉTITION : ne propose PAS ce qui apparaît 3 fois ou plus dans cette liste. Ce qui apparaît 2 fois, tu peux le proposer seulement si aucune alternative équivalente n'existe — et dans ce cas, dis-le explicitement.
+
+EXCEPTIONS À LA RÈGLE ANTI-RÉPÉTITION (aliments de fond, la répétition y est voulue) :
+- LE SKYR NATURE. C'est ma base protéique quotidienne, 17,7 g de protéines pour 100 kcal, le meilleur rapport de toute mon alimentation. Propose-le librement, tous les jours si c'est pertinent.
+- MA SAUCE BLANCHE : skyr nature + moutarde + échalote ciselée. Zéro lipide ou presque, elle remplace mayonnaise, crème fraîche et sauces industrielles. Dès qu'un plat appelle une sauce froide, une vinaigrette crémeuse ou un accompagnement de poisson ou de crudités, propose-la avec les grammages.
+- LES FRUITS FRAIS, tous les jours. Ma préférence va à la banane, mais tu as carte blanche : varie les propositions selon la saison et selon ce qu'apporte le fruit (fibres, potassium avant effort, index glycémique après effort). Justifie ton choix en une phrase.
+Ces trois exceptions ne s'appliquent QU'À ELLES. Le pain blanc, le fromage, les graines et le chocolat restent soumis à la règle.
+
+Regarde aussi la tendance sur la semaine avant de conclure sur la journée : un seul jour ne fait pas une trajectoire.` : ''}
 
 ═══ MON UNIVERS CULINAIRE (reste dedans) ═══
 ${aiHabitsBlock()}
