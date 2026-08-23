@@ -779,6 +779,13 @@
   /* Projection : ce que donnerait la journée si tout le menu prévu était mangé.
      Hachures pâles reprenant les mêmes teintes que les segments pleins, pour que
      la barre se lise d'un bloc — clair = pas encore mangé, plein = acquis. */
+  /* Bascule « compte dans la liste de courses » sur chaque plat planifié */
+  .menu-cart{
+    font-style:normal; margin-right:5px; cursor:pointer; opacity:0.28;
+    filter:grayscale(1); transition:opacity 0.15s, filter 0.15s;
+  }
+  .menu-cart.on{opacity:1; filter:none;}
+  .menu-cart.locked{cursor:default; opacity:0.15;}
   .kcal-gauge-ghost{
     position:absolute; top:0; height:100%; width:0; opacity:0.45;
     background:repeating-linear-gradient(45deg, var(--text-dim) 0 3px, transparent 3px 7px);
@@ -3790,6 +3797,56 @@ function goalsForWeek(monday, create=false){
   GOAL_ACTIVITIES.forEach(a=>{ if(!acts[a]) acts[a] = new Array(7).fill(a==='hiit' ? 0 : false); });
   return acts;
 }
+/* ---------- SPORT PRÉVU MAIS PAS ENCORE FAIT ----------
+   Aucune saisie supplémentaire n'est demandée : le prévu vit déjà dans goalsByWeek
+   (onglet Objectifs), le réalisé dans day.sessions. Le reste à faire est la différence.
+   Attention : les objectifs sont posés par JOUR DE SEMAINE. Déplacer une séance du
+   mardi au mercredi sans toucher aux objectifs produira un manque le mardi et un
+   extra le mercredi — ce n'est pas un bug, c'est l'information telle qu'elle est saisie. */
+
+/* Coût moyen d'UNE séance de ce type, d'après l'historique réellement logué.
+   Pas de barème inventé : si l'activité n'a jamais été faite, on renvoie null et
+   on le dira explicitement plutôt que d'estimer au hasard. */
+function avgKcalPerSession(type){
+  const vals = [];
+  Object.values(state.days).forEach(day=>{
+    (day.sessions||[]).forEach(s=>{
+      if(s.notDone || s.type!==type) return;
+      const k = sessionKcal(s);
+      if(k>0) vals.push(k);
+    });
+  });
+  if(!vals.length) return null;
+  return Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+}
+
+/* Renvoie ce qui reste à faire pour une date : {act: nb} + estimation kcal. */
+function remainingSport(iso){
+  const d = new Date(iso+'T12:00:00');
+  const acts = goalsForWeek(getMonday(d), false);
+  const out = {list:[], kcalRaw:0, unknown:[]};
+  if(!acts) return out;
+  const i = dowIndexMondayBased(d);
+  const day = getDay(iso);
+  const done = {};
+  (day.sessions||[]).forEach(s=>{ if(!s.notDone) done[s.type] = (done[s.type]||0)+1; });
+  GOAL_ACTIVITIES.forEach(act=>{
+    const raw = acts[act] ? acts[act][i] : 0;
+    const planned = typeof raw === 'number' ? raw : (raw ? 1 : 0);
+    if(!planned) return;
+    const left = Math.max(0, planned - (done[act]||0));
+    if(!left) return;
+    const avg = avgKcalPerSession(act);
+    if(avg==null) out.unknown.push(act);
+    const kcal = avg!=null ? avg*left : 0;
+    out.kcalRaw += kcal;
+    out.list.push({act, left, avg, kcal});
+  });
+  return out;
+}
+/* Estimation retenue après le facteur de réalisme, cohérente avec sportTotalKcal(). */
+function remainingSportKcal(iso){ return Math.round(remainingSport(iso).kcalRaw * sportFactor()); }
+
 let goalsViewMonday = null; // lundi de la semaine affichée dans l'onglet Objectifs (null = défaut)
 function renderGoalsPage(){
   if(!goalsViewMonday) goalsViewMonday = targetGoalWeekMonday();
@@ -5028,7 +5085,7 @@ function updateHomeSynth(day){
   document.getElementById('homePct-bilan').textContent = `${diff>=0?'+':''}${diff} kcal`;
 
   updateSectionStickers(day, bb, sportKcal, foodKcal, diff);
-  updateKcalGauge(foodKcal, needToday, diff, dayHasPlanned(day) ? dayFoodTotals(day,'all').kcal : null);
+  updateKcalGauge(foodKcal, needToday, diff, dayHasPlanned(day) ? dayFoodTotals(day,'all').kcal : null, remainingSportKcal(synthIso));
   updateMacroBars(day, synthIso, needToday);
 }
 
@@ -5102,7 +5159,7 @@ function updateMacroBars(day, iso, needToday){
   document.getElementById('macroFoot').textContent = foot;
 }
 
-function updateKcalGauge(foodKcal, needToday, diff, projectedKcal){
+function updateKcalGauge(foodKcal, needToday, diff, projectedKcal, remainingKcal){
   const fillUnder = document.getElementById('gaugeFillUnder');
   const fillOver = document.getElementById('gaugeFillOver');
   const bubble = document.getElementById('gaugeBubble');
@@ -5129,7 +5186,11 @@ function updateKcalGauge(foodKcal, needToday, diff, projectedKcal){
 
   mid.style.left = `${needPct}%`;
   needLabel.style.left = `${needPct}%`;
-  document.getElementById('gaugeNeedVal').textContent = `${needToday} kcal`;
+  // Le besoin affiché reste le besoin FERME (sport réellement fait). Le sport prévu
+  // non réalisé est signalé à part : on ne mange pas les calories d'un effort non fourni.
+  document.getElementById('gaugeNeedVal').textContent = remainingKcal
+    ? `${needToday} kcal (+${remainingKcal} si sport prévu)`
+    : `${needToday} kcal`;
 
   bubble.style.left = `${apportPct}%`;
   bubble.className = 'kcal-gauge-bubble' + (diff>0 ? ' over' : diff<0 ? ' under' : ' neutral');
@@ -5380,6 +5441,18 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'2.7.0', date:'23 août 2026', items:[
+    'L\'analyse nutritionniste voit les 7 jours précédents : totaux quotidiens, sport, et décompte des aliments qui reviennent — avec consigne de ne pas reproposer ce qui revient 3 fois ou plus.',
+    'Elle croise aussi tes objectifs sport et tes séances réalisées pour connaître ce qui reste à faire dans la journée, et donne des conseils avant effort.',
+    'Le coût des séances restantes est estimé sur la moyenne de tes propres séances loguées, jamais sur un barème générique.',
+    'La jauge de l\'accueil indique le besoin supplémentaire si tu fais le sport encore prévu.',
+    'Chaque plat planifié a une icône 🛒 : désactivée, ses ingrédients ne remontent plus dans la liste de courses.'
+  ]},
+  {v:'2.6.2', date:'23 août 2026', items:[
+    'Correction : le prompt d\'analyse recopiait tout le journal dans le bloc « prévu » au lieu de filtrer, alors que les sous-totaux étaient justes.',
+    'Le détail et le sous-total de chaque bloc sont désormais calculés sur la même liste, ils ne peuvent plus diverger.',
+    'Chaque sous-total indique son nombre d\'aliments, pour repérer immédiatement toute incohérence.'
+  ]},
   {v:'2.6.1', date:'23 août 2026', items:[
     'La jauge calorique de l\'accueil prolonge la barre en hachures pâles jusqu\'au total projeté si tu manges tout le menu prévu.',
     'Les hachures passent au rouge dès que la projection franchit le besoin, même si le consommé est encore en dessous.',
@@ -6042,9 +6115,14 @@ function renderMenus(){
     const iso = isoDate(d);
     const slots = MENU_SLOTS.map(([key,lbl])=>{
       const items = slotItems(iso,key);
-      const pills = items.map((it,idx)=>
-        `<span class="menu-pill ${it.type==='dish'&&it.leftover?'leftover':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">${pillLabel(it)}<b>✕</b></span>`
-      ).join('');
+      const pills = items.map((it,idx)=>{
+        const isLeft = it.type==='dish' && it.leftover;
+        const inShop = itemInShop(it) && !isLeft;
+        const cartTitle = isLeft ? 'Reste — rien à acheter' : (inShop ? 'Compté dans la liste de courses' : 'Exclu de la liste de courses');
+        return `<span class="menu-pill ${isLeft?'leftover':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">`
+          + `<i class="menu-cart${inShop?' on':''}${isLeft?' locked':''}" data-cart="${idx}" title="${cartTitle}">🛒</i>`
+          + `${pillLabel(it)}<b>✕</b></span>`;
+      }).join('');
       return `<div class="menu-slot">
         <span class="menu-slot-label">${lbl}</span>
         <div class="menu-pills">${pills}
@@ -6060,6 +6138,17 @@ function renderMenus(){
 
   document.querySelectorAll('#menuGrid .menu-slot-add').forEach(btn=>{
     btn.onclick = ()=>openMenuPick(btn.dataset.iso, btn.dataset.slot);
+  });
+  document.querySelectorAll('#menuGrid .menu-cart').forEach(x=>{
+    x.onclick = e=>{
+      e.stopPropagation();
+      const p = x.parentElement;
+      const arr = slotItems(p.dataset.iso, p.dataset.slot);
+      const it = arr[parseInt(p.dataset.idx)];
+      if(it.type==='dish' && it.leftover) return; // rien à acheter pour un reste
+      it.shop = !itemInShop(it);
+      persistState(); renderMenus();
+    };
   });
   document.querySelectorAll('#menuGrid .menu-pill b').forEach(x=>{
     x.onclick = e=>{
@@ -6309,6 +6398,11 @@ function shopWeekData(){
 
 // Agrégation exacte : 1 élément "préparation" (leftover:false) = 1x les ingrédients du plat.
 // Les restes ne comptent pas (déjà couverts). Les aliments simples s'ajoutent avec leur grammage.
+/* Un item de menu alimente la liste de courses SAUF s'il est explicitement décoché.
+   Les restes (leftover) n'ont par définition rien à racheter : ils étaient déjà exclus
+   du calcul, mais leur case reste décochée et grisée pour que ce soit visible. */
+function itemInShop(it){ return it.shop !== false; }
+
 function computeShopItems(){
   const monday = menuWeekMonday();
   const agg = {};
@@ -6317,6 +6411,7 @@ function computeShopItems(){
     if(!plan) continue;
     MENU_SLOTS.forEach(([key])=>{
       (plan[key]||[]).forEach(it=>{
+        if(!itemInShop(it)) return; // décoché : n'alimente pas la liste
         if(it.type==='dish' && !it.leftover && state.dishes[it.name]){
           state.dishes[it.name].ingredients.forEach(ing=>{ agg[ing.name] = (agg[ing.name]||0) + (ing.grams||0); });
         }else if(it.type==='food'){
@@ -7030,24 +7125,62 @@ function aiDishLibraryBlock(){
 
 /* Détail ligne par ligne. La densité protéique par aliment est LE levier d'analyse :
    elle fait ressortir en un coup d'oeil les items qui coûtent cher pour ce qu'ils apportent. */
-function aiFoodDetailBlock(day){
-  if(!day.foods.length) return '  (aucun aliment saisi pour l\'instant)';
-  return day.foods.map(f=>{
-    const p=f.p||0, l=f.f||0, c=f.c||0, a=f.a||0;
-    const kc = p*4 + c*4 + l*9 + a*7;
-    const dens = kc>0 ? (p/(kc/100)).toFixed(1) : '—';
-    return `  - ${f.name}, ${Math.round(f.grams||0)} g : ${Math.round(kc)} kcal | P ${p.toFixed(1)} | L ${l.toFixed(1)} | G ${c.toFixed(1)} | P/100k ${dens}`;
-  }).join('\n');
+/* Renvoie les lignes ET le sous-total calculés sur LA MÊME liste filtrée.
+   Point important : ne jamais recalculer le sous-total par un autre chemin que celui
+   qui a produit les lignes — sinon détail et total peuvent diverger, et une IA qui lit
+   le prompt n'a aucun moyen de savoir lequel des deux croire. */
+function aiFoodSection(day, mode){
+  const list = day.foods.filter(f => mode==='planned' ? !foodEaten(f) : foodEaten(f));
+  const sum = list.reduce((a,f)=>({
+    p:a.p+(f.p||0), f:a.f+(f.f||0), c:a.c+(f.c||0), kcal:a.kcal+foodKcal(f)
+  }), {p:0,f:0,c:0,kcal:0});
+  const lines = list.length
+    ? list.map(f=>{
+        const p=f.p||0, l=f.f||0, c=f.c||0, a=f.a||0;
+        const kc = foodKcal(f);
+        const dens = kc>0 ? (p/(kc/100)).toFixed(1) : '—';
+        return `  - ${f.name}, ${Math.round(f.grams||0)} g : ${kc} kcal | P ${p.toFixed(1)} | L ${l.toFixed(1)} | G ${c.toFixed(1)} | P/100k ${dens}`;
+      }).join('\n')
+    : (mode==='planned' ? '  (rien de prévu)' : '  (aucun aliment consommé pour l\'instant)');
+  return {count:list.length, lines, sum};
+}
+
+/* Historique compact des 7 jours précédents.
+   Volontairement AGRÉGÉ et non détaillé : 7 jours ligne par ligne feraient ~70 lignes
+   qui noieraient la journée analysée. Deux blocs suffisent — les totaux quotidiens pour
+   la tendance, et le décompte des répétitions pour l'anti-redite. */
+function aiHistoryBlock(iso){
+  const end = new Date(iso+'T12:00:00');
+  const rows = [], rep = {};
+  for(let k=7; k>=1; k--){
+    const dIso = isoDate(addDays(end,-k));
+    const day = state.days[dIso];
+    if(!day || !(day.foods||[]).length) continue;
+    const t = dayFoodTotals(day,'all');
+    (day.foods||[]).forEach(f=>{ rep[f.name] = (rep[f.name]||0)+1; });
+    const acts = {};
+    (day.sessions||[]).forEach(s2=>{ if(!s2.notDone) acts[s2.type] = (acts[s2.type]||0)+1; });
+    const sport = Object.entries(acts).map(([a,n])=>{
+      const lbl = (SPORT_ACTIVITIES[a]||{label:a}).label;
+      return n>1 ? `${n}× ${lbl}` : lbl;
+    }).join(', ') || 'repos';
+    rows.push(`${dIso.slice(8)}/${dIso.slice(5,7)} : ${String(Math.round(t.kcal)).padStart(4)} kcal | P ${String(Math.round(t.p)).padStart(3)} | L ${String(Math.round(t.f)).padStart(3)} | G ${String(Math.round(t.c)).padStart(3)} | ${sport}`);
+  }
+  if(!rows.length) return null;
+  const repeats = Object.entries(rep).filter(([,n])=>n>=2).sort((a,b)=>b[1]-a[1])
+    .map(([n,c])=>`${n} ×${c}`).join(', ');
+  return {rows:rows.join('\n'), repeats: repeats || 'aucune répétition notable'};
 }
 
 function buildNutriPrompt(){
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
   const d = new Date(iso+'T12:00:00');
-  const t = dayFoodTotals(day);
-  const plan = dayFoodTotals(day,'planned');
-  const all = dayFoodTotals(day,'all');
-  const hasPlan = dayHasPlanned(day);
+  const eatenSec = aiFoodSection(day,'eaten');
+  const planSec  = aiFoodSection(day,'planned');
+  const t = eatenSec.sum, plan = planSec.sum;
+  const all = {p:t.p+plan.p, f:t.f+plan.f, c:t.c+plan.c, kcal:t.kcal+plan.kcal};
+  const hasPlan = planSec.count > 0;
   const tdee = computeTDEE(iso);
   const sportK = sportTotalKcal(day);
   const need = tdee + sportK;
@@ -7057,6 +7190,10 @@ function buildNutriPrompt(){
   const bmr = measuredBmrAt(iso);
   // Journée en cours avant 20h : on oriente vers ce qu'il reste à manger.
   const enCours = (iso === isoDate(todayDate())) && (new Date().getHours() < 20);
+
+  const rem = remainingSport(iso);
+  const remKcal = Math.round(rem.kcalRaw * sportFactor());
+  const hist = aiHistoryBlock(iso);
 
   const sportTxt = day.sessions.filter(s=>!s.notDone).length
     ? day.sessions.filter(s=>!s.notDone).map(s=>{
@@ -7107,23 +7244,46 @@ ${enCours?'La journée est EN COURS : oriente tes conseils vers ce qu\'il me res
 
 ═══ CE QUE J'AI DÉJÀ MANGÉ ═══
 (P/100k = grammes de protéines pour 100 kcal. Plus c'est haut, meilleur est le rapport pour mon objectif.)
-${aiFoodDetailBlock(day,'eaten')}
+${eatenSec.lines}
 
-SOUS-TOTAL CONSOMMÉ : ${consumed} kcal | P ${Math.round(t.p)} g | L ${Math.round(t.f)} g | G ${Math.round(t.c)} g
+SOUS-TOTAL CONSOMMÉ (${eatenSec.count} aliment${eatenSec.count>1?'s':''}) : ${consumed} kcal | P ${Math.round(t.p)} g | L ${Math.round(t.f)} g | G ${Math.round(t.c)} g
 ${hasPlan ? `
 ═══ CE QUI EST PRÉVU MAIS PAS ENCORE MANGÉ ═══
 Ces aliments sont une PROJECTION de menu, pas un fait acquis. Tu peux et tu dois les remettre en question s'ils m'éloignent de l'objectif — c'est le principal intérêt de te les montrer.
-${aiFoodDetailBlock(day,'planned')}
+${planSec.lines}
 
-SOUS-TOTAL PRÉVU : ${Math.round(plan.kcal)} kcal | P ${Math.round(plan.p)} g | L ${Math.round(plan.f)} g | G ${Math.round(plan.c)} g
+SOUS-TOTAL PRÉVU (${planSec.count} aliment${planSec.count>1?'s':''}) : ${Math.round(plan.kcal)} kcal | P ${Math.round(plan.p)} g | L ${Math.round(plan.f)} g | G ${Math.round(plan.c)} g
 
 PROJECTION FIN DE JOURNÉE (consommé + prévu) : ${Math.round(all.kcal)} kcal | P ${Math.round(all.p)} g (plancher ${mt.p.floor}${all.p>=mt.p.floor?' ✅':` ❌ manque ${Math.round(mt.p.floor-all.p)}`}) | L ${Math.round(all.f)} g (plafond ${mt.f.high}${all.f<=mt.f.high?' ✅':` ❌ +${Math.round(all.f-mt.f.high)}`}) | G ${Math.round(all.c)} g (zone ${mt.c.low}-${mt.c.high})
 Budget cible ${mt.budget} kcal : ${all.kcal<=mt.budget?`la projection tient, marge de ${Math.round(mt.budget-all.kcal)} kcal.`:`la projection dépasse de ${Math.round(all.kcal-mt.budget)} kcal.`}` : `
 TOTAUX vs CIBLES : P ${Math.round(t.p)} g (plancher ${mt.p.floor}${t.p>=mt.p.floor?' ✅':` ❌ manque ${Math.round(mt.p.floor-t.p)}`}) | L ${Math.round(t.f)} g (plafond ${mt.f.high}${t.f<=mt.f.high?' ✅':` ❌ +${Math.round(t.f-mt.f.high)}`}) | G ${Math.round(t.c)} g (zone ${mt.c.low}-${mt.c.high})
 Aucun menu prévu n'est enregistré pour la suite de la journée.`}
 
-═══ CONTEXTE DU JOUR ═══
+═══ SPORT DU JOUR ═══
 ${ctx.join('\n')}
+${rem.list.length ? `
+PRÉVU DANS MES OBJECTIFS MAIS PAS ENCORE FAIT :
+${rem.list.map(r=>{
+  const lbl = (SPORT_ACTIVITIES[r.act]||{label:r.act}).label;
+  return `  - ${lbl}${r.left>1?` ×${r.left}`:''}${r.avg!=null?` — environ ${r.kcal} kcal bruts (moyenne de mes séances loguées : ${r.avg} kcal l'unité)`:' — jamais logué, aucune estimation fiable possible'}`;
+}).join('\n')}
+TOTAL RESTANT : ${Math.round(rem.kcalRaw)} kcal bruts, ${remKcal} kcal retenus après dégonflage.
+Besoin projeté si je fais tout : ${need + remKcal} kcal (contre ${need} en l'état).
+${rem.unknown.length?`Attention : ${rem.unknown.join(', ')} n'a jamais été logué, son coût n'est PAS compté dans ce total.`:''}
+
+Cet effort est DEVANT MOI, tiens-en compte :
+- dis-moi quoi manger AVANT, en quelle quantité et combien de temps avant ;
+- dis-moi ce que l'effort implique pour le reste de la journée (recharge glucidique, protéines après).
+${(remKcal + sportK) >= 500 ? `- le sport total du jour (réalisé + prévu) atteint ${remKcal + sportK} kcal : applique ma règle des 80 g de légumineuse crue au repas du soir.` : `- le sport total du jour reste sous 500 kcal, ma règle des 80 g de légumineuse ne s'applique pas automatiquement.`}` : `
+Aucune séance prévue non faite : mes objectifs de la journée sont soit remplis, soit vides.`}
+${hist ? `
+═══ LES 7 JOURS PRÉCÉDENTS ═══
+${hist.rows}
+
+ALIMENTS REVENUS 2 FOIS OU PLUS SUR CES 7 JOURS :
+${hist.repeats}
+
+RÈGLE ANTI-RÉPÉTITION : ne propose PAS ce qui apparaît 3 fois ou plus dans cette liste. Ce qui apparaît 2 fois, tu peux le proposer seulement si aucune alternative équivalente n'existe — et dans ce cas, dis-le explicitement. Regarde aussi la tendance sur la semaine avant de conclure sur la journée : un seul jour ne fait pas une trajectoire.` : ''}
 
 ═══ MON UNIVERS CULINAIRE (reste dedans) ═══
 ${aiHabitsBlock()}
