@@ -776,6 +776,24 @@
     background:var(--panel-2); border:1px solid var(--line);
   }
   /* Segment "sous le besoin" : bleu doux -> vert */
+  /* Projection : ce que donnerait la journée si tout le menu prévu était mangé.
+     Hachures pâles reprenant les mêmes teintes que les segments pleins, pour que
+     la barre se lise d'un bloc — clair = pas encore mangé, plein = acquis. */
+  .kcal-gauge-ghost{
+    position:absolute; top:0; height:100%; width:0; opacity:0.45;
+    background:repeating-linear-gradient(45deg, var(--text-dim) 0 3px, transparent 3px 7px);
+    transition:width 0.3s, left 0.3s;
+  }
+  .kcal-gauge-ghost.over{
+    background:repeating-linear-gradient(45deg, var(--danger) 0 3px, transparent 3px 7px);
+    opacity:0.55;
+  }
+  .kcal-gauge-ghost-bubble{
+    position:absolute; bottom:calc(100% + 5px); transform:translateX(-50%); z-index:2;
+    font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:var(--text-dim);
+    white-space:nowrap; opacity:0; transition:opacity 0.3s, left 0.3s;
+  }
+  .kcal-gauge-ghost-bubble.show{opacity:0.85;}
   .kcal-gauge-fill-under{position:absolute; top:0; left:0; height:100%; background:linear-gradient(to right, #7ea6c9, var(--success)); transition:width 0.3s;}
   /* Segment "au-delà du besoin" (n'existe que si l'apport dépasse le besoin) : or -> rouge */
   .kcal-gauge-fill-over{position:absolute; top:0; height:100%; background:linear-gradient(to right, #e0b84f, var(--danger)); transition:width 0.3s, left 0.3s;}
@@ -835,6 +853,26 @@
   .macro-over{position:absolute; top:4px; height:6px; width:0; border-radius:0 3px 3px 0;
     background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
     box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
+  /* Case à cocher « mangé / prévu » sur chaque aliment */
+  .food-check{
+    flex-shrink:0; width:24px; height:24px; margin-right:10px; align-self:center;
+    border:1.5px solid var(--line); border-radius:7px; background:var(--panel-2);
+    color:var(--bg); font-size:0.8rem; font-weight:700; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition:background 0.15s, border-color 0.15s;
+  }
+  .food-check.on{background:var(--accent); border-color:var(--accent);}
+  .food-check:active{transform:scale(.9);}
+  .session-row.food-planned{border-style:dashed;}
+  .session-row.food-planned .session-info,
+  .session-row.food-planned .session-kcal{opacity:0.55;}
+  .food-planned-sum{font-size:0.68rem; color:var(--text-dim); font-weight:400; margin-left:6px;}
+  /* Segment fantôme : où la macro atterrit si tout le menu prévu est mangé */
+  .macro-ghost{
+    position:absolute; top:4px; height:6px; width:0; border-radius:0 3px 3px 0;
+    background:repeating-linear-gradient(90deg, var(--text-dim), var(--text-dim) 2px, transparent 2px, transparent 4px);
+    opacity:0.55; transition:width 0.3s;
+  }
   .macro-ai-btn{
     width:100%; margin-top:12px; padding:9px 12px;
     background:var(--panel-2); color:var(--text);
@@ -1410,9 +1448,11 @@
     <div class="kcal-gauge-outer">
       <div class="kcal-gauge-bubble" id="gaugeBubble">—</div>
       <div class="kcal-gauge-clip">
+        <div class="kcal-gauge-ghost" id="gaugeGhost"></div>
         <div class="kcal-gauge-fill-under" id="gaugeFillUnder"></div>
         <div class="kcal-gauge-fill-over" id="gaugeFillOver"></div>
       </div>
+      <div class="kcal-gauge-ghost-bubble" id="gaugeGhostBubble"></div>
       <div class="kcal-gauge-mid" id="gaugeMid"></div>
       <div class="kcal-gauge-need" id="gaugeNeedLabel">besoin estimé : <span class="n" id="gaugeNeedVal">– kcal</span></div>
     </div>
@@ -1427,6 +1467,7 @@
       <div class="macro-track">
         <div class="macro-zone-band" id="mbandP"></div>
         <div class="macro-fill mf-p" id="mfillP"></div>
+        <div class="macro-ghost" id="mghostP"></div>
         <div class="macro-over" id="moverP"></div>
       </div>
     </div>
@@ -1438,6 +1479,7 @@
       <div class="macro-track">
         <div class="macro-zone-band" id="mbandF"></div>
         <div class="macro-fill mf-f" id="mfillF"></div>
+        <div class="macro-ghost" id="mghostF"></div>
         <div class="macro-over" id="moverF"></div>
       </div>
     </div>
@@ -1449,6 +1491,7 @@
       <div class="macro-track">
         <div class="macro-zone-band" id="mbandC"></div>
         <div class="macro-fill mf-c" id="mfillC"></div>
+        <div class="macro-ghost" id="mghostC"></div>
         <div class="macro-over" id="moverC"></div>
       </div>
     </div>
@@ -3071,6 +3114,9 @@ function setDay(iso, day){ state.days[iso] = day; persistState(); }
 // Alimentation validée : au moins un aliment loggé (factuel).
 // Rétrocompatible : les anciennes journées cochées via l'ex-case "règle respectée" restent valides.
 function foodDone(day){ return day.foods.length>0 || day.food===true; }
+/* Ajouter un aliment à une date future, c'est planifier : la case part décochée.
+   Sur aujourd'hui ou dans le passé, c'est un log : la case part cochée. */
+function defaultEaten(iso){ return !(iso > isoDate(todayDate())); }
 function foodKcal(f){ if(f.kcalOverride!=null) return Math.round(f.kcalOverride); return Math.round(f.p*4 + f.c*4 + f.f*9 + (f.a||0)*7); }
 /* Coefficients d'activité NEAT-ONLY (vie quotidienne HORS séances loguées).
    ⚠️ Ce ne sont volontairement PAS les multiplicateurs Harris-Benedict classiques
@@ -3154,8 +3200,20 @@ function macroTargets(iso, needToday){
 function computeTDEE(iso){
   return Math.round(bmrAt(iso) * (ACTIVITY_MULT[state.activityLevel] || 1.25));
 }
-function dayFoodTotals(day){
-  return day.foods.reduce((acc,f)=>({p:acc.p+f.p, f:acc.f+f.f, c:acc.c+f.c, kcal:acc.kcal+foodKcal(f)}), {p:0,f:0,c:0,kcal:0});
+/* Un aliment est CONSOMMÉ par défaut : seul un eaten explicitement à false en fait une
+   projection de menu. Les aliments saisis avant cette version n'ont pas le champ et
+   restent donc comptés comme mangés — l'historique n'est pas altéré. */
+function foodEaten(f){ return f.eaten !== false; }
+function dayHasPlanned(day){ return day.foods.some(f=>!foodEaten(f)); }
+
+/* mode : 'eaten' (défaut) = ce qui est réellement consommé, base de tous les calculs
+          'planned'        = ce qui est prévu mais pas encore mangé
+          'all'            = projection de fin de journée si tout le menu est suivi */
+function dayFoodTotals(day, mode){
+  const keep = mode==='all' ? ()=>true : mode==='planned' ? f=>!foodEaten(f) : foodEaten;
+  return day.foods.filter(keep).reduce(
+    (acc,f)=>({p:acc.p+f.p, f:acc.f+f.f, c:acc.c+f.c, kcal:acc.kcal+foodKcal(f)}),
+    {p:0,f:0,c:0,kcal:0});
 }
 
 /* ---------- UTILS DATE ---------- */
@@ -4042,10 +4100,12 @@ function renderFoods(day){
   const wrap = document.getElementById('foodList');
   wrap.innerHTML='';
   day.foods.forEach((f,idx)=>{
+    const eaten = foodEaten(f);
     const row = document.createElement('div');
-    row.className='session-row session-row-editable';
+    row.className='session-row session-row-editable' + (eaten?'':' food-planned');
     row.dataset.idx = idx;
     row.innerHTML = `
+      <button class="food-check${eaten?' on':''}" data-idx="${idx}" title="${eaten?'Mangé — décocher pour repasser en prévu':'Prévu — cocher quand c\'est mangé'}">${eaten?'✓':''}</button>
       <div class="session-info">
         <div class="session-type">${f.name}${f.unitCount!=null ? ' · '+f.unitCount+' '+f.unitLabel : (f.grams!=null ? ' · '+f.grams+'g' : '')}</div>
         <div class="session-meta">${f.kcalOverride!=null && (f.p+f.f+f.c)===0 ? "Estimation rapide" : `P ${f.p.toFixed(1)}g · L ${f.f.toFixed(1)}g · G ${f.c.toFixed(1)}g`}</div>
@@ -4056,8 +4116,23 @@ function renderFoods(day){
     wrap.appendChild(row);
   });
   const t = dayFoodTotals(day);
-  document.getElementById('foodTotalKcal').textContent = `${t.kcal} kcal`;
+  const planned = dayFoodTotals(day,'planned');
+  document.getElementById('foodTotalKcal').innerHTML = planned.kcal > 0
+    ? `${t.kcal} kcal <span class="food-planned-sum">+ ${planned.kcal} prévus</span>`
+    : `${t.kcal} kcal`;
   renderMacroDonut(t, 'macroDonut', 'macroLegend');
+
+  wrap.querySelectorAll('.food-check').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      const iso = isoDate(selectedDate);
+      const d = getDay(iso);
+      const item = d.foods[parseInt(btn.dataset.idx)];
+      item.eaten = !foodEaten(item);
+      setDay(iso,d);
+      render();
+    };
+  });
 
   wrap.querySelectorAll('.session-row-editable').forEach(row=>{
     row.querySelector('.session-info').addEventListener('click', ()=> editFoodItem(parseInt(row.dataset.idx)));
@@ -4252,7 +4327,7 @@ document.getElementById('qlValidate').onclick = ()=>{
   const g = qlCurrent.unit*qlCount;
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
-  day.foods.push({name:qlCurrent.name, grams:g, unitCount:qlCount, unitLabel:qlCurrent.label,
+  day.foods.push({eaten:defaultEaten(iso), name:qlCurrent.name, grams:g, unitCount:qlCount, unitLabel:qlCurrent.label,
     p:ing.p*g/100, f:ing.f*g/100, c:ing.c*g/100, a:(ing.a||0)*g/100});
   setDay(iso, day);
   document.getElementById('quickLogModal').classList.remove('open');
@@ -4953,7 +5028,7 @@ function updateHomeSynth(day){
   document.getElementById('homePct-bilan').textContent = `${diff>=0?'+':''}${diff} kcal`;
 
   updateSectionStickers(day, bb, sportKcal, foodKcal, diff);
-  updateKcalGauge(foodKcal, needToday, diff);
+  updateKcalGauge(foodKcal, needToday, diff, dayHasPlanned(day) ? dayFoodTotals(day,'all').kcal : null);
   updateMacroBars(day, synthIso, needToday);
 }
 
@@ -4961,12 +5036,14 @@ function updateHomeSynth(day){
    un segment hachuré. L'échelle est propre à chaque macro : elle s'étend jusqu'au
    plus grand entre la valeur du jour et le haut de zone, avec 18% de marge pour que
    la bande reste toujours visible même quand l'apport est très bas. */
-function paintMacroBar(key, val, low, high, hasCeiling){
+function paintMacroBar(key, val, low, high, hasCeiling, projected){
   const band = document.getElementById('mband'+key);
   const fill = document.getElementById('mfill'+key);
   const over = document.getElementById('mover'+key);
-  const ref  = hasCeiling ? high : low;
-  const max  = Math.max(val, ref) * 1.18 || 1;
+  const ghost = document.getElementById('mghost'+key);
+  const proj  = (projected!=null && projected>val) ? projected : val;
+  const ref   = hasCeiling ? high : low;
+  const max   = Math.max(proj, ref) * 1.18 || 1;
   const pc   = v => Math.max(0, Math.min(100, (v/max)*100));
 
   band.style.left  = pc(low)+'%';
@@ -4983,11 +5060,21 @@ function paintMacroBar(key, val, low, high, hasCeiling){
   } else {
     over.style.width = '0%';
   }
+
+  // Fantôme hachuré : ce que le menu prévu ajouterait par-dessus le consommé.
+  if(proj > val){
+    ghost.style.left  = pc(val)+'%';
+    ghost.style.width = (pc(proj)-pc(val))+'%';
+  } else {
+    ghost.style.width = '0%';
+  }
 }
 
 function updateMacroBars(day, iso, needToday){
   const t = macroTargets(iso, needToday);
   const tot = dayFoodTotals(day);
+  const all = dayFoodTotals(day,'all');
+  const hasPlan = dayHasPlanned(day);
   const P = Math.round(tot.p), F = Math.round(tot.f), C = Math.round(tot.c);
 
   const setHead = (key, val, unitLow, unitHigh, zoneTxt) => {
@@ -5004,15 +5091,18 @@ function updateMacroBars(day, iso, needToday){
   setHead('F', F, t.f.low, t.f.high, t.f.low+'–'+t.f.high);
   setHead('C', C, t.c.low, t.c.high, t.c.low+'–'+t.c.high);
 
-  paintMacroBar('P', P, t.p.floor, null, false);
-  paintMacroBar('F', F, t.f.low, t.f.high, true);
-  paintMacroBar('C', C, t.c.low, t.c.high, true);
+  paintMacroBar('P', P, t.p.floor, null, false, hasPlan?all.p:null);
+  paintMacroBar('F', F, t.f.low, t.f.high, true, hasPlan?all.f:null);
+  paintMacroBar('C', C, t.c.low, t.c.high, true, hasPlan?all.c:null);
 
-  document.getElementById('macroFoot').textContent =
-    'Budget ' + t.budget + ' kcal (besoin ' + needToday + ' − déficit ' + (parseFloat(state.deficitKcal)||0) + '). Les glucides suivent le sport du jour.';
+  let foot = 'Budget ' + t.budget + ' kcal (besoin ' + needToday + ' − déficit ' + (parseFloat(state.deficitKcal)||0) + '). Les glucides suivent le sport du jour.';
+  if(hasPlan){
+    foot += ' Hachuré = menu prévu non coché : ' + Math.round(all.kcal) + ' kcal projetés, P ' + Math.round(all.p) + ' · L ' + Math.round(all.f) + ' · G ' + Math.round(all.c) + '.';
+  }
+  document.getElementById('macroFoot').textContent = foot;
 }
 
-function updateKcalGauge(foodKcal, needToday, diff){
+function updateKcalGauge(foodKcal, needToday, diff, projectedKcal){
   const fillUnder = document.getElementById('gaugeFillUnder');
   const fillOver = document.getElementById('gaugeFillOver');
   const bubble = document.getElementById('gaugeBubble');
@@ -5044,6 +5134,24 @@ function updateKcalGauge(foodKcal, needToday, diff){
   bubble.style.left = `${apportPct}%`;
   bubble.className = 'kcal-gauge-bubble' + (diff>0 ? ' over' : diff<0 ? ' under' : ' neutral');
   bubble.textContent = `${diff>=0?'+':''}${diff}`;
+
+  // Projection hachurée : prolonge la barre de l'apport actuel jusqu'au total prévu.
+  // Elle vire au rouge dès que la projection franchit le besoin, même si le consommé
+  // est encore dessous : c'est tout l'intérêt de la voir AVANT de manger.
+  const ghost = document.getElementById('gaugeGhost');
+  const ghostBubble = document.getElementById('gaugeGhostBubble');
+  if(projectedKcal != null && projectedKcal > foodKcal){
+    const projPct = pct(projectedKcal);
+    ghost.style.left = `${apportPct}%`;
+    ghost.style.width = `${projPct - apportPct}%`;
+    ghost.classList.toggle('over', projectedKcal > needToday);
+    ghostBubble.style.left = `${projPct}%`;
+    ghostBubble.textContent = `prévu ${Math.round(projectedKcal)}`;
+    ghostBubble.classList.add('show');
+  } else {
+    ghost.style.width = '0%';
+    ghostBubble.classList.remove('show');
+  }
 }
 
 // Moyenne de l'écart apport/besoin sur les jours renseignés des 7 derniers jours (tendance, pas jour isolé)
@@ -5234,7 +5342,7 @@ function renderModalRecentsGrid(){
       const f = recents[parseInt(btn.dataset.idx)];
       const iso = isoDate(selectedDate);
       const day = getDay(iso);
-      day.foods.push(structuredClone(f));
+      { const cp = structuredClone(f); cp.eaten = defaultEaten(iso); day.foods.push(cp); }
       setDay(iso, day);
       closeFoodModal();
       render();
@@ -5272,6 +5380,18 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'2.6.1', date:'23 août 2026', items:[
+    'La jauge calorique de l\'accueil prolonge la barre en hachures pâles jusqu\'au total projeté si tu manges tout le menu prévu.',
+    'Les hachures passent au rouge dès que la projection franchit le besoin, même si le consommé est encore en dessous.',
+    'Une étiquette « prévu » indique le total projeté au bout des hachures.'
+  ]},
+  {v:'2.6.0', date:'23 août 2026', items:[
+    'Case à cocher sur chaque aliment de la journée : coché = mangé, décoché = simple projection de menu.',
+    'Un aliment ajouté sur une date future part automatiquement décoché ; sur aujourd\'hui ou dans le passé, il part coché.',
+    'Les barres de macros affichent en hachuré où tu atterris si tu manges tout ce qui est prévu.',
+    'L\'analyse nutritionniste sépare le consommé du prévu, et arbitre chaque aliment prévu : à garder, à réduire ou à remplacer.',
+    'Le total de la journée distingue les calories consommées de celles prévues.'
+  ]},
   {v:'2.5.0', date:'23 août 2026', items:[
     'Nouveau prompt « Analyse nutritionniste » : bouton sous les barres de macros de l\'accueil, et dans le Bilan.',
     'Le prompt injecte le détail aliment par aliment avec la densité protéique de chaque ligne.',
@@ -5566,7 +5686,7 @@ function openRecipeModal(name){
     const r = qty/dish.portions;
     const iso = isoDate(selectedDate);
     const day = getDay(iso);
-    day.foods.push({name, grams:Math.round(tt.grams*r), unitCount:qty, unitLabel:'portion(s)', p:tt.p*r, f:tt.f*r, c:tt.c*r});
+    day.foods.push({eaten:defaultEaten(iso), name, grams:Math.round(tt.grams*r), unitCount:qty, unitLabel:'portion(s)', p:tt.p*r, f:tt.f*r, c:tt.c*r});
     setDay(iso, day);
     render();
     const btn = document.getElementById('recipeModalLogBtn');
@@ -6446,8 +6566,8 @@ document.getElementById('dishQtyConfirm').onclick = ()=>{
   const day = getDay(iso);
   const item = {name:modalDish, grams:Math.round(t.grams*r), unitCount:qty, unitLabel:'portion(s)',
     p:t.p*r, f:t.f*r, c:t.c*r};
-  if(modalEditIndex!=null){ day.foods[modalEditIndex] = item; modalEditIndex = null; }
-  else { day.foods.push(item); }
+  if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
+  else { item.eaten = defaultEaten(iso); day.foods.push(item); }
   setDay(iso, day);
   closeFoodModal();
   render();
@@ -6515,8 +6635,8 @@ document.getElementById('estConfirm').onclick = ()=>{
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
   const item = {name:`${name} ⚡`, grams:null, unitCount:null, unitLabel:null, p, f, c, kcalOverride:kcal};
-  if(modalEditIndex!=null){ day.foods[modalEditIndex] = item; modalEditIndex = null; }
-  else { day.foods.push(item); }
+  if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
+  else { item.eaten = defaultEaten(iso); day.foods.push(item); }
   setDay(iso, day);
   closeFoodModal();
   render();
@@ -6592,8 +6712,8 @@ document.getElementById('modalConfirmAdd').onclick = ()=>{
 
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
-  if(modalEditIndex!=null){ day.foods[modalEditIndex] = item; modalEditIndex = null; }
-  else { day.foods.push(item); }
+  if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
+  else { item.eaten = defaultEaten(iso); day.foods.push(item); }
   setDay(iso, day);
   closeFoodModal();
   render();
@@ -6925,6 +7045,9 @@ function buildNutriPrompt(){
   const day = getDay(iso);
   const d = new Date(iso+'T12:00:00');
   const t = dayFoodTotals(day);
+  const plan = dayFoodTotals(day,'planned');
+  const all = dayFoodTotals(day,'all');
+  const hasPlan = dayHasPlanned(day);
   const tdee = computeTDEE(iso);
   const sportK = sportTotalKcal(day);
   const need = tdee + sportK;
@@ -6982,11 +7105,22 @@ Déficit visé : ${Math.round(parseFloat(state.deficitKcal)||0)} kcal. Budget ci
 Consommé à ce stade : ${consumed} kcal. ${rest>=0?`Reste : ${rest} kcal.`:`Dépassement : +${-rest} kcal.`}
 ${enCours?'La journée est EN COURS : oriente tes conseils vers ce qu\'il me reste à manger.':'La journée est TERMINÉE : fais une analyse rétrospective et des conseils pour la prochaine fois.'}
 
-═══ DÉTAIL DE CE QUE J'AI MANGÉ ═══
+═══ CE QUE J'AI DÉJÀ MANGÉ ═══
 (P/100k = grammes de protéines pour 100 kcal. Plus c'est haut, meilleur est le rapport pour mon objectif.)
-${aiFoodDetailBlock(day)}
+${aiFoodDetailBlock(day,'eaten')}
 
-TOTAUX : ${consumed} kcal | P ${Math.round(t.p)} g (plancher ${mt.p.floor}${t.p>=mt.p.floor?' ✅':` ❌ manque ${Math.round(mt.p.floor-t.p)}`}) | L ${Math.round(t.f)} g (plafond ${mt.f.high}${t.f<=mt.f.high?' ✅':` ❌ +${Math.round(t.f-mt.f.high)}`}) | G ${Math.round(t.c)} g (zone ${mt.c.low}-${mt.c.high})
+SOUS-TOTAL CONSOMMÉ : ${consumed} kcal | P ${Math.round(t.p)} g | L ${Math.round(t.f)} g | G ${Math.round(t.c)} g
+${hasPlan ? `
+═══ CE QUI EST PRÉVU MAIS PAS ENCORE MANGÉ ═══
+Ces aliments sont une PROJECTION de menu, pas un fait acquis. Tu peux et tu dois les remettre en question s'ils m'éloignent de l'objectif — c'est le principal intérêt de te les montrer.
+${aiFoodDetailBlock(day,'planned')}
+
+SOUS-TOTAL PRÉVU : ${Math.round(plan.kcal)} kcal | P ${Math.round(plan.p)} g | L ${Math.round(plan.f)} g | G ${Math.round(plan.c)} g
+
+PROJECTION FIN DE JOURNÉE (consommé + prévu) : ${Math.round(all.kcal)} kcal | P ${Math.round(all.p)} g (plancher ${mt.p.floor}${all.p>=mt.p.floor?' ✅':` ❌ manque ${Math.round(mt.p.floor-all.p)}`}) | L ${Math.round(all.f)} g (plafond ${mt.f.high}${all.f<=mt.f.high?' ✅':` ❌ +${Math.round(all.f-mt.f.high)}`}) | G ${Math.round(all.c)} g (zone ${mt.c.low}-${mt.c.high})
+Budget cible ${mt.budget} kcal : ${all.kcal<=mt.budget?`la projection tient, marge de ${Math.round(mt.budget-all.kcal)} kcal.`:`la projection dépasse de ${Math.round(all.kcal-mt.budget)} kcal.`}` : `
+TOTAUX vs CIBLES : P ${Math.round(t.p)} g (plancher ${mt.p.floor}${t.p>=mt.p.floor?' ✅':` ❌ manque ${Math.round(mt.p.floor-t.p)}`}) | L ${Math.round(t.f)} g (plafond ${mt.f.high}${t.f<=mt.f.high?' ✅':` ❌ +${Math.round(t.f-mt.f.high)}`}) | G ${Math.round(t.c)} g (zone ${mt.c.low}-${mt.c.high})
+Aucun menu prévu n'est enregistré pour la suite de la journée.`}
 
 ═══ CONTEXTE DU JOUR ═══
 ${ctx.join('\n')}
@@ -7006,13 +7140,15 @@ ${aiDishLibraryBlock()}
 
 3. ⚠️ CE QUI COINCE — item par item, avec le COÛT CHIFFRÉ. Exemple attendu : « 150 g de fromage = 522 kcal et 42 g de lipides, soit 45 % du plafond quotidien dans un seul aliment. » Des chiffres, pas de jugement.
 
-4. 🔁 REMPLACEMENTS — pour chaque problème identifié, DEUX options :
+${hasPlan?`4bis. 🔮 ARBITRAGE SUR LE MENU PRÉVU — le point le plus important, puisque rien n'est encore joué. Pour CHAQUE aliment prévu, tranche : À GARDER, À RÉDUIRE (donne le nouveau grammage) ou À REMPLACER (donne l'alternative et son grammage). Justifie par la projection : dis explicitement où j'atterris en suivant le menu tel quel, et où j'atterrirais avec tes arbitrages.
+
+`:''}4. 🔁 REMPLACEMENTS — pour chaque problème identifié parmi ce qui est DÉJÀ MANGÉ, DEUX options :
    a) une option piochée dans mes plats déjà enregistrés ci-dessus ;
    b) une option NOUVELLE, hors de ma bibliothèque, mais cohérente avec mon univers culinaire.
    Format imposé :
    « à la place de [X] ([n] kcal, [n] g L) → [Y], [grammage précis] ([n] kcal, [n] g L) — gain : [n] kcal et [n] g de lipides »
 
-5. ➕ CE QU'IL RESTE À MANGER — s'il reste du budget, propose 1 ou 2 options concrètes avec grammages, en visant d'abord le plancher protéines. Précise ce que chaque option apporte.
+5. ➕ CE QU'IL RESTE À AJOUTER — une fois le menu prévu pris en compte, s'il reste du budget, propose 1 ou 2 options concrètes avec grammages, en visant d'abord le plancher protéines. Si la projection dépasse déjà le budget, ne propose rien à ajouter et dis-le franchement.
 
 6. 🆕 UNE IDÉE POUR MA BIBLIOTHÈQUE — un plat complet que je ne cuisine pas encore, cohérent avec mes goûts, avec : nom, liste d'ingrédients GRAMMÉE pour 1 portion, macros estimées, et une phrase sur ce qu'il apporte face à mon objectif.
 
