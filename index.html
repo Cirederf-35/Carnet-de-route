@@ -832,6 +832,18 @@
     font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--text-dim); white-space:nowrap;
   }
   .kcal-gauge-need .n{color:var(--text); font-weight:700;}
+  /* Le libellé ancré est en position absolue et centré sur le repère : il DOIT rester court,
+     sinon il déborde de l'écran quand le repère est près d'un bord. Toute information
+     supplémentaire va sur .kcal-gauge-proj, qui occupe une ligne entière et peut se replier. */
+  .kcal-gauge-need{max-width:min(96vw, 320px); overflow:hidden; text-overflow:ellipsis;}
+  .kcal-gauge-proj{
+    position:absolute; top:calc(100% + 22px); left:0; right:0; z-index:2;
+    font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:var(--text-dim);
+    text-align:center; line-height:1.35; white-space:normal;
+  }
+  .kcal-gauge-proj:empty{display:none;}
+  /* Espace réservé sous la jauge : une ligne de plus quand la projection sport s'affiche. */
+  .kcal-gauge.has-proj + .macro-bars{margin-top:52px;}
 
   /* ---- Barres de répartition des macros (palette A : teal / ambre / bleu) ----
      La couleur porte l'IDENTITÉ de la macro (stable d'un jour à l'autre).
@@ -1461,7 +1473,8 @@
       </div>
       <div class="kcal-gauge-ghost-bubble" id="gaugeGhostBubble"></div>
       <div class="kcal-gauge-mid" id="gaugeMid"></div>
-      <div class="kcal-gauge-need" id="gaugeNeedLabel">besoin estimé : <span class="n" id="gaugeNeedVal">– kcal</span></div>
+      <div class="kcal-gauge-need" id="gaugeNeedLabel">besoin : <span class="n" id="gaugeNeedVal">– kcal</span></div>
+      <div class="kcal-gauge-proj" id="gaugeProj"></div>
     </div>
   </div>
 
@@ -5185,12 +5198,15 @@ function updateKcalGauge(foodKcal, needToday, diff, projectedKcal, remainingKcal
   }
 
   mid.style.left = `${needPct}%`;
-  needLabel.style.left = `${needPct}%`;
+  // Le repère peut aller de 0 à 100 %, mais son étiquette est centrée dessus : on la
+  // borne pour qu'elle ne sorte pas de l'écran aux extrémités.
+  needLabel.style.left = `${Math.min(Math.max(needPct, 18), 82)}%`;
   // Le besoin affiché reste le besoin FERME (sport réellement fait). Le sport prévu
   // non réalisé est signalé à part : on ne mange pas les calories d'un effort non fourni.
-  document.getElementById('gaugeNeedVal').textContent = remainingKcal
-    ? `${needToday} kcal (+${remainingKcal} si sport prévu)`
-    : `${needToday} kcal`;
+  document.getElementById('gaugeNeedVal').textContent = `${needToday} kcal`;
+  const projLine = document.getElementById('gaugeProj');
+  projLine.textContent = remainingKcal ? `+${remainingKcal} kcal si sport prévu → ${needToday + remainingKcal}` : '';
+  document.querySelector('.kcal-gauge').classList.toggle('has-proj', !!remainingKcal);
 
   bubble.style.left = `${apportPct}%`;
   bubble.className = 'kcal-gauge-bubble' + (diff>0 ? ' over' : diff<0 ? ' under' : ' neutral');
@@ -5441,6 +5457,11 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'2.7.1', date:'23 août 2026', items:[
+    'Correction : le libellé sous la jauge débordait de l\'écran depuis l\'ajout de la projection sport.',
+    'Le besoin s\'affiche seul sous son repère, la projection sport passe sur une ligne dédiée en dessous.',
+    'L\'étiquette du repère est désormais bornée pour ne plus jamais sortir de l\'écran, même quand le repère est près d\'un bord.'
+  ]},
   {v:'2.7.0', date:'23 août 2026', items:[
     'L\'analyse nutritionniste voit les 7 jours précédents : totaux quotidiens, sport, et décompte des aliments qui reviennent — avec consigne de ne pas reproposer ce qui revient 3 fois ou plus.',
     'Elle croise aussi tes objectifs sport et tes séances réalisées pour connaître ce qui reste à faire dans la journée, et donne des conseils avant effort.',
