@@ -566,6 +566,62 @@
   .menu-slot{align-items:flex-start;}
   .menu-slot-add{width:100%; text-align:center;}
 
+  /* ============================================================
+     VUE ORDINATEUR (>= 1000 px)
+     Principe : NE PAS se contenter d'élargir. Une colonne de texte à 1400 px
+     est moins lisible qu'à 700 : l'oeil perd la ligne. On plafonne donc la
+     largeur utile à 1180 px (sauf Menus, qui a besoin de ses 7 colonnes) et on
+     répartit le contenu en colonnes là où ça a du sens.
+     Le canvas est redimensionné à la volée par setupCanvas() au rendu : chaque
+     changement d'onglet le recalcule, mais PAS un redimensionnement de fenêtre.
+     D'où l'écouteur resize ajouté côté JS. */
+  @media (min-width:1000px){
+    .wrap{max-width:1180px; padding:26px 24px 40px;}
+
+    /* Accueil : les 4 pavés passent sur une seule ligne au lieu de 2x2 */
+    .home-synth{grid-template-columns:repeat(4,1fr); grid-template-rows:auto;}
+
+    /* Formulaires : plus de colonnes, moins de défilement */
+    .form-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+    .form-grid.three{grid-template-columns:repeat(3,minmax(0,1fr));}
+
+    /* Bibliothèque de recettes : 4 vignettes par ligne */
+    .recipe-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+
+    /* Pages faites d'une pile de cartes indépendantes : deux colonnes.
+       On l'applique par onglet, jamais globalement — certaines cartes
+       (jauge, graphiques) veulent toute la largeur. */
+    .tab-page[data-tab="alcool"] > .card{break-inside:avoid;}
+    .tab-page[data-tab="alcool"]{column-count:2; column-gap:18px;}
+
+    /* Réglages : le formulaire est long et étroit, on le met sur deux colonnes */
+    .tab-page[data-tab="reglages"] .details-body{
+      display:grid; grid-template-columns:1fr 1fr; gap:0 22px; align-items:start;
+    }
+    .tab-page[data-tab="reglages"] .details-body > .form-grid,
+    .tab-page[data-tab="reglages"] .details-body > .add-btn,
+    .tab-page[data-tab="reglages"] .details-body > h3{grid-column:1 / -1;}
+
+    /* Bilan : la carte des prompts IA à côté des chiffres de la semaine */
+    .tab-page[data-tab="semaine"] .bilan-cols{
+      display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:18px; align-items:start;
+    }
+    /* weekCard contient les graphiques : il prend la colonne large, la carte
+       des prompts IA (boutons empilés) se contente de la colonne étroite. */
+    .tab-page[data-tab="semaine"] .bilan-cols > #weekCard{order:1;}
+    .tab-page[data-tab="semaine"] .bilan-cols > #aiPromptCard{order:2;}
+
+    /* Comparaison de pesées : les photos peuvent enfin être vues correctement */
+    .cmp-cols{max-width:640px;}
+    /* Le graphique des pesées gagne en hauteur utile */
+    #chartWeighin{height:200px;}
+
+    /* La navigation du bas est en position fixed sur toute la largeur : on centre
+       son contenu pour qu'il ne s'étale pas d'un bord à l'autre de l'écran. */
+    .bottom-nav{justify-content:center; gap:38px;}
+    .bn-tab{min-width:92px;}
+  }
+
   /* La bibliothèque latérale et le glisser-déposer n'existent QUE sur grand écran.
      Sur mobile, l'API HTML5 drag-and-drop n'est pas déclenchée par le tactile : la
      colonne serait inutilisable et ferait doublon avec le sélecteur « + Ajouter ». */
@@ -1969,6 +2025,7 @@
   <div class="tab-page" data-tab="semaine">
     <div class="sub-tabs"><button class="sub-tab on" data-go="semaine">📊 Bilan</button><button class="sub-tab " data-go="pesees">⚖️ Pesées</button></div>
 
+  <div class="bilan-cols">
   <div class="card" id="aiPromptCard">
     <h2>🤖 Analyse IA</h2>
     <div class="disclaimer">Génère un prompt complet à coller dans ton IA (Dinootoo ou autre). Les données de ton carnet y sont injectées automatiquement. Le rôle de l'expert est modifiable dans ⚙️ Réglages.</div>
@@ -2002,6 +2059,7 @@
     <div class="week-dots" id="weekDots"></div>
     <div class="mono" id="weekPct" style="margin-top:10px; font-size:0.78rem; color:var(--text-dim);"></div>
   </div>
+  </div><!-- /bilan-cols -->
 
   <!-- BILAN -->
   <details id="bilanDetails">
@@ -5718,6 +5776,13 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.1.0', date:'24 août 2026', items:[
+    'Toute l\'application s\'adapte désormais aux écrans d\'ordinateur, plus seulement les menus.',
+    'Accueil : les quatre pavés passent sur une seule ligne. Recettes : quatre vignettes par ligne au lieu de deux.',
+    'Bilan : les chiffres de la semaine et la carte des prompts IA côte à côte. Réglages et formulaires sur plusieurs colonnes.',
+    'Page Alcool sur deux colonnes.',
+    'Les graphiques se redessinent automatiquement quand tu redimensionnes la fenêtre.'
+  ]},
   {v:'3.0.0', date:'24 août 2026', items:[
     'Chaque pesée précise désormais son appareil : balance, InBody ou autre. Les courbes sont tracées séparément, InBody en trait plein et balance en pointillés.',
     'Aucun écart n\'est calculé entre deux appareils différents : la différence viendrait du matériel, pas du corps.',
@@ -7988,6 +8053,24 @@ document.getElementById('ageInput').onchange = (e)=>{ state.age=parseInt(e.targe
 document.getElementById('sexInput').onchange = (e)=>{ state.sex=e.target.value; persistState(); render(); };
 document.getElementById('activityInput').onchange = (e)=>{ state.activityLevel=e.target.value; persistState(); render(); };
 document.getElementById('sportFactorInput').onchange = (e)=>{ state.sportFactor=parseFloat(e.target.value); persistState(); render(); };
+/* Les <canvas> sont dimensionnés en pixels par setupCanvas() au moment du rendu.
+   Un simple changement de largeur de fenêtre les laisserait étirés ou tronqués,
+   ce qui devient visible dès qu'on redimensionne sur ordinateur. On redessine
+   donc l'onglet actif, en différé pour ne pas recalculer à chaque pixel. */
+let resizeTimer = null;
+let lastViewportW = window.innerWidth;
+window.addEventListener('resize', ()=>{
+  if(window.innerWidth === lastViewportW) return; // clavier virtuel mobile : hauteur seule, on ignore
+  lastViewportW = window.innerWidth;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(()=>{
+    // switchTab() sait déjà quoi redessiner pour chaque onglet : on le rejoue
+    // sur l'onglet courant plutôt que de dupliquer la liste des graphiques ici.
+    try{ switchTab(currentTab); }
+    catch(e){ render(); }
+  }, 180);
+});
+
 document.getElementById('appVersionNum').textContent = 'v' + CHANGELOG[0].v;
 document.getElementById('appVersionBtn').onclick = ()=>{
   changelogIdx = 0;
