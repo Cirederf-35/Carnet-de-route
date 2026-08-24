@@ -1053,6 +1053,24 @@
   }
   .menu-qty-preview b{color:var(--text);}
   .mt-body{cursor:pointer;}
+  /* Moments de la journée */
+  .meal-group{
+    border:1px solid var(--line); border-radius:12px; padding:8px;
+    margin-bottom:10px; background:var(--panel-2); transition:background 0.15s, outline 0.15s;
+  }
+  .meal-group.drop-hot{outline:2px dashed var(--accent); outline-offset:-3px; background:var(--panel);}
+  .meal-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; padding:2px 4px 7px;}
+  .mh-name{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.78rem;}
+  .mh-sum{font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--text-dim);}
+  .mh-empty{font-size:0.68rem; color:var(--text-dim); opacity:0.5;}
+  .meal-group .session-row{margin-bottom:6px;}
+  .meal-group .session-row:last-child{margin-bottom:0;}
+  .meal-move{
+    flex-shrink:0; background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    width:30px; height:30px; font-size:0.86rem; cursor:pointer; align-self:center; margin-right:4px;
+  }
+  .meal-move:active{transform:scale(.9);}
+  .session-row.dragging{opacity:0.4;}
   .future-banner{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     background:var(--panel-2); border:1px dashed var(--accent); border-radius:12px;
@@ -3438,6 +3456,14 @@ function foodDone(day){ return day.foods.length>0 || day.food===true; }
 /* Ajouter un aliment à une date future, c'est planifier : la case part décochée.
    Sur aujourd'hui ou dans le passé, c'est un log : la case part cochée. */
 function defaultEaten(iso){ return !(iso > isoDate(todayDate())); }
+/* Moment proposé d'après l'heure de saisie. Jeûne intermittent : rien avant midi
+   ne relève du déjeuner, donc la plage du matin bascule en en-cas. */
+function defaultMeal(){
+  const h = new Date().getHours();
+  if(h >= 11 && h < 15) return 'dejeuner';
+  if(h >= 18 && h < 23) return 'diner';
+  return 'encas';
+}
 function foodKcal(f){ if(f.kcalOverride!=null) return Math.round(f.kcalOverride); return Math.round(f.p*4 + f.c*4 + f.f*9 + (f.a||0)*7); }
 
 /* Le grammage est TOUJOURS affiché quand il est connu, même sur une saisie en unités :
@@ -4655,24 +4681,68 @@ function renderSessions(day){
   });
 }
 
+/* ---------- MOMENTS DE LA JOURNÉE ----------
+   Pas de petit-déjeuner : jeûne intermittent. Les aliments saisis avant cette
+   version n'ont pas de moment et restent dans « Non classé » — on ne devine pas
+   à leur place, ce serait inventer une donnée. */
+const MEALS = [
+  {key:'dejeuner', label:'Déjeuner', icon:'🍽️'},
+  {key:'encas',    label:'En-cas',   icon:'🥨'},
+  {key:'diner',    label:'Dîner',    icon:'🌙'},
+  {key:'',         label:'Non classé', icon:'📥'}
+];
+function foodMeal(f){ return MEALS.some(m=>m.key && m.key===f.meal) ? f.meal : ''; }
+/* Cycle déjeuner -> en-cas -> dîner -> non classé, pour un classement au doigt. */
+function nextMeal(cur){
+  const order = ['dejeuner','encas','diner',''];
+  return order[(order.indexOf(cur)+1) % order.length];
+}
+
 function renderFoods(day){
   const wrap = document.getElementById('foodList');
   wrap.innerHTML='';
-  day.foods.forEach((f,idx)=>{
-    const eaten = foodEaten(f);
-    const row = document.createElement('div');
-    row.className='session-row session-row-editable' + (eaten?'':' food-planned');
-    row.dataset.idx = idx;
-    row.innerHTML = `
-      <button class="food-check${eaten?' on':''}" data-idx="${idx}" title="${eaten?'Mangé — décocher pour repasser en prévu':'Prévu — cocher quand c\'est mangé'}">${eaten?'✓':''}</button>
-      <div class="session-info">
-        <div class="session-type">${f.name}${foodQtyLabel(f)}</div>
-        <div class="session-meta">${f.kcalOverride!=null && (f.p+f.f+f.c)===0 ? "Estimation rapide" : `P ${f.p.toFixed(1)}g · L ${f.f.toFixed(1)}g · G ${f.c.toFixed(1)}g`}</div>
-      </div>
-      <div class="session-kcal">${foodKcal(f)} kcal</div>
-      <button class="session-del" data-idx="${idx}">✕</button>
-    `;
-    wrap.appendChild(row);
+
+  MEALS.forEach(meal=>{
+    const idxs = day.foods.map((f,i)=>[f,i]).filter(([f])=>foodMeal(f)===meal.key).map(([,i])=>i);
+    // « Non classé » ne s'affiche que s'il contient quelque chose ; les trois
+    // vrais moments restent visibles même vides, pour servir de cible de dépôt.
+    if(!idxs.length && !meal.key) return;
+
+    const sec = document.createElement('div');
+    sec.className = 'meal-group';
+    sec.dataset.meal = meal.key;
+
+    const sub = idxs.reduce((a,i)=>{
+      const f = day.foods[i];
+      return {kcal:a.kcal+foodKcal(f), p:a.p+f.p};
+    }, {kcal:0,p:0});
+
+    const head = document.createElement('div');
+    head.className = 'meal-head';
+    head.innerHTML = `<span class="mh-name">${meal.icon} ${meal.label}</span>`
+      + (idxs.length ? `<span class="mh-sum">${Math.round(sub.kcal)} kcal · P ${Math.round(sub.p)}</span>` : `<span class="mh-empty">—</span>`);
+    sec.appendChild(head);
+
+    idxs.forEach(idx=>{
+      const f = day.foods[idx];
+      const eaten = foodEaten(f);
+      const row = document.createElement('div');
+      row.className='session-row session-row-editable' + (eaten?'':' food-planned');
+      row.dataset.idx = idx;
+      row.innerHTML = `
+        <button class="food-check${eaten?' on':''}" data-idx="${idx}" title="${eaten?'Mangé — décocher pour repasser en prévu':'Prévu — cocher quand c\'est mangé'}">${eaten?'✓':''}</button>
+        <div class="session-info">
+          <div class="session-type">${f.name}${foodQtyLabel(f)}</div>
+          <div class="session-meta">${f.kcalOverride!=null && (f.p+f.f+f.c)===0 ? "Estimation rapide" : `P ${f.p.toFixed(1)}g · L ${f.f.toFixed(1)}g · G ${f.c.toFixed(1)}g`}</div>
+        </div>
+        <div class="session-kcal">${foodKcal(f)} kcal</div>
+        <button class="meal-move" data-idx="${idx}" title="Changer de moment">${MEALS.find(m=>m.key===foodMeal(f)).icon}</button>
+        <button class="session-del" data-idx="${idx}">✕</button>
+      `;
+      sec.appendChild(row);
+    });
+
+    wrap.appendChild(sec);
   });
   const t = dayFoodTotals(day);
   const planned = dayFoodTotals(day,'planned');
@@ -4704,6 +4774,65 @@ function renderFoods(day){
       const d = getDay(iso);
       d.foods.splice(parseInt(btn.dataset.idx),1);
       setDay(iso,d);
+      render();
+    };
+  });
+
+  /* Classement au doigt : un appui fait tourner le moment. C'est la voie
+     principale sur mobile, où le glisser-déposer HTML5 n'existe pas. */
+  wrap.querySelectorAll('.meal-move').forEach(btn=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
+      const iso = isoDate(selectedDate);
+      const d = getDay(iso);
+      const item = d.foods[parseInt(btn.dataset.idx)];
+      item.meal = nextMeal(foodMeal(item));
+      setDay(iso,d);
+      render();
+    };
+  });
+
+  wireFoodDnD();
+}
+
+/* Glisser-déposer entre moments, sur grand écran uniquement (voir wireMenuDnD :
+   l'API HTML5 n'est pas déclenchée par le tactile). Sur mobile, le bouton de
+   cycle ci-dessus fait le même travail en un appui. */
+let foodDragIdx = null;
+function wireFoodDnD(){
+  if(!dragEnabled()) return;
+  const wrap = document.getElementById('foodList');
+  wrap.querySelectorAll('.session-row-editable').forEach(row=>{
+    row.setAttribute('draggable','true');
+    row.ondragstart = e=>{
+      foodDragIdx = parseInt(row.dataset.idx);
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', row.dataset.idx);
+    };
+    row.ondragend = ()=>{
+      row.classList.remove('dragging');
+      foodDragIdx = null;
+      wrap.querySelectorAll('.meal-group').forEach(g=>g.classList.remove('drop-hot'));
+    };
+  });
+  wrap.querySelectorAll('.meal-group').forEach(group=>{
+    group.ondragover = e=>{
+      if(foodDragIdx===null) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      group.classList.add('drop-hot');
+    };
+    group.ondragleave = ()=>group.classList.remove('drop-hot');
+    group.ondrop = e=>{
+      e.preventDefault();
+      group.classList.remove('drop-hot');
+      if(foodDragIdx===null) return;
+      const iso = isoDate(selectedDate);
+      const d = getDay(iso);
+      const item = d.foods[foodDragIdx];
+      if(item){ item.meal = group.dataset.meal || ''; setDay(iso,d); }
+      foodDragIdx = null;
       render();
     };
   });
@@ -4887,7 +5016,7 @@ document.getElementById('qlValidate').onclick = ()=>{
   const g = qlCurrent.unit*qlCount;
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
-  day.foods.push({eaten:defaultEaten(iso), name:qlCurrent.name, grams:g, unitCount:qlCount, unitLabel:qlCurrent.label,
+  day.foods.push({eaten:defaultEaten(iso), meal:defaultMeal(), name:qlCurrent.name, grams:g, unitCount:qlCount, unitLabel:qlCurrent.label,
     p:ing.p*g/100, f:ing.f*g/100, c:ing.c*g/100, a:(ing.a||0)*g/100});
   setDay(iso, day);
   document.getElementById('quickLogModal').classList.remove('open');
@@ -5947,6 +6076,13 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.6.0', date:'24 août 2026', items:[
+    'Les aliments de la journée sont répartis en trois moments : Déjeuner, En-cas et Dîner, chacun avec son sous-total calories et protéines.',
+    'Un appui sur l\'icône d\'un aliment le fait passer au moment suivant. Sur ordinateur, tu peux aussi le glisser d\'un bloc à l\'autre.',
+    'Le moment est proposé automatiquement selon l\'heure de saisie, et l\'import d\'un menu place le midi au déjeuner et le soir au dîner.',
+    'L\'analyse nutritionniste raisonne enfin par repas : elle peut dire quel moment pose problème au lieu de juger la journée en bloc.',
+    'Les aliments saisis avant cette version restent dans « Non classé » — rien n\'est deviné à ta place.'
+  ]},
   {v:'3.5.1', date:'24 août 2026', items:[
     'Ajouter un plat au journal accepte maintenant un grammage, comme au menu : la bascule grammes / portions est présente sur les deux écrans.',
     'Un aperçu en direct affiche le poids, les calories et les macros correspondant à la quantité saisie.',
@@ -7619,8 +7755,8 @@ document.getElementById('dishQtyConfirm').onclick = ()=>{
     // Saisie en grammes : pas de nombre de portions à virgule dans le journal.
     unitCount: inGrams ? null : v, unitLabel: inGrams ? null : 'portion(s)',
     p:t.p*r, f:t.f*r, c:t.c*r};
-  if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
-  else { item.eaten = defaultEaten(iso); day.foods.push(item); }
+  if(modalEditIndex!=null){ const prev = day.foods[modalEditIndex]; item.eaten = prev.eaten; item.meal = prev.meal; day.foods[modalEditIndex] = item; modalEditIndex = null; }
+  else { item.eaten = defaultEaten(iso); item.meal = defaultMeal(); day.foods.push(item); }
   setDay(iso, day);
   closeFoodModal();
   render();
@@ -7695,8 +7831,8 @@ document.getElementById('estConfirm').onclick = ()=>{
   const estG = parseFloat(document.getElementById('estGrams').value)||0;
   const item = {name:`${name} ⚡`, grams: estG>0 ? Math.round(estG) : null,
                 unitCount:null, unitLabel:null, p, f, c, kcalOverride:kcal, approxWeight: estG>0};
-  if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
-  else { item.eaten = defaultEaten(iso); day.foods.push(item); }
+  if(modalEditIndex!=null){ const prev = day.foods[modalEditIndex]; item.eaten = prev.eaten; item.meal = prev.meal; day.foods[modalEditIndex] = item; modalEditIndex = null; }
+  else { item.eaten = defaultEaten(iso); item.meal = defaultMeal(); day.foods.push(item); }
   setDay(iso, day);
   closeFoodModal();
   render();
@@ -7791,8 +7927,8 @@ document.getElementById('modalConfirmAdd').onclick = ()=>{
 
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
-  if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
-  else { item.eaten = defaultEaten(iso); day.foods.push(item); }
+  if(modalEditIndex!=null){ const prev = day.foods[modalEditIndex]; item.eaten = prev.eaten; item.meal = prev.meal; day.foods[modalEditIndex] = item; modalEditIndex = null; }
+  else { item.eaten = defaultEaten(iso); item.meal = defaultMeal(); day.foods.push(item); }
   setDay(iso, day);
   closeFoodModal();
   render();
@@ -8143,15 +8279,26 @@ function aiDishLibraryBlock(){
    le prompt n'a aucun moyen de savoir lequel des deux croire. */
 function aiFoodSection(day, mode){
   const list = day.foods.filter(f => mode==='planned' ? !foodEaten(f) : foodEaten(f));
+  // Regroupement par moment : c'est ce qui permet enfin à l'analyse de dire
+  // « ton dîner est trop gras » plutôt que de raisonner sur un tas d'aliments.
+  const byMeal = MEALS.map(m=>({
+    meal: m,
+    items: list.filter(f=>foodMeal(f)===m.key)
+  })).filter(g=>g.items.length);
   const sum = list.reduce((a,f)=>({
     p:a.p+(f.p||0), f:a.f+(f.f||0), c:a.c+(f.c||0), kcal:a.kcal+foodKcal(f)
   }), {p:0,f:0,c:0,kcal:0});
+  const fmt = f=>{
+    const p=f.p||0, l=f.f||0, c=f.c||0;
+    const kc = foodKcal(f);
+    const dens = kc>0 ? (p/(kc/100)).toFixed(1) : '—';
+    return `    - ${f.name}, ${Math.round(f.grams||0)} g : ${kc} kcal | P ${p.toFixed(1)} | L ${l.toFixed(1)} | G ${c.toFixed(1)} | P/100k ${dens}`;
+  };
   const lines = list.length
-    ? list.map(f=>{
-        const p=f.p||0, l=f.f||0, c=f.c||0, a=f.a||0;
-        const kc = foodKcal(f);
-        const dens = kc>0 ? (p/(kc/100)).toFixed(1) : '—';
-        return `  - ${f.name}, ${Math.round(f.grams||0)} g : ${kc} kcal | P ${p.toFixed(1)} | L ${l.toFixed(1)} | G ${c.toFixed(1)} | P/100k ${dens}`;
+    ? byMeal.map(g=>{
+        const sub = g.items.reduce((a,f)=>({kcal:a.kcal+foodKcal(f), p:a.p+(f.p||0), f:a.f+(f.f||0), c:a.c+(f.c||0)}), {kcal:0,p:0,f:0,c:0});
+        return `  ▸ ${g.meal.label.toUpperCase()} — ${Math.round(sub.kcal)} kcal | P ${Math.round(sub.p)} | L ${Math.round(sub.f)} | G ${Math.round(sub.c)}\n`
+             + g.items.map(fmt).join('\n');
       }).join('\n')
     : (mode==='planned' ? '  (rien de prévu)' : '  (aucun aliment consommé pour l\'instant)');
   return {count:list.length, lines, sum};
@@ -8418,6 +8565,8 @@ ${hasPlan?`4bis. 🔮 ARBITRAGE SUR LE MENU PRÉVU — le point le plus importan
 
 5. ➕ CE QU'IL RESTE À AJOUTER — une fois le menu prévu pris en compte, s'il reste du budget, propose 1 ou 2 options concrètes avec grammages, en visant d'abord le plancher protéines. Si la projection dépasse déjà le budget, ne propose rien à ajouter et dis-le franchement.
 
+5bis. 🕐 ÉQUILIBRE ENTRE LES MOMENTS — les aliments sont regroupés par DÉJEUNER, EN-CAS et DÎNER avec leurs sous-totaux. Dis lequel des trois pose problème et pourquoi, plutôt que de raisonner sur la journée en bloc. Tiens compte de mon jeûne intermittent : je ne mange pas le matin, donc le déjeuner et le dîner portent l'essentiel de l'apport. Si un moment est vide ou marqué « Non classé », signale-le sans en tirer de conclusion.
+
 6. 🆕 UNE IDÉE POUR MA BIBLIOTHÈQUE — un plat complet que je ne cuisine pas encore, cohérent avec mes goûts, avec : nom, liste d'ingrédients GRAMMÉE pour 1 portion, macros estimées, et une phrase sur ce qu'il apporte face à mon objectif.
 
 7. 📌 LA RÈGLE À RETENIR — une seule, applicable dès demain.
@@ -8476,19 +8625,20 @@ document.querySelector('#futureBanner .fb-btn').onclick = ()=>{
   const day = getDay(iso);
   let added = 0, skipped = [];
   ['midi','soir'].forEach(slot=>{
+    const meal = slot==='midi' ? 'dejeuner' : 'diner';
     slotItems(iso, slot).forEach(it=>{
       const dish = state.dishes[it.name];
       if(it.type==='food'){
         const m = state.ingredients[it.name];
         if(!m){ skipped.push(it.name); return; }
         const g = it.grams||0;
-        day.foods.push({eaten:false, name:it.name, grams:g, unitCount:null, unitLabel:null,
+        day.foods.push({eaten:false, meal, name:it.name, grams:g, unitCount:null, unitLabel:null,
           p:m.p*g/100, f:m.f*g/100, c:m.c*g/100});
         added++;
       } else if(dish){
         // Le grammage prévu au menu fait foi ; à défaut, une portion.
         const mm = menuItemMacros(it);
-        day.foods.push({eaten:false, name:it.name, grams:Math.round(mm.grams),
+        day.foods.push({eaten:false, meal, name:it.name, grams:Math.round(mm.grams),
           unitCount:null, unitLabel:null, p:mm.p, f:mm.f, c:mm.c});
         added++;
       } else {
