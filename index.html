@@ -5776,6 +5776,10 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.1.1', date:'24 août 2026', items:[
+    'Le prompt nutritionniste exprime maintenant le skyr et la sauce blanche en grammes, avec leurs macros exactes.',
+    'La sauce blanche est chiffrée face à la mayonnaise, pour que l\'IA puisse quantifier le gain du remplacement.'
+  ]},
   {v:'3.1.0', date:'24 août 2026', items:[
     'Toute l\'application s\'adapte désormais aux écrans d\'ordinateur, plus seulement les menus.',
     'Accueil : les quatre pavés passent sur une seule ligne. Recettes : quatre vignettes par ligne au lieu de deux.',
@@ -7952,8 +7956,8 @@ ${hist.repeats}
 RÈGLE ANTI-RÉPÉTITION : ne propose PAS ce qui apparaît 3 fois ou plus dans cette liste. Ce qui apparaît 2 fois, tu peux le proposer seulement si aucune alternative équivalente n'existe — et dans ce cas, dis-le explicitement.
 
 EXCEPTIONS À LA RÈGLE ANTI-RÉPÉTITION (aliments de fond, la répétition y est voulue) :
-- LE SKYR NATURE. C'est ma base protéique quotidienne, 17,7 g de protéines pour 100 kcal, le meilleur rapport de toute mon alimentation. Propose-le librement, tous les jours si c'est pertinent.
-- MA SAUCE BLANCHE : skyr nature + moutarde + échalote ciselée. Zéro lipide ou presque, elle remplace mayonnaise, crème fraîche et sauces industrielles. Dès qu'un plat appelle une sauce froide, une vinaigrette crémeuse ou un accompagnement de poisson ou de crudités, propose-la avec les grammages.
+- LE SKYR NATURE, ma base protéique quotidienne. Pour 100 g : 62 kcal, 11 g de protéines, 0,2 g de lipides, 4 g de glucides — soit 17,8 g de protéines pour 100 kcal, le meilleur rapport de toute mon alimentation. Un pot = 150 g = 93 kcal et 16,5 g de protéines. Propose-le librement, tous les jours si c'est pertinent, TOUJOURS avec un grammage (100, 150, 200 ou 300 g selon le besoin en protéines à combler).
+- MA SAUCE BLANCHE : 100 g de skyr nature + 15 g de moutarde + 20 g d'échalote ciselée = 135 g de sauce pour 99 kcal, 12,6 g de protéines et seulement 1,7 g de lipides. À la place de 30 g de mayonnaise (environ 220 kcal, 24 g de lipides), elle fait gagner 121 kcal et 22 g de lipides, tout en APPORTANT 12 g de protéines au lieu de zéro. Dès qu'un plat appelle une sauce froide, une vinaigrette crémeuse ou un accompagnement de poisson ou de crudités, propose-la avec ces grammages, quitte à les ajuster à la portion.
 - LES FRUITS FRAIS, tous les jours. Ma préférence va à la banane, mais tu as carte blanche : varie les propositions selon la saison et selon ce qu'apporte le fruit (fibres, potassium avant effort, index glycémique après effort). Justifie ton choix en une phrase.
 Ces trois exceptions ne s'appliquent QU'À ELLES. Le pain blanc, le fromage, les graines et le chocolat restent soumis à la règle.
 
