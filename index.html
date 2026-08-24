@@ -1047,6 +1047,14 @@
     background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
     box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
   /* Case à cocher « mangé / prévu » sur chaque aliment */
+  .qty-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px;}
+  .qty-mode{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; flex-shrink:0;}
+  .qty-mode button{
+    background:var(--panel-2); border:none; color:var(--text-dim); cursor:pointer;
+    font-size:0.66rem; padding:4px 9px; font-family:inherit;
+  }
+  .qty-mode button.on{background:var(--accent); color:var(--bg); font-weight:700;}
+  .qty-hint{font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--text-dim); margin-top:5px; min-height:0.9rem;}
   .food-check{
     flex-shrink:0; width:24px; height:24px; margin-right:10px; align-self:center;
     border:1.5px solid var(--line); border-radius:7px; background:var(--panel-2);
@@ -2499,8 +2507,15 @@
       </div>
       <div id="modalStepQuantity" style="display:none;">
         <div class="modal-selected-name" id="modalSelectedName"></div>
-        <label class="field-inline" id="modalQtyLabel">Quantité (g)</label>
-        <input type="number" id="modalQty" min="1" value="100">
+        <div class="qty-head">
+          <label class="field-inline" id="modalQtyLabel">Quantité (g)</label>
+          <div class="qty-mode" id="modalQtyMode" style="display:none;">
+            <button type="button" data-mode="unit" class="on">unités</button>
+            <button type="button" data-mode="grams">grammes</button>
+          </div>
+        </div>
+        <input type="number" id="modalQty" min="0.1" step="1" value="100">
+        <div class="qty-hint" id="modalQtyHint"></div>
         <div class="form-grid three" style="margin-top:10px;">
           <div><label class="field-inline">Protéines /100g</label><input type="number" id="modalP" step="0.1"></div>
           <div><label class="field-inline">Lipides /100g</label><input type="number" id="modalF" step="0.1"></div>
@@ -3803,12 +3818,55 @@ const FOOD_CATEGORY_ICONS = {
   poissons:"🐟", oeufs_laitages:"🥚", fromages:"🧀", matieres_grasses:"🥑", petit_dej:"🥣",
   boissons:"🥤", plaisirs:"🍫", plats_quotidien:"🍕", epicerie:"🧂", autres:"📦"
 };
-function unitAdjust(name){
+/* Saisie en UNITÉS ou en GRAMMES pour les aliments comptables.
+   Un pot de skyr fait 150 g par défaut, mais les formats varient (400 g, 450 g...)
+   et on ne mange pas toujours un pot entier : la bascule évite de devoir
+   convertir de tête ou de saisir un nombre de pots à virgule. */
+let modalQtyMode = 'unit'; // 'unit' | 'grams' — ignoré si l'aliment n'est pas comptable
+
+function applyQtyMode(name, keepValue){
   const unit = UNIT_ITEMS[name];
   const label = document.getElementById('modalQtyLabel');
-  const qtyInput = document.getElementById('modalQty');
-  if(unit){ label.textContent = `Nombre (${unit.label})`; qtyInput.value = 1; qtyInput.step = 1; }
-  else { label.textContent = 'Quantité (g)'; qtyInput.value = 100; qtyInput.step = 1; }
+  const input = document.getElementById('modalQty');
+  const modeBox = document.getElementById('modalQtyMode');
+  const hint = document.getElementById('modalQtyHint');
+
+  if(!unit){
+    modeBox.style.display = 'none';
+    modalQtyMode = 'grams';
+    label.textContent = 'Quantité (g)';
+    input.step = 1; input.min = 1;
+    hint.textContent = '';
+    return;
+  }
+  modeBox.style.display = '';
+  modeBox.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.mode===modalQtyMode));
+  if(modalQtyMode === 'unit'){
+    label.textContent = `Nombre (${unit.label})`;
+    input.step = 1; input.min = 0.5;
+    if(!keepValue) input.value = 1;
+  } else {
+    label.textContent = 'Quantité (g)';
+    input.step = 10; input.min = 1;
+    if(!keepValue) input.value = unit.weight;
+  }
+  updateQtyHint(name);
+}
+
+/* Rappelle en permanence l'équivalence entre les deux unités. */
+function updateQtyHint(name){
+  const unit = UNIT_ITEMS[name];
+  const hint = document.getElementById('modalQtyHint');
+  if(!unit){ hint.textContent = ''; return; }
+  const v = parseFloat(document.getElementById('modalQty').value) || 0;
+  hint.textContent = modalQtyMode === 'unit'
+    ? `${v} ${unit.label} = ${Math.round(v*unit.weight)} g  (1 ${unit.label.replace(/\(s\)$/,'')} = ${unit.weight} g)`
+    : `${Math.round(v)} g = ${(v/unit.weight).toFixed(1)} ${unit.label}`;
+}
+
+function unitAdjust(name){
+  modalQtyMode = UNIT_ITEMS[name] ? 'unit' : 'grams';
+  applyQtyMode(name, false);
 }
 initSportActivityGrid();
 
@@ -4578,13 +4636,9 @@ function editFoodItem(idx){
     document.getElementById('modalF').value = +(f.f*100/grams).toFixed(2);
     document.getElementById('modalC').value = +(f.c*100/grams).toFixed(2);
     const unit = UNIT_ITEMS[f.name];
-    if(unit && f.unitCount!=null){
-      document.getElementById('modalQtyLabel').textContent = `Nombre (${unit.label})`;
-      document.getElementById('modalQty').value = f.unitCount;
-    } else {
-      document.getElementById('modalQtyLabel').textContent = 'Quantité (g)';
-      document.getElementById('modalQty').value = f.grams;
-    }
+    modalQtyMode = (unit && f.unitCount!=null) ? 'unit' : 'grams';
+    document.getElementById('modalQty').value = (unit && f.unitCount!=null) ? f.unitCount : f.grams;
+    applyQtyMode(f.name, true);
     modalPush('quantity');
   }
   // En édition, on arrive directement sur l'écran final : pas de retour vers un menu de sélection,
@@ -5776,6 +5830,12 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.2.0', date:'24 août 2026', items:[
+    'Les aliments comptables (skyr, œufs, bananes…) peuvent maintenant être saisis en unités OU en grammes, au choix, via une bascule dans l\'écran Quantité.',
+    'Une ligne d\'aide rappelle en permanence l\'équivalence : « 2 pot(s) = 300 g » ou « 250 g = 1,7 pot(s) ».',
+    'Changer de mode convertit la quantité déjà saisie au lieu de la remettre à zéro.',
+    'Modifier un aliment déjà enregistré rouvre l\'écran dans le mode utilisé à la saisie.'
+  ]},
   {v:'3.1.1', date:'24 août 2026', items:[
     'Le prompt nutritionniste exprime maintenant le skyr et la sauce blanche en grammes, avec leurs macros exactes.',
     'La sauce blanche est chiffrée face à la mayonnaise, pour que l\'IA puisse quantifier le gain du remplacement.'
@@ -7340,6 +7400,22 @@ document.getElementById('modalNewContinue').onclick = ()=>{
   document.getElementById('modalQty').value=100;
   modalPush('quantity');
 };
+document.getElementById('modalQtyMode').querySelectorAll('button').forEach(btn=>{
+  btn.onclick = ()=>{
+    const unit = UNIT_ITEMS[modalName];
+    if(!unit || btn.dataset.mode === modalQtyMode) return;
+    const input = document.getElementById('modalQty');
+    const v = parseFloat(input.value) || 0;
+    // Conversion à la volée : la quantité saisie est conservée, pas remise à zéro.
+    modalQtyMode = btn.dataset.mode;
+    input.value = modalQtyMode === 'grams'
+      ? Math.round(v * unit.weight)
+      : +(v / unit.weight).toFixed(1);
+    applyQtyMode(modalName, true);
+  };
+});
+document.getElementById('modalQty').addEventListener('input', ()=>updateQtyHint(modalName));
+
 document.getElementById('modalConfirmAdd').onclick = ()=>{
   const qty = parseFloat(document.getElementById('modalQty').value) || 0;
   const p100 = parseFloat(document.getElementById('modalP').value) || 0;
@@ -7352,10 +7428,13 @@ document.getElementById('modalConfirmAdd').onclick = ()=>{
     persistState();
   }
   const unit = !modalIsNew ? UNIT_ITEMS[modalName] : null;
-  const grams = unit ? qty*unit.weight : qty;
+  const inUnits = unit && modalQtyMode === 'unit';
+  const grams = inUnits ? qty*unit.weight : qty;
   const item = {
     name: modalName, grams,
-    unitCount: unit ? qty : null, unitLabel: unit ? unit.label : null,
+    // Saisie en grammes : on n'invente pas un nombre d'unités à virgule, la ligne
+    // s'affichera en grammes. Saisie en unités : on garde les deux informations.
+    unitCount: inUnits ? qty : null, unitLabel: inUnits ? unit.label : null,
     p: p100*grams/100, f: f100*grams/100, c: c100*grams/100, a: modalA100*grams/100
   };
 
