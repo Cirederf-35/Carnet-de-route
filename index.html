@@ -490,9 +490,15 @@
   .stepper-val{flex:1; text-align:center; font-size:1.3rem; font-weight:600;}
 
   /* ONGLET MENUS */
-  .menu-week-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
-  .menu-week-nav button{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; width:36px; height:36px; font-size:1rem; color:var(--text); cursor:pointer;}
-  .menu-week-label{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.9rem;}
+  /* 5 boutons + libellé : on groupe les flèches à chaque extrémité et on laisse le
+     libellé occuper le reste, sinon space-between les disperse et le texte déborde. */
+  .menu-week-nav{display:flex; align-items:center; gap:6px; margin-bottom:14px;}
+  .mwn-group{display:flex; gap:4px; flex-shrink:0;}
+  .menu-week-nav button{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; width:32px; height:32px; font-size:0.9rem; color:var(--text); cursor:pointer; padding:0;}
+  .menu-week-label{
+    flex:1; min-width:0; text-align:center; line-height:1.3;
+    font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.74rem;
+  }
   .menu-day{border:1px solid var(--line); border-radius:12px; margin-bottom:8px; overflow:hidden;}
   .menu-day-head{background:var(--panel-2); padding:7px 12px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.8rem; display:flex; justify-content:space-between;}
   .menu-day-head .md-date{color:var(--text-dim); font-weight:400; font-family:'JetBrains Mono',monospace; font-size:0.7rem;}
@@ -525,6 +531,10 @@
   .menu-pill b{font-weight:400; color:var(--text-dim); cursor:pointer; padding:0 2px;}
 
   /* ---- Tuiles de menu : le plat se reconnaît à sa photo, pas à son nom ---- */
+  .menu-tile.draft{border-style:dashed; border-color:var(--accent);}
+  .menu-tile.draft .mt-meta{font-style:italic;}
+  .menu-today{color:var(--accent);}
+  .menu-today.hidden{display:none;}
   .menu-tile{
     display:flex; align-items:center; gap:10px; width:100%;
     background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
@@ -556,6 +566,33 @@
   .menu-slot{align-items:flex-start;}
   .menu-slot-add{width:100%; text-align:center;}
 
+  /* La bibliothèque latérale et le glisser-déposer n'existent QUE sur grand écran.
+     Sur mobile, l'API HTML5 drag-and-drop n'est pas déclenchée par le tactile : la
+     colonne serait inutilisable et ferait doublon avec le sélecteur « + Ajouter ». */
+  /* ---- Pesées : source, vignettes et comparaison deux colonnes ---- */
+  .wi-src{font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-left:6px;}
+  .wi-thumb{width:34px; height:44px; object-fit:cover; border-radius:5px; cursor:pointer; display:block;}
+  .wi-photo-state{font-size:0.66rem; color:var(--accent); margin-left:8px;}
+  .cmp-cols{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:6px;}
+  .cmp-col{border:1px solid var(--line); border-radius:12px; padding:8px; background:var(--panel-2); min-width:0;}
+  .cmp-date{font-family:'JetBrains Mono',monospace; font-size:0.66rem; margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .cmp-photo{aspect-ratio:3/4; border-radius:8px; overflow:hidden; background:var(--panel); display:flex; align-items:center; justify-content:center; margin-bottom:8px;}
+  .cmp-photo img{width:100%; height:100%; object-fit:cover; display:block;}
+  .cmp-nophoto{font-size:0.62rem; color:var(--text-dim);}
+  .cmp-stat{display:flex; justify-content:space-between; align-items:baseline; gap:6px; font-size:0.68rem; color:var(--text-dim); padding:2px 0;}
+  .cmp-stat b{font-family:'JetBrains Mono',monospace; color:var(--text); font-size:0.72rem;}
+  .cmp-delta{border:1px solid var(--line); border-radius:12px; padding:10px; margin-top:10px; background:var(--panel-2);}
+  .cmp-delta-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.76rem; margin-bottom:7px;}
+  .cmp-delta-row{display:flex; justify-content:space-between; font-size:0.74rem; padding:3px 0; border-bottom:1px dashed var(--line);}
+  .cmp-delta-row span:first-child{color:var(--text-dim);}
+  .cmp-delta-row .down{color:var(--success); font-family:'JetBrains Mono',monospace; font-weight:700;}
+  .cmp-delta-row .up{color:var(--danger); font-family:'JetBrains Mono',monospace; font-weight:700;}
+  .cmp-delta-note{font-size:0.66rem; color:var(--text-dim); margin-top:8px; line-height:1.45;}
+  .cmp-warn{background:rgba(226,75,74,.12); border:1px solid rgba(226,75,74,.4); border-radius:10px; padding:9px 11px; font-size:0.7rem; line-height:1.45; margin-top:10px;}
+  .menu-lib{display:none;}
+  .menu-slot.drop-hot{background:var(--panel-2); outline:2px dashed var(--accent); outline-offset:-3px; border-radius:8px;}
+  .menu-tile.dragging{opacity:0.4;}
+
   /* ---- Vue PC : la semaine entière d'un coup d'oeil, 7 colonnes ----
      Cette media query ne concerne QUE l'onglet Cuisine › Menus. L'appli reste
      mobile-first partout ailleurs. Même fichier, même URL : ouvrir GitHub Pages
@@ -577,7 +614,32 @@
     .mt-name{font-size:0.72rem;}
     .mt-actions{flex-direction:row; justify-content:space-between; padding:0 7px 6px;}
     /* .wrap est bridé à 760/820px : on l'élargit uniquement quand l'onglet Menus est ouvert. */
-    body.menus-wide .wrap{max-width:1400px;}
+    body.menus-wide .wrap{max-width:1500px;}
+    .menu-layout{display:grid; grid-template-columns:minmax(0,1fr) 244px; gap:16px; align-items:start;}
+    .menu-lib{
+      display:block; position:sticky; top:12px;
+      border:1px solid var(--line); border-radius:12px; background:var(--panel-2); padding:10px;
+    }
+    .menu-lib-head{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.82rem; margin-bottom:8px;}
+    .menu-lib input{width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); font-size:0.78rem;}
+    .menu-lib input:focus{outline:none; border-color:var(--accent);}
+    .menu-lib .mp-cat-chips{margin:8px 0; display:flex; flex-wrap:wrap; gap:4px;}
+    .menu-lib .mp-chip{font-size:0.64rem; padding:3px 7px;}
+    .menu-lib-list{max-height:58vh; overflow-y:auto; display:flex; flex-direction:column; gap:5px;}
+    .mlib-item{
+      display:flex; align-items:center; gap:7px; cursor:grab;
+      border:1px solid var(--line); border-radius:9px; background:var(--panel); padding:4px 6px;
+    }
+    .mlib-item:active{cursor:grabbing;}
+    .mlib-thumb{width:30px; height:30px; border-radius:6px; overflow:hidden; flex-shrink:0; background:var(--panel-2); display:flex; align-items:center; justify-content:center; font-size:0.9rem;}
+    .mlib-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+    .mlib-body{flex:1; min-width:0;}
+    .mlib-name{font-size:0.7rem; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+    .mlib-meta{font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:var(--text-dim);}
+    .mlib-grade{width:14px; height:14px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:0.53rem;}
+    .menu-lib-foot{font-size:0.6rem; color:var(--text-dim); margin-top:8px; line-height:1.4;}
+    .menu-lib-foot kbd{font-family:'JetBrains Mono',monospace; border:1px solid var(--line); border-radius:3px; padding:0 3px;}
+    .menu-slot{min-height:56px;}
   }
   .menu-slot-add{
     width:26px; height:26px; border-radius:50%; border:1px dashed var(--line);
@@ -1822,6 +1884,21 @@
       <div><label class="field-inline">Tour de cuisse (cm)</label><input type="number" id="weighinThigh" min="0" max="100"></div>
       <div><label class="field-inline">% masse grasse (optionnel)</label><input type="number" id="weighinBodyFat" min="0" max="70" step="0.1"></div>
     </div>
+    <div class="form-grid">
+      <div><label class="field-inline">Appareil</label>
+        <select id="weighinSource">
+          <option value="balance">Balance de salle de bain</option>
+          <option value="inbody">InBody / impédancemètre pro</option>
+          <option value="autre">Autre</option>
+        </select>
+      </div>
+      <div><label class="field-inline">Photo (optionnel)</label>
+        <button class="btn-sm" id="weighinPhotoBtn" type="button">📷 Choisir</button>
+        <input type="file" accept="image/*" id="weighinPhotoInput" style="display:none;">
+        <span class="wi-photo-state" id="weighinPhotoState"></span>
+      </div>
+    </div>
+    <div class="check-sub" style="margin-bottom:12px;">Un impédancemètre à 8 points et une balance à 2 points ne donnent pas les mêmes chiffres — l'écart peut atteindre 3 points de masse grasse. Renseigner l'appareil permet de tracer <strong>deux courbes séparées</strong> et d'éviter des tendances fantômes. Compare toujours une mesure à une autre du même appareil.</div>
     <button class="add-btn" id="addWeighinBtn">+ Enregistrer la pesée</button>
 
     <h3>Évolution</h3>
@@ -1837,9 +1914,16 @@
     <canvas id="chartWeighin" height="140"></canvas>
 
     <table style="margin-top:10px">
-      <tr><th>Date</th><th>Poids</th><th>Taille</th><th>Bras</th><th></th></tr>
+      <tr><th>Date</th><th>Photo</th><th>Poids</th><th>% MG</th><th></th></tr>
       <tbody id="weighinTableBody"></tbody>
     </table>
+
+    <h3>Comparer deux mesures</h3>
+    <div class="form-grid">
+      <div><label class="field-inline">Mesure A</label><select id="cmpA"></select></div>
+      <div><label class="field-inline">Mesure B</label><select id="cmpB"></select></div>
+    </div>
+    <div id="cmpZone"></div>
   </div>
 
   <!-- SCAN INBODY -->
@@ -1893,6 +1977,7 @@
       <button class="add-btn" id="aiProspectBtn" style="flex:1; width:auto; margin-bottom:0; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">🔜 Semaine à venir<br><span style="font-size:0.68rem; font-weight:400;">objectifs + menus</span></button>
     </div>
     <button class="add-btn" id="aiNutriBtn" style="margin-top:8px; margin-bottom:0;">🍽️ Analyse nutritionniste<br><span style="font-size:0.68rem; font-weight:400;">journée affichée · remplacements chiffrés</span></button>
+    <button class="add-btn" id="aiCompoBtn" style="margin-top:8px; margin-bottom:0; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">⚖️ Composition corporelle<br><span style="font-size:0.68rem; font-weight:400;">série longue · tendance par appareil</span></button>
     <div id="aiPromptResult" style="display:none; margin-top:12px;">
       <div class="check-sub" id="aiPromptStatus" style="margin-bottom:8px;"></div>
       <details>
@@ -2003,16 +2088,32 @@
     <div class="card">
       <h2>Menus de la semaine</h2>
       <div class="menu-week-nav">
-        <button id="menuPrevWeek">‹</button>
+        <span class="mwn-group">
+          <button id="menuPrevJump" title="7 jours en arrière">‹‹</button>
+          <button id="menuPrevWeek" title="1 jour en arrière">‹</button>
+        </span>
         <div class="menu-week-label" id="menuWeekLabel"></div>
-        <button id="menuNextWeek">›</button>
+        <span class="mwn-group">
+          <button id="menuToday" class="menu-today hidden" title="Revenir à aujourd'hui">⌖</button>
+          <button id="menuNextWeek" title="1 jour en avant">›</button>
+          <button id="menuNextJump" title="7 jours en avant">››</button>
+        </span>
       </div>
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <button class="add-btn" id="menuGenBtn" style="flex:1; width:auto; margin-bottom:0;">🎲 Générer la semaine</button>
         <button class="add-btn" id="menuClearBtn" style="flex:0 0 auto; width:auto; margin-bottom:0; background:var(--panel-2); color:var(--text-dim); border:1px solid var(--line);">Vider</button>
       </div>
       <div class="disclaimer">La génération ne remplit que les créneaux vides. ♻️ = portion de restes (le plat n'est cuisiné qu'une fois).</div>
-      <div id="menuGrid"></div>
+      <div class="menu-layout">
+        <div id="menuGrid"></div>
+        <aside class="menu-lib" id="menuLib">
+          <div class="menu-lib-head">Bibliothèque</div>
+          <input type="text" id="menuLibSearch" placeholder="Rechercher…" autocomplete="off">
+          <div class="mp-cat-chips" id="menuLibChips"></div>
+          <div class="menu-lib-list" id="menuLibList"></div>
+          <div class="menu-lib-foot">Glisse un plat sur un créneau. Maintiens <kbd>Alt</kbd> en déposant un plat déjà planifié pour le copier au lieu de le déplacer.</div>
+        </aside>
+      </div>
     </div>
     <div class="card">
       <h2>Liste de courses <span class="shop-count" id="shopCount"></span></h2>
@@ -3691,26 +3792,128 @@ function drawWeighinChart(){
     y: h-24 - ((p.val-minV)/range)*(h-44),
     label: new Date(p.iso+"T00:00:00").toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})
   }));
-  ctx.strokeStyle='#7657a0'; ctx.lineWidth=2; ctx.beginPath();
-  coords.forEach((c,i)=>{ if(i===0) ctx.moveTo(c.x,c.y); else ctx.lineTo(c.x,c.y); });
-  ctx.stroke();
-  ctx.fillStyle='#7657a0';
-  coords.forEach(c=>{ ctx.beginPath(); ctx.arc(c.x,c.y,3,0,Math.PI*2); ctx.fill(); });
+  /* Une courbe PAR APPAREIL. Relier un point InBody à un point balance dessinerait
+     une pente qui n'est due qu'au changement de matériel (jusqu'à 3 points de masse
+     grasse d'écart) et non à une évolution réelle du corps. */
+  const SRC_COLOR = {balance:'#7657a0', inbody:'#199e70', autre:'#847d6f'};
+  const bySrc = {};
+  coords.forEach((c,i)=>{
+    const src = weighinSource(state.weighins[pts[i].iso]);
+    (bySrc[src] = bySrc[src] || []).push(c);
+  });
+  Object.entries(bySrc).forEach(([src, list])=>{
+    ctx.strokeStyle = SRC_COLOR[src] || SRC_COLOR.autre;
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(src==='inbody' ? [] : [4,3]); // InBody en trait plein, le reste en pointillés
+    ctx.beginPath();
+    list.forEach((c,i)=>{ if(i===0) ctx.moveTo(c.x,c.y); else ctx.lineTo(c.x,c.y); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+    list.forEach(c=>{ ctx.beginPath(); ctx.arc(c.x,c.y,3,0,Math.PI*2); ctx.fill(); });
+  });
+  // Légende, uniquement si plusieurs appareils coexistent
+  const srcs = Object.keys(bySrc);
+  if(srcs.length>1){
+    ctx.font='9px Inter, sans-serif'; ctx.textAlign='left';
+    let lx = 10;
+    srcs.forEach(src=>{
+      ctx.fillStyle = SRC_COLOR[src] || SRC_COLOR.autre;
+      ctx.fillRect(lx, 6, 8, 3);
+      const txt = src==='inbody' ? 'InBody' : src==='balance' ? 'Balance' : 'Autre';
+      ctx.fillText(txt, lx+12, 10);
+      lx += 20 + ctx.measureText(txt).width;
+    });
+  }
   ctx.fillStyle='#847d6f'; ctx.font='9px Inter, sans-serif'; ctx.textAlign='center';
   const labelEvery = Math.ceil(n/6)||1;
   coords.forEach((c,i)=>{ if(i%labelEvery===0 || i===n-1) ctx.fillText(c.label, c.x, h-8); });
 }
+/* Les mesures d'avant cette version n'ont pas de champ source : on les suppose
+   issues de la balance, ce qui est le cas le plus fréquent. */
+function weighinSource(v){ return v.source || 'balance'; }
+const SOURCE_LABEL = {balance:'⚖️ balance', inbody:'🔬 InBody', autre:'• autre'};
+
 function renderWeighinTable(){
   const body = document.getElementById('weighinTableBody');
   const entries = Object.entries(state.weighins).sort((a,b)=>a[0]<b[0]?1:-1);
   body.innerHTML = entries.map(([iso,v])=>`
     <tr>
-      <td class="mono">${iso}</td><td>${v.weight??'–'}</td><td>${v.waist??'–'}</td><td>${v.arm??'–'}</td>
+      <td class="mono">${iso}<div class="wi-src">${SOURCE_LABEL[weighinSource(v)]}</div></td>
+      <td>${v.photo?`<img class="wi-thumb" src="${v.photo}" alt="" data-photo="${iso}">`:'–'}</td>
+      <td>${v.weight??'–'}</td><td>${v.bodyFat??'–'}</td>
       <td><button class="session-del" data-iso="${iso}">✕</button></td>
     </tr>`).join('');
   body.querySelectorAll('.session-del').forEach(btn=>{
     btn.onclick = ()=>{ delete state.weighins[btn.dataset.iso]; persistState(); renderWeighins(); };
   });
+  body.querySelectorAll('.wi-thumb').forEach(img=>{
+    img.onclick = ()=>{ compareA = img.dataset.photo; renderCompare(); };
+  });
+  renderCompareSelects();
+}
+
+/* ---------- COMPARAISON DEUX COLONNES ----------
+   Deux dates figées côte à côte. Le delta n'est affiché QUE si les deux mesures
+   viennent du même appareil : comparer un InBody à une balance produirait un écart
+   dû au matériel, pas au corps. */
+let compareA = null, compareB = null;
+
+function renderCompareSelects(){
+  const isos = Object.keys(state.weighins).sort().reverse();
+  const selA = document.getElementById('cmpA'), selB = document.getElementById('cmpB');
+  if(!selA) return;
+  if(isos.length && !compareA) compareA = isos[0];
+  if(isos.length>1 && !compareB) compareB = isos[isos.length-1];
+  const opts = sel => isos.map(i=>`<option value="${i}" ${sel===i?'selected':''}>${i} · ${SOURCE_LABEL[weighinSource(state.weighins[i])]}</option>`).join('');
+  selA.innerHTML = opts(compareA);
+  selB.innerHTML = opts(compareB);
+  selA.onchange = ()=>{ compareA = selA.value; renderCompare(); };
+  selB.onchange = ()=>{ compareB = selB.value; renderCompare(); };
+  renderCompare();
+}
+
+function renderCompare(){
+  const zone = document.getElementById('cmpZone');
+  if(!zone) return;
+  const a = state.weighins[compareA], b = state.weighins[compareB];
+  if(!a || !b){ zone.innerHTML = '<div class="check-sub">Il faut au moins deux pesées pour comparer.</div>'; return; }
+  const sameSrc = weighinSource(a) === weighinSource(b);
+  const lean = v => (v.weight!=null && v.bodyFat!=null) ? +(v.weight*(1-v.bodyFat/100)).toFixed(1) : null;
+  const fat  = v => (v.weight!=null && v.bodyFat!=null) ? +(v.weight*v.bodyFat/100).toFixed(1) : null;
+  const col = (iso,v) => `
+    <div class="cmp-col">
+      <div class="cmp-date">${iso}<span class="wi-src">${SOURCE_LABEL[weighinSource(v)]}</span></div>
+      <div class="cmp-photo">${v.photo?`<img src="${v.photo}" alt="">`:'<span class="cmp-nophoto">pas de photo</span>'}</div>
+      <div class="cmp-stat"><span>Poids</span><b>${v.weight??'–'} kg</b></div>
+      <div class="cmp-stat"><span>Masse grasse</span><b>${v.bodyFat!=null?v.bodyFat+' %':'–'}</b></div>
+      <div class="cmp-stat"><span>Gras</span><b>${fat(v)!=null?fat(v)+' kg':'–'}</b></div>
+      <div class="cmp-stat"><span>Masse maigre</span><b>${lean(v)!=null?lean(v)+' kg':'–'}</b></div>
+      <div class="cmp-stat"><span>Tour de taille</span><b>${v.waist??'–'}</b></div>
+    </div>`;
+  const older = compareA < compareB ? compareA : compareB;
+  const newer = compareA < compareB ? compareB : compareA;
+  const o = state.weighins[older], n = state.weighins[newer];
+  const d = (fn, unit) => {
+    const x = fn(o), y = fn(n);
+    if(x==null || y==null) return '–';
+    const v = +(y-x).toFixed(1);
+    return `<span class="${v>0?'up':v<0?'down':''}">${v>0?'+':''}${v}${unit}</span>`;
+  };
+  const deltas = sameSrc ? `
+    <div class="cmp-delta">
+      <div class="cmp-delta-title">Évolution du ${older} au ${newer}</div>
+      <div class="cmp-delta-row"><span>Poids</span>${d(v=>v.weight,' kg')}</div>
+      <div class="cmp-delta-row"><span>Gras</span>${d(fat,' kg')}</div>
+      <div class="cmp-delta-row"><span>Masse maigre</span>${d(lean,' kg')}</div>
+      ${(()=>{ const df=fat(n)-fat(o), dw=n.weight-o.weight;
+        if(isNaN(df)||!dw) return '';
+        const part = Math.round(df/dw*100);
+        return `<div class="cmp-delta-note">${dw<0?`Part de gras dans la perte : <b>${Math.min(part,100)} %</b>. Au-dessus de 80 %, la masse musculaire est bien préservée.`:'Prise de poids : regarde la répartition gras / masse maigre ci-dessus.'}</div>`;
+      })()}
+    </div>` : `
+    <div class="cmp-warn">Ces deux mesures viennent d'appareils différents (${SOURCE_LABEL[weighinSource(o)]} et ${SOURCE_LABEL[weighinSource(n)]}). L'écart afficherait surtout la différence de matériel, pas celle de ton corps — aucun delta n'est calculé. Choisis deux mesures du même appareil.</div>`;
+  zone.innerHTML = `<div class="cmp-cols">${col(older,o)}${col(newer,n)}</div>${deltas}`;
 }
 /* ---------- SCAN INBODY ---------- */
 function inbodySortedEntries(){ return Object.entries(state.inbodyScans).sort((a,b)=>a[0]<b[0]?-1:1); }
@@ -5515,6 +5718,26 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.0.0', date:'24 août 2026', items:[
+    'Chaque pesée précise désormais son appareil : balance, InBody ou autre. Les courbes sont tracées séparément, InBody en trait plein et balance en pointillés.',
+    'Aucun écart n\'est calculé entre deux appareils différents : la différence viendrait du matériel, pas du corps.',
+    'Photo attachable à chaque pesée, compressée automatiquement, avec vignette dans le tableau.',
+    'Nouvelle comparaison en deux colonnes : deux dates côte à côte, photos et chiffres, avec la part de gras dans la variation.',
+    'Nouveau prompt « Composition corporelle » dans le Bilan : analyse la série longue, appareil par appareil, et projette le rythme vers la cible.'
+  ]},
+  {v:'2.9.0', date:'23 août 2026', items:[
+    'Sur ordinateur : glisser-déposer des plats d\'un créneau à l\'autre. Maintiens Alt en déposant pour copier au lieu de déplacer.',
+    'Nouvelle colonne Bibliothèque à droite du planning, avec recherche, filtres par catégorie et filtre A/B : glisse un plat directement sur un créneau.',
+    'Nouvel onglet « ✎ Nom libre » : réserve un créneau avec un simple nom, sans saisir la recette.',
+    'Un créneau réservé par un nom libre devient automatiquement la vraie fiche le jour où tu enregistres une recette portant ce nom.',
+    'Les noms libres n\'alimentent pas la liste de courses, faute d\'ingrédients connus.'
+  ]},
+  {v:'2.8.1', date:'23 août 2026', items:[
+    'Les menus défilent maintenant en fenêtre glissante de 7 jours, décalable jour par jour.',
+    'Flèches simples pour avancer d\'un jour, flèches doubles pour sauter une semaine, cible ⌖ pour revenir à aujourd\'hui.',
+    'La fenêtre démarre sur aujourd\'hui au lieu du lundi : tu planifies les 7 jours à venir, pas un bloc de calendrier.',
+    'La liste de courses suit la fenêtre affichée.'
+  ]},
   {v:'2.8.0', date:'23 août 2026', items:[
     'Page Menus refaite : chaque plat planifié apparaît en vignette avec sa photo, sa note et ses calories par portion.',
     'Vue PC : sur écran large, la semaine s\'affiche en 7 colonnes côte à côte. Il suffit d\'ouvrir l\'appli depuis un navigateur d\'ordinateur.',
@@ -6148,15 +6371,19 @@ function renderCatManageForm(){
 }
 
 /* ============ ONGLET MENUS ============ */
-let menuWeekOffset = 0;   // 0 = semaine courante, 1 = suivante…
+/* Fenêtre GLISSANTE de 7 jours, exprimée en JOURS et non en semaines.
+   0 = la fenêtre démarre aujourd'hui. Les flèches simples la décalent d'un jour,
+   les doubles d'une semaine. Ancrer sur aujourd'hui plutôt que sur le lundi est
+   plus utile ici : on planifie les 7 jours à venir, pas un bloc calendaire. */
+let menuDayOffset = 0;
 let menuPickTarget = null; // {iso, slot} — créneau en cours d'édition
-let menuPickMode = 'dishes'; // onglet actif du picker : 'dishes' | 'foods'
+let menuPickMode = 'dishes'; // onglet actif du picker : 'dishes' | 'foods' | 'draft'
 let menuPickCat = '';        // filtre catégorie de plats ('' = tous)
 let menuFoodPending = null;  // aliment en attente de grammage
 const MENU_SLOTS = [['midi','Midi'],['soir','Soir']];
 const MENU_DAYS_FR = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 
-function menuWeekMonday(){ return addDays(getMonday(todayDate()), menuWeekOffset*7); }
+function menuWeekMonday(){ return addDays(todayDate(), menuDayOffset); }
 function slotItems(iso, slot){ return (state.mealPlan[iso] && state.mealPlan[iso][slot]) || []; }
 function ensureSlot(iso, slot){
   if(!state.mealPlan[iso]) state.mealPlan[iso] = {};
@@ -6184,20 +6411,140 @@ function slotsAfter(iso, slot){
 }
 
 function pillLabel(it){
+  if(it.type==='draft') return state.dishes[it.name] ? `🍲 ${it.name}` : `✎ ${it.name}`;
   if(it.type==='dish') return it.leftover ? `♻️ ${it.name}` : `🍲 ${it.name}`;
   return `${it.name} ${it.grams}g`;
+}
+
+/* ---------- GLISSER-DÉPOSER (grand écran uniquement) ----------
+   Le tactile ne déclenche pas l'API HTML5 drag-and-drop : sur mobile, poser
+   draggable=true n'apporterait rien et gênerait la sélection au appui long.
+   On conditionne donc l'activation à la même largeur que la vue 7 colonnes. */
+function dragEnabled(){ return window.matchMedia('(min-width:1000px)').matches; }
+let menuDrag = null; // {from:{iso,slot,idx}|null, payload:{...}}
+
+function menuLibCat(){ return menuLibFilterCat; }
+let menuLibFilterCat = '';
+let menuLibQuery = '';
+
+function renderMenuLib(){
+  const wrap = document.getElementById('menuLibList');
+  if(!wrap) return;
+  const names = Object.keys(state.dishes);
+  const cats = [...new Set(names.map(n=>state.dishes[n].mealCat||'autres'))];
+  document.getElementById('menuLibChips').innerHTML =
+    `<button class="mp-chip ${!menuLibFilterCat?'on':''}" data-c="">Tous</button>`
+    + `<button class="mp-chip ${menuLibFilterCat==='__ab'?'on':''}" data-c="__ab">⭐ A/B</button>`
+    + cats.map(c=>`<button class="mp-chip ${menuLibFilterCat===c?'on':''}" data-c="${c}">${state.mealCats[c]||c}</button>`).join('');
+
+  const q = menuLibQuery.trim().toLowerCase();
+  const filtered = names.filter(n=>{
+    const dish = state.dishes[n];
+    if(q && !n.toLowerCase().includes(q)) return false;
+    if(menuLibFilterCat==='__ab'){ const sc = dishScore(dish); return sc && (sc.grade==='A'||sc.grade==='B'); }
+    if(menuLibFilterCat && (dish.mealCat||'autres')!==menuLibFilterCat) return false;
+    return true;
+  }).sort((a,b)=>{
+    const sa = dishScore(state.dishes[a]), sb = dishScore(state.dishes[b]);
+    return (sb?sb.total:0) - (sa?sa.total:0) || a.localeCompare(b);
+  });
+
+  wrap.innerHTML = filtered.length ? filtered.map(n=>{
+    const dish = state.dishes[n];
+    const sc = dishScore(dish);
+    const t = dishTotals(dish), pt = dish.portions||1;
+    const thumb = dish.photo
+      ? `<img src="${dish.photo}" alt="" loading="lazy">`
+      : (state.mealCats[dish.mealCat||'autres']||'🍽️').split(' ')[0];
+    return `<div class="mlib-item" draggable="true" data-name="${n.replace(/"/g,'&quot;')}">
+      <span class="mlib-thumb">${thumb}</span>
+      <span class="mlib-body">
+        <span class="mlib-name">${n}</span>
+        <span class="mlib-meta">${Math.round(t.kcal/pt)} kcal · P ${Math.round(t.p/pt)}</span>
+      </span>
+      ${sc?`<span class="mlib-grade" style="background:${sc.meta.color}; color:${sc.meta.ink};">${sc.grade}</span>`:''}
+    </div>`;
+  }).join('') : `<div class="check-sub">Aucun plat ne correspond.</div>`;
+
+  document.getElementById('menuLibChips').querySelectorAll('.mp-chip').forEach(ch=>{
+    ch.onclick = ()=>{ menuLibFilterCat = ch.dataset.c; renderMenuLib(); };
+  });
+  wrap.querySelectorAll('.mlib-item').forEach(el=>{
+    el.ondragstart = e=>{
+      menuDrag = {from:null, payload:{type:'dish', name:el.dataset.name}};
+      e.dataTransfer.effectAllowed = 'copy';
+      e.dataTransfer.setData('text/plain', el.dataset.name);
+    };
+    el.ondragend = ()=>{ menuDrag = null; clearDropHot(); };
+  });
+}
+
+function clearDropHot(){
+  document.querySelectorAll('.menu-slot.drop-hot').forEach(x=>x.classList.remove('drop-hot'));
+}
+
+/* Branche les cibles de dépôt et rend les tuiles déplaçables. Rappelé à chaque
+   rendu, car la grille est reconstruite intégralement en innerHTML. */
+function wireMenuDnD(){
+  if(!dragEnabled()) return;
+  document.querySelectorAll('#menuGrid .menu-tile').forEach(tile=>{
+    tile.setAttribute('draggable','true');
+    tile.ondragstart = e=>{
+      const from = {iso:tile.dataset.iso, slot:tile.dataset.slot, idx:parseInt(tile.dataset.idx)};
+      menuDrag = {from, payload:structuredClone(slotItems(from.iso, from.slot)[from.idx])};
+      tile.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'copyMove';
+      e.dataTransfer.setData('text/plain', tile.dataset.idx);
+    };
+    tile.ondragend = ()=>{ tile.classList.remove('dragging'); menuDrag = null; clearDropHot(); };
+  });
+
+  document.querySelectorAll('#menuGrid .menu-slot').forEach(slot=>{
+    slot.ondragover = e=>{
+      if(!menuDrag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = (e.altKey || !menuDrag.from) ? 'copy' : 'move';
+      slot.classList.add('drop-hot');
+    };
+    slot.ondragleave = ()=>slot.classList.remove('drop-hot');
+    slot.ondrop = e=>{
+      e.preventDefault();
+      slot.classList.remove('drop-hot');
+      if(!menuDrag) return;
+      const toIso = slot.dataset.iso, toSlot = slot.dataset.slot;
+      const copy = e.altKey || !menuDrag.from;
+      const item = structuredClone(menuDrag.payload);
+      const from = menuDrag.from;
+      // Déplacement dans le même créneau : rien à faire, on évite un doublon.
+      if(!copy && from && from.iso===toIso && from.slot===toSlot){ menuDrag=null; return; }
+      if(!copy && from){
+        const src = slotItems(from.iso, from.slot);
+        src.splice(from.idx, 1);
+      }
+      ensureSlot(toIso, toSlot).push(item);
+      menuDrag = null;
+      persistState();
+      renderMenus();
+    };
+  });
 }
 
 function renderMenus(){
   const monday = menuWeekMonday();
   const sunday = addDays(monday,6);
   const fmt = d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-  const label = menuWeekOffset===0 ? 'Cette semaine' : (menuWeekOffset===1 ? 'Semaine prochaine' : `Semaine du ${fmt(monday)}`);
+  const label = menuDayOffset===0 ? "À partir d'aujourd'hui"
+              : menuDayOffset===1 ? 'À partir de demain'
+              : menuDayOffset===-1 ? "À partir d'hier"
+              : `Décalé de ${menuDayOffset>0?'+':''}${menuDayOffset} j`;
   document.getElementById('menuWeekLabel').textContent = `${label} · ${fmt(monday)} → ${fmt(sunday)}`;
+  document.getElementById('menuToday').classList.toggle('hidden', menuDayOffset===0);
 
   const todayIso = isoDate(todayDate());
-  document.getElementById('menuGrid').innerHTML = MENU_DAYS_FR.map((name,i)=>{
+  document.getElementById('menuGrid').innerHTML = [0,1,2,3,4,5,6].map(i=>{
     const d = addDays(monday,i);
+    // La fenêtre glisse : le jour de la semaine se déduit de la date, il n'est plus fixe.
+    const name = MENU_DAYS_FR[dowIndexMondayBased(d)];
     const iso = isoDate(d);
     const slots = MENU_SLOTS.map(([key,lbl])=>{
       const items = slotItems(iso,key);
@@ -6205,18 +6552,21 @@ function renderMenus(){
         const isLeft = it.type==='dish' && it.leftover;
         const inShop = itemInShop(it) && !isLeft;
         const cartTitle = isLeft ? 'Reste — rien à acheter' : (inShop ? 'Compté dans la liste de courses' : 'Exclu de la liste de courses');
-        const dish = it.type==='dish' ? state.dishes[it.name] : null;
+        // Un brouillon se résout tout seul dès qu'une recette porte le même nom.
+        const dish = (it.type==='dish' || it.type==='draft') ? state.dishes[it.name] : null;
+        const isDraft = it.type==='draft' && !dish;
         // Vignette : photo du plat si elle existe, sinon l'emoji de sa catégorie.
         const visual = dish && dish.photo
           ? `<img class="mt-photo" src="${dish.photo}" alt="" loading="lazy">`
-          : `<span class="mt-emoji">${dish ? (state.mealCats[dish.mealCat||'autres']||'🍽️').split(' ')[0] : '🥄'}</span>`;
+          : `<span class="mt-emoji">${dish ? (state.mealCats[dish.mealCat||'autres']||'🍽️').split(' ')[0] : (isDraft ? '✎' : '🥄')}</span>`;
         const sc = dish ? dishScore(dish) : null;
         const grade = sc ? `<span class="mt-grade" style="background:${sc.meta.color}; color:${sc.meta.ink};">${sc.grade}</span>` : '';
         const t = dish ? dishTotals(dish) : null;
         const pt = dish ? (dish.portions||1) : 1;
-        const meta = t ? `${Math.round(t.kcal/pt)} kcal · P ${Math.round(t.p/pt)}` : (it.grams ? `${it.grams} g` : '');
-        return `<div class="menu-tile ${isLeft?'leftover':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">
-          <div class="mt-visual">${visual}${grade}${isLeft?'<span class="mt-left">restes</span>':''}</div>
+        const meta = t ? `${Math.round(t.kcal/pt)} kcal · P ${Math.round(t.p/pt)}`
+                       : (isDraft ? 'recette à saisir' : (it.grams ? `${it.grams} g` : ''));
+        return `<div class="menu-tile ${isLeft?'leftover':''}${isDraft?' draft':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">
+          <div class="mt-visual">${visual}${grade}${isLeft?'<span class="mt-left">restes</span>':''}${isDraft?'<span class="mt-left">à compléter</span>':''}</div>
           <div class="mt-body">
             <div class="mt-name">${pillLabel(it)}</div>
             <div class="mt-meta">${meta}</div>
@@ -6227,7 +6577,7 @@ function renderMenus(){
           </div>
         </div>`;
       }).join('');
-      return `<div class="menu-slot">
+      return `<div class="menu-slot" data-iso="${iso}" data-slot="${key}">
         <span class="menu-slot-label">${lbl}</span>
         <div class="menu-pills">${pills}
           <button class="menu-slot-add" data-iso="${iso}" data-slot="${key}">+ Ajouter</button>
@@ -6240,6 +6590,8 @@ function renderMenus(){
     </div>`;
   }).join('');
 
+  renderMenuLib();
+  wireMenuDnD();
   document.querySelectorAll('#menuGrid .menu-slot-add').forEach(btn=>{
     btn.onclick = ()=>openMenuPick(btn.dataset.iso, btn.dataset.slot);
   });
@@ -6266,8 +6618,12 @@ function renderMenus(){
   });
   renderShopList();
 }
-document.getElementById('menuPrevWeek').onclick = ()=>{ menuWeekOffset--; renderMenus(); };
-document.getElementById('menuNextWeek').onclick = ()=>{ menuWeekOffset++; renderMenus(); };
+document.getElementById('menuPrevWeek').onclick = ()=>{ menuDayOffset--; renderMenus(); };
+document.getElementById('menuNextWeek').onclick = ()=>{ menuDayOffset++; renderMenus(); };
+document.getElementById('menuPrevJump').onclick = ()=>{ menuDayOffset -= 7; renderMenus(); };
+document.getElementById('menuNextJump').onclick = ()=>{ menuDayOffset += 7; renderMenus(); };
+document.getElementById('menuToday').onclick = ()=>{ menuDayOffset = 0; renderMenus(); };
+document.getElementById('menuLibSearch').oninput = e=>{ menuLibQuery = e.target.value; renderMenuLib(); };
 
 /* ---- Picker à 2 onglets : Mes plats / Aliments ---- */
 function openMenuPick(iso, slot){
@@ -6285,7 +6641,30 @@ function renderMenuPick(){
   const tabs = `<div class="mp-tabs">
     <button class="mp-tab ${menuPickMode==='dishes'?'on':''}" data-m="dishes">🍲 Mes plats</button>
     <button class="mp-tab ${menuPickMode==='foods'?'on':''}" data-m="foods">🥗 Aliments</button>
+    <button class="mp-tab ${menuPickMode==='draft'?'on':''}" data-m="draft">✎ Nom libre</button>
   </div>`;
+
+  if(menuPickMode==='draft'){
+    list.innerHTML = tabs + `
+      <div class="check-sub" style="margin:8px 0 10px;">Réserve le créneau avec un simple nom, sans saisir la recette. Aucun ingrédient n'est connu, donc rien ne remonte dans la liste de courses. Le jour où tu enregistres une vraie recette portant <strong>exactement ce nom</strong>, le créneau devient automatiquement la vraie fiche, avec sa note et ses macros.</div>
+      <div class="shop-extra-row" style="margin-top:4px;">
+        <input type="text" id="mpDraftInput" placeholder="Blanquette de poisson de mamie" autocomplete="off">
+        <button id="mpDraftOk">OK</button>
+      </div>`;
+    const go = ()=>{
+      const v = document.getElementById('mpDraftInput').value.trim();
+      if(!v) return;
+      ensureSlot(menuPickTarget.iso, menuPickTarget.slot).push({type:'draft', name:v});
+      persistState(); closeMenuPick(); renderMenus();
+    };
+    document.getElementById('mpDraftOk').onclick = go;
+    document.getElementById('mpDraftInput').onkeydown = e=>{ if(e.key==='Enter') go(); };
+    list.querySelectorAll('.mp-tab').forEach(b=>{
+      b.onclick = ()=>{ menuPickMode = b.dataset.m; menuFoodPending = null; renderMenuPick(); };
+    });
+    setTimeout(()=>document.getElementById('mpDraftInput').focus(), 60);
+    return;
+  }
 
   if(menuPickMode==='dishes'){
     const names = Object.keys(state.dishes).sort();
@@ -6516,7 +6895,9 @@ function computeShopItems(){
     MENU_SLOTS.forEach(([key])=>{
       (plan[key]||[]).forEach(it=>{
         if(!itemInShop(it)) return; // décoché : n'alimente pas la liste
-        if(it.type==='dish' && !it.leftover && state.dishes[it.name]){
+        // Un brouillon devenu vraie recette (même nom) compte comme un plat.
+        const isKnownDish = (it.type==='dish' || it.type==='draft') && state.dishes[it.name];
+        if(isKnownDish && !it.leftover){
           state.dishes[it.name].ingredients.forEach(ing=>{ agg[ing.name] = (agg[ing.name]||0) + (ing.grams||0); });
         }else if(it.type==='food'){
           agg[it.name] = (agg[it.name]||0) + (it.grams||0);
@@ -6979,7 +7360,10 @@ document.getElementById('addWeighinBtn').onclick = ()=>{
   const w = parseFloat(document.getElementById('weighinWeight').value);
   if(!date){ alert("Choisis une date."); return; }
   if(!w){ alert("Indique au moins le poids."); return; }
+  const prev = state.weighins[date];
   state.weighins[date] = {
+    source: document.getElementById('weighinSource').value || 'balance',
+    photo: weighinPhotoPending !== undefined ? weighinPhotoPending : (prev ? prev.photo : null),
     weight: w,
     waist: parseFloat(document.getElementById('weighinWaist').value)||null,
     arm: parseFloat(document.getElementById('weighinArm').value)||null,
@@ -6988,12 +7372,37 @@ document.getElementById('addWeighinBtn').onclick = ()=>{
     thigh: parseFloat(document.getElementById('weighinThigh').value)||null,
     bodyFat: parseFloat(document.getElementById('weighinBodyFat').value)||null
   };
+  weighinPhotoPending = undefined;
+  document.getElementById('weighinPhotoState').textContent = '';
   syncProfileWeight();
   persistState();
   renderWeighins();
   render();
 };
 document.getElementById('weighinMetric').onchange = drawWeighinChart;
+
+/* Photo de pesée : même compression que les recettes (400 px, JPEG 0.7 ≈ 30-50 Ko).
+   Indispensable, une photo brute de téléphone ferait sauter le quota localStorage. */
+let weighinPhotoPending; // undefined = inchangé, null = retirée, string = nouvelle
+document.getElementById('weighinPhotoBtn').onclick = ()=>document.getElementById('weighinPhotoInput').click();
+document.getElementById('weighinPhotoInput').onchange = e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const img = new Image();
+  img.onload = ()=>{
+    const maxW = 400;
+    const scale = Math.min(1, maxW/img.width);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width*scale);
+    canvas.height = Math.round(img.height*scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    weighinPhotoPending = canvas.toDataURL('image/jpeg', 0.7);
+    URL.revokeObjectURL(img.src);
+    document.getElementById('weighinPhotoState').textContent = '✓ photo prête';
+  };
+  img.onerror = ()=>{ alert("Impossible de lire cette image."); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(file);
+};
 
 document.getElementById('addInbodyBtn').onclick = ()=>{
   const raw = document.getElementById('inbodyJsonInput').value.trim();
@@ -7276,6 +7685,94 @@ function aiHistoryBlock(iso){
   return {rows:rows.join('\n'), repeats: repeats || 'aucune répétition notable'};
 }
 
+/* ---------- PROMPT COMPOSITION CORPORELLE ----------
+   Distinct de l'analyse nutritionniste : celui-ci travaille sur la SÉRIE LONGUE,
+   pas sur une journée. Les mesures sont regroupées PAR APPAREIL, car un écart entre
+   deux appareils n'a aucune signification physiologique. */
+function buildCompositionPrompt(){
+  const groups = {};
+  Object.entries(state.weighins).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([iso,v])=>{
+    const src = weighinSource(v);
+    (groups[src] = groups[src] || []).push({iso, v});
+  });
+  Object.entries(state.inbodyScans).sort((a,b)=>a[0]<b[0]?-1:1).forEach(([iso,v])=>{
+    (groups.inbody_scan = groups.inbody_scan || []).push({iso, v, scan:true});
+  });
+
+  const line = ({iso,v,scan}) => {
+    const bits = [`${iso} : ${v.weight??'–'} kg`];
+    const bf = scan ? v.bodyFatPct : v.bodyFat;
+    if(bf!=null){
+      bits.push(`${bf} % MG`);
+      if(v.weight!=null){
+        bits.push(`gras ${(v.weight*bf/100).toFixed(1)} kg`);
+        bits.push(`masse maigre ${(v.weight*(1-bf/100)).toFixed(1)} kg`);
+      }
+    }
+    if(scan){
+      if(v.muscleMass!=null) bits.push(`MMS ${v.muscleMass} kg`);
+      if(v.bmr!=null) bits.push(`BMR mesuré ${v.bmr}`);
+      if(v.phaseAngle!=null) bits.push(`angle de phase ${v.phaseAngle}`);
+    }
+    if(v.waist!=null) bits.push(`taille ${v.waist} cm`);
+    if(v.photo) bits.push('photo disponible');
+    return '  - ' + bits.join(' | ');
+  };
+  const srcName = {balance:'BALANCE DE SALLE DE BAIN (impédance 2 points, pieds)',
+                   inbody:'IMPÉDANCEMÈTRE PRO saisi en pesée',
+                   inbody_scan:'SCANS INBODY COMPLETS (impédance 8 points)',
+                   autre:'AUTRE APPAREIL'};
+  const blocks = Object.entries(groups).map(([src,list])=>
+    `▸ ${srcName[src]||src} — ${list.length} mesure(s)\n${list.map(line).join('\n')}`).join('\n\n');
+
+  // Contexte hebdomadaire : moyennes sur les 4 dernières semaines renseignées.
+  const weeks = [];
+  for(let k=0; k<4; k++){
+    const monday = addDays(getMonday(todayDate()), -7*k);
+    let kcal=0, prot=0, days=0, sport=0;
+    for(let i=0;i<7;i++){
+      const iso = isoDate(addDays(monday,i));
+      const day = state.days[iso];
+      if(!day) continue;
+      const t = dayFoodTotals(day,'all');
+      sport += sportTotalKcal(day);
+      if(t.kcal>800){ kcal+=t.kcal; prot+=t.p; days++; }
+    }
+    if(days) weeks.push(`  - semaine du ${isoDate(monday)} : ${Math.round(kcal/days)} kcal/j sur ${days} j tracés, protéines ${Math.round(prot/days)} g/j, sport ${Math.round(sport)} kcal sur la semaine`);
+  }
+
+  return `Tu es diététicien-nutritionniste spécialisé en composition corporelle. Tu analyses une série de mesures dans le temps. Ton ton est direct et chiffré, sans moralisation. Tu ne poses aucun diagnostic médical.
+
+═══ PROFIL ═══
+${state.sex==='F'?'Femme':'Homme'}, ${state.age} ans, ${state.heightCm} cm, ${weightAt(null)} kg aujourd'hui.
+Objectif : recomposition, faire baisser la masse grasse en préservant la masse musculaire. Cible de masse grasse : 13 %. Horizon assumé de plusieurs mois.
+Alimentation pescatarienne, jeûne intermittent sans repas le matin.
+
+═══ RÈGLE DE LECTURE (impérative) ═══
+Les mesures sont regroupées PAR APPAREIL. Une impédance à 2 points (balance) et une à 8 points (InBody) ne donnent pas les mêmes valeurs : l'écart peut atteindre 3 points de masse grasse et 250 kcal de métabolisme de base, sans le moindre changement physiologique.
+Tu ne dois JAMAIS calculer une évolution entre deux mesures d'appareils différents. Compare uniquement à l'intérieur d'un même groupe. Si un groupe ne contient qu'une seule mesure, dis-le et n'en tire aucune tendance.
+
+═══ MESURES ═══
+${blocks || '  (aucune mesure enregistrée)'}
+
+═══ CONTEXTE ALIMENTAIRE ET SPORTIF ═══
+${weeks.length ? weeks.join('\n') : '  (pas assez de jours tracés)'}
+
+═══ CE QUE J'ATTENDS ═══
+
+1. 🎯 TENDANCE — pour chaque appareil ayant au moins deux mesures : évolution du poids, du gras et de la masse maigre, avec la PART DE GRAS DANS LA VARIATION en pourcentage. C'est l'indicateur central : au-dessus de 80 %, la masse musculaire est bien préservée.
+
+2. 🧱 LA MASSE MAIGRE TIENT-ELLE ? Réponds franchement. Si elle baisse, dis quel réglage la protégerait en priorité (déficit, protéines, volume de sport).
+
+3. ⏱️ RYTHME — grammes de gras perdus par semaine, et projection réaliste vers 13 % en semaines et en date approximative. Dis explicitement si ce rythme est trop lent, correct, ou trop rapide pour préserver le muscle.
+
+4. 🎚️ AJUSTEMENT — faut-il modifier le déficit calorique, le plancher protéines ou le volume de sport ? Donne des valeurs chiffrées, pas des principes.
+
+5. ⚠️ CE QUI MANQUE — quelle mesure ou quel suivi me permettrait de mieux piloter, et à quelle fréquence.
+
+Sois précis et chiffré. Rappelle en une ligne que l'impédancemétrie a une marge d'erreur de plusieurs points et que seule la tendance sur plusieurs mesures est exploitable. Maximum 600 mots.`;
+}
+
 function buildNutriPrompt(){
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
@@ -7433,6 +7930,7 @@ Sois précis et chiffré partout. Maximum 700 mots.`;
 async function aiGenerate(kind){
   const text = kind==='retro' ? buildRetroPrompt()
              : kind==='nutri' ? buildNutriPrompt()
+             : kind==='compo' ? buildCompositionPrompt()
              : buildProspectPrompt();
   document.getElementById('aiPromptText').value = text;
   document.getElementById('aiPromptResult').style.display = 'block';
@@ -7444,6 +7942,7 @@ async function aiGenerate(kind){
 }
 document.getElementById('aiRetroBtn').onclick = ()=>aiGenerate('retro');
 document.getElementById('aiNutriBtn').onclick = ()=>aiGenerate('nutri');
+document.getElementById('aiCompoBtn').onclick = ()=>aiGenerate('compo');
 document.getElementById('macroAiBtn').onclick = async ()=>{
   const text = buildNutriPrompt();
   const st = document.getElementById('macroAiStatus');
