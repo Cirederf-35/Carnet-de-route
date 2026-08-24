@@ -1047,6 +1047,12 @@
     background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
     box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
   /* Case à cocher « mangé / prévu » sur chaque aliment */
+  .menu-qty-preview{
+    margin-top:12px; padding:10px; border:1px solid var(--line); border-radius:10px;
+    background:var(--panel-2); font-family:'JetBrains Mono',monospace; font-size:0.72rem; line-height:1.6;
+  }
+  .menu-qty-preview b{color:var(--text);}
+  .mt-body{cursor:pointer;}
   .future-banner{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     background:var(--panel-2); border:1px dashed var(--accent); border-radius:12px;
@@ -2400,6 +2406,26 @@
 </div>
 
 <!-- POP-UP LOG RAPIDE -->
+<div class="modal-overlay" id="menuQtyModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="menuQtyTitle">Quantité</h3>
+      <button class="modal-close" id="menuQtyClose">✕</button>
+    </div>
+    <div class="qty-head">
+      <label class="field-inline" id="menuQtyLabel">Grammes</label>
+      <div class="qty-mode" id="menuQtyMode">
+        <button type="button" data-mode="grams" class="on">grammes</button>
+        <button type="button" data-mode="portions">portions</button>
+      </div>
+    </div>
+    <input type="number" id="menuQtyInput" min="1" step="10">
+    <div class="qty-hint" id="menuQtyHint"></div>
+    <div class="menu-qty-preview" id="menuQtyPreview"></div>
+    <button class="add-btn" id="menuQtyConfirm" style="margin-top:14px;">Valider</button>
+  </div>
+</div>
+
 <div class="modal-overlay" id="changelogModal">
   <div class="modal-box">
     <div class="modal-header">
@@ -5909,6 +5935,13 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.5.0', date:'24 août 2026', items:[
+    'Chaque plat planifié accepte un grammage précis : touche la vignette pour l\'éditer.',
+    'Saisie en grammes ou en portions au choix, avec conversion instantanée et aperçu des calories et macros obtenues.',
+    'Les vignettes de menu affichent le poids prévu, les calories et les protéines correspondantes.',
+    'La liste de courses est proportionnée à la quantité réellement prévue au lieu de compter la recette entière.',
+    'L\'import du menu vers le journal reprend le grammage saisi.'
+  ]},
   {v:'3.4.0', date:'24 août 2026', items:[
     'Tu peux désormais naviguer jusqu\'à 7 jours dans le futur depuis l\'onglet Jour, pour préparer tes repas à l\'avance.',
     'Un bandeau signale le mode planification : tout ce que tu ajoutes sur un jour futur part automatiquement décoché.',
@@ -6624,6 +6657,35 @@ const MENU_SLOTS = [['midi','Midi'],['soir','Soir']];
 const MENU_DAYS_FR = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 
 function menuWeekMonday(){ return addDays(todayDate(), menuDayOffset); }
+/* ---------- QUANTITÉ D'UN PLAT AU MENU ----------
+   Un plat est enregistré pour N portions et un poids total. « 1 portion » n'est donc
+   qu'un raccourci pour poids_total / N. En stockant un GRAMMAGE sur l'item de menu,
+   on couvre les cas réels : une demi-portion de tarte, 250 g de salade, 1,5 omelette.
+   Le grammage est la donnée maîtresse ; les portions restent une saisie de confort. */
+function menuItemGrams(it){
+  const dish = state.dishes[it.name];
+  if(!dish) return it.grams || 0;
+  const t = dishTotals(dish);
+  if(it.grams != null) return it.grams;
+  const pt = dish.portions || 1;
+  return t.grams ? Math.round(t.grams * (it.portions != null ? it.portions : 1) / pt) : 0;
+}
+/* Fraction de la recette entière que représente cet item (sert aux macros ET aux courses). */
+function menuItemRatio(it){
+  const dish = state.dishes[it.name];
+  if(!dish) return 1;
+  const t = dishTotals(dish);
+  if(!t.grams) return (it.portions != null ? it.portions : 1) / (dish.portions || 1);
+  return menuItemGrams(it) / t.grams;
+}
+/* Macros réellement prévues pour cet item. */
+function menuItemMacros(it){
+  const dish = state.dishes[it.name];
+  if(!dish) return null;
+  const t = dishTotals(dish), r = menuItemRatio(it);
+  return {kcal:t.kcal*r, p:t.p*r, f:t.f*r, c:t.c*r, grams:menuItemGrams(it)};
+}
+
 function slotItems(iso, slot){ return (state.mealPlan[iso] && state.mealPlan[iso][slot]) || []; }
 function ensureSlot(iso, slot){
   if(!state.mealPlan[iso]) state.mealPlan[iso] = {};
@@ -6719,6 +6781,54 @@ function renderMenuLib(){
   });
 }
 
+/* ---------- ÉDITION DE LA QUANTITÉ D'UN PLAT AU MENU ---------- */
+let menuQtyTarget = null;   // {iso, slot, idx}
+let menuQtyMode = 'grams';  // 'grams' | 'portions'
+
+function openMenuQty(iso, slot, idx){
+  const it = slotItems(iso, slot)[idx];
+  const dish = state.dishes[it.name];
+  if(!dish) return; // nom libre ou aliment simple : rien à calculer
+  menuQtyTarget = {iso, slot, idx};
+  menuQtyMode = 'grams';
+  document.getElementById('menuQtyTitle').textContent = it.name;
+  document.getElementById('menuQtyInput').value = Math.round(menuItemGrams(it));
+  syncMenuQtyMode();
+  document.getElementById('menuQtyModal').classList.add('open');
+}
+
+function syncMenuQtyMode(){
+  const it = slotItems(menuQtyTarget.iso, menuQtyTarget.slot)[menuQtyTarget.idx];
+  const dish = state.dishes[it.name];
+  const t = dishTotals(dish), pt = dish.portions||1;
+  const gPerPortion = t.grams ? t.grams/pt : 0;
+  const input = document.getElementById('menuQtyInput');
+  document.getElementById('menuQtyMode').querySelectorAll('button')
+    .forEach(b=>b.classList.toggle('on', b.dataset.mode===menuQtyMode));
+  document.getElementById('menuQtyLabel').textContent = menuQtyMode==='grams' ? 'Grammes' : 'Portions';
+  input.step = menuQtyMode==='grams' ? 10 : 0.5;
+  input.min  = menuQtyMode==='grams' ? 1 : 0.25;
+  updateMenuQtyPreview();
+}
+
+function updateMenuQtyPreview(){
+  const it = slotItems(menuQtyTarget.iso, menuQtyTarget.slot)[menuQtyTarget.idx];
+  const dish = state.dishes[it.name];
+  const t = dishTotals(dish), pt = dish.portions||1;
+  const gPerPortion = t.grams ? t.grams/pt : 0;
+  const v = parseFloat(document.getElementById('menuQtyInput').value) || 0;
+  const grams = menuQtyMode==='grams' ? v : v*gPerPortion;
+  const r = t.grams ? grams/t.grams : 0;
+  document.getElementById('menuQtyHint').textContent = gPerPortion
+    ? (menuQtyMode==='grams'
+        ? `${Math.round(grams)} g = ${(grams/gPerPortion).toFixed(2)} portion(s)`
+        : `${v} portion(s) = ${Math.round(grams)} g`)
+    : 'Recette sans grammage : impossible de convertir.';
+  document.getElementById('menuQtyPreview').innerHTML =
+    `Recette entière : <b>${Math.round(t.grams)} g</b> pour ${pt} portion(s), soit <b>${Math.round(gPerPortion)} g</b> par portion.<br>`
+    + `Prévu ici : <b>${Math.round(t.kcal*r)} kcal</b> · P <b>${(t.p*r).toFixed(1)}</b> · L <b>${(t.f*r).toFixed(1)}</b> · G <b>${(t.c*r).toFixed(1)}</b>`;
+}
+
 function clearDropHot(){
   document.querySelectorAll('.menu-slot.drop-hot').forEach(x=>x.classList.remove('drop-hot'));
 }
@@ -6801,10 +6911,10 @@ function renderMenus(){
           : `<span class="mt-emoji">${dish ? (state.mealCats[dish.mealCat||'autres']||'🍽️').split(' ')[0] : (isDraft ? '✎' : '🥄')}</span>`;
         const sc = dish ? dishScore(dish) : null;
         const grade = sc ? `<span class="mt-grade" style="background:${sc.meta.color}; color:${sc.meta.ink};">${sc.grade}</span>` : '';
-        const t = dish ? dishTotals(dish) : null;
-        const pt = dish ? (dish.portions||1) : 1;
-        const meta = t ? `${Math.round(t.kcal/pt)} kcal · P ${Math.round(t.p/pt)}`
-                       : (isDraft ? 'recette à saisir' : (it.grams ? `${it.grams} g` : ''));
+        const mm = dish ? menuItemMacros(it) : null;
+        const meta = mm
+          ? `${Math.round(mm.grams)} g · ${Math.round(mm.kcal)} kcal · P ${Math.round(mm.p)}`
+          : (isDraft ? 'recette à saisir' : (it.grams ? `${it.grams} g` : ''));
         return `<div class="menu-tile ${isLeft?'leftover':''}${isDraft?' draft':''}" data-iso="${iso}" data-slot="${key}" data-idx="${idx}">
           <div class="mt-visual">${visual}${grade}${isLeft?'<span class="mt-left">restes</span>':''}${isDraft?'<span class="mt-left">à compléter</span>':''}</div>
           <div class="mt-body">
@@ -6846,6 +6956,13 @@ function renderMenus(){
       persistState(); renderMenus();
     };
   });
+  document.querySelectorAll('#menuGrid .menu-tile .mt-body').forEach(el=>{
+    el.onclick = e=>{
+      e.stopPropagation();
+      const p = el.closest('.menu-tile');
+      openMenuQty(p.dataset.iso, p.dataset.slot, parseInt(p.dataset.idx));
+    };
+  });
   document.querySelectorAll('#menuGrid .menu-tile b').forEach(x=>{
     x.onclick = e=>{
       e.stopPropagation();
@@ -6864,6 +6981,40 @@ document.getElementById('menuPrevJump').onclick = ()=>{ menuDayOffset -= 7; rend
 document.getElementById('menuNextJump').onclick = ()=>{ menuDayOffset += 7; renderMenus(); };
 document.getElementById('menuToday').onclick = ()=>{ menuDayOffset = 0; renderMenus(); };
 document.getElementById('menuLibSearch').oninput = e=>{ menuLibQuery = e.target.value; renderMenuLib(); };
+
+document.getElementById('menuQtyClose').onclick = ()=>document.getElementById('menuQtyModal').classList.remove('open');
+document.getElementById('menuQtyModal').onclick = e=>{ if(e.target.id==='menuQtyModal') e.currentTarget.classList.remove('open'); };
+document.getElementById('menuQtyInput').oninput = ()=>updateMenuQtyPreview();
+document.getElementById('menuQtyMode').querySelectorAll('button').forEach(btn=>{
+  btn.onclick = ()=>{
+    if(btn.dataset.mode === menuQtyMode) return;
+    const it = slotItems(menuQtyTarget.iso, menuQtyTarget.slot)[menuQtyTarget.idx];
+    const dish = state.dishes[it.name];
+    const t = dishTotals(dish), gPerPortion = t.grams ? t.grams/(dish.portions||1) : 0;
+    const input = document.getElementById('menuQtyInput');
+    const v = parseFloat(input.value) || 0;
+    // On convertit la valeur en cours plutôt que de la réinitialiser.
+    if(gPerPortion) input.value = btn.dataset.mode==='portions'
+      ? +(v/gPerPortion).toFixed(2)
+      : Math.round(v*gPerPortion);
+    menuQtyMode = btn.dataset.mode;
+    syncMenuQtyMode();
+  };
+});
+document.getElementById('menuQtyConfirm').onclick = ()=>{
+  const it = slotItems(menuQtyTarget.iso, menuQtyTarget.slot)[menuQtyTarget.idx];
+  const dish = state.dishes[it.name];
+  const t = dishTotals(dish), gPerPortion = t.grams ? t.grams/(dish.portions||1) : 0;
+  const v = parseFloat(document.getElementById('menuQtyInput').value) || 0;
+  if(v<=0){ alert('Indique une quantité valide.'); return; }
+  // On stocke TOUJOURS des grammes : c'est la donnée maîtresse, les portions
+  // ne sont qu'un mode de saisie.
+  it.grams = Math.round(menuQtyMode==='grams' ? v : v*gPerPortion);
+  delete it.portions;
+  persistState();
+  document.getElementById('menuQtyModal').classList.remove('open');
+  renderMenus();
+};
 
 /* ---- Picker à 2 onglets : Mes plats / Aliments ---- */
 function openMenuPick(iso, slot){
@@ -7138,7 +7289,10 @@ function computeShopItems(){
         // Un brouillon devenu vraie recette (même nom) compte comme un plat.
         const isKnownDish = (it.type==='dish' || it.type==='draft') && state.dishes[it.name];
         if(isKnownDish && !it.leftover){
-          state.dishes[it.name].ingredients.forEach(ing=>{ agg[ing.name] = (agg[ing.name]||0) + (ing.grams||0); });
+          // Proportionné à la quantité prévue : planifier 250 g d'un plat qui en pèse
+          // 1000 n'exige pas d'acheter les ingrédients des 1000 g.
+          const r = menuItemRatio(it);
+          state.dishes[it.name].ingredients.forEach(ing=>{ agg[ing.name] = (agg[ing.name]||0) + (ing.grams||0)*r; });
         }else if(it.type==='food'){
           agg[it.name] = (agg[it.name]||0) + (it.grams||0);
         }
@@ -7149,7 +7303,7 @@ function computeShopItems(){
   Object.entries(agg).forEach(([name,grams])=>{
     const cat = state.ingredients[name] ? state.ingredients[name].cat : 'autres';
     if(!groups[cat]) groups[cat] = [];
-    groups[cat].push({name, grams});
+    groups[cat].push({name, grams: Math.round(grams)});
   });
   Object.values(groups).forEach(arr=>arr.sort((a,b)=>a.name.localeCompare(b.name)));
   return groups;
@@ -8253,10 +8407,10 @@ document.querySelector('#futureBanner .fb-btn').onclick = ()=>{
           p:m.p*g/100, f:m.f*g/100, c:m.c*g/100});
         added++;
       } else if(dish){
-        // 1 portion par défaut : le plat est enregistré pour N portions.
-        const t = dishTotals(dish), r = 1/(dish.portions||1);
-        day.foods.push({eaten:false, name:it.name, grams:Math.round(t.grams*r),
-          unitCount:1, unitLabel:'portion(s)', p:t.p*r, f:t.f*r, c:t.c*r});
+        // Le grammage prévu au menu fait foi ; à défaut, une portion.
+        const mm = menuItemMacros(it);
+        day.foods.push({eaten:false, name:it.name, grams:Math.round(mm.grams),
+          unitCount:null, unitLabel:null, p:mm.p, f:mm.f, c:mm.c});
         added++;
       } else {
         skipped.push(it.name); // nom libre non encore renseigné : rien à calculer
