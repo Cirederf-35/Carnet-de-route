@@ -1047,6 +1047,17 @@
     background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
     box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
   /* Case à cocher « mangé / prévu » sur chaque aliment */
+  .future-banner{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--panel-2); border:1px dashed var(--accent); border-radius:12px;
+    padding:9px 12px; margin-bottom:10px;
+  }
+  .fb-text{flex:1; min-width:150px; font-size:0.72rem; color:var(--text-dim); line-height:1.35;}
+  .fb-btn{
+    background:var(--accent); color:var(--bg); border:none; border-radius:9px;
+    padding:7px 12px; font-size:0.72rem; font-family:inherit; font-weight:700; cursor:pointer;
+  }
+  .day-nav-label.future{font-style:italic;} /* .not-today donne déjà la couleur accent */
   .est-weight{margin-top:10px;}
   .est-weight-row{display:flex; gap:6px; align-items:stretch;}
   .est-weight-row input{flex:1; min-width:0;}
@@ -1568,6 +1579,11 @@
   <div class="tab-page" data-tab="jour">
 
   <div id="dayOverview" class="fade-panel">
+
+  <div class="future-banner" id="futureBanner" style="display:none;">
+    <span class="fb-text"></span>
+    <button type="button" class="fb-btn"></button>
+  </div>
 
   <div class="day-nav-bar" id="dayNavBar">
     <button type="button" class="day-nav-btn" id="dayPrevBtn" aria-label="Jour précédent">‹</button>
@@ -4405,11 +4421,35 @@ function renderWeighins(){
 }
 
 /* ---------- RENDU ---------- */
+function daysFromToday(date){
+  return Math.round((new Date(isoDate(date)+'T12:00:00') - new Date(isoDate(todayDate())+'T12:00:00')) / 86400000);
+}
+
 function updateDayNavBar(date, isToday){
   const label = document.getElementById('dayNavLabel');
-  label.textContent = isToday ? "Aujourd'hui" : date.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+  const delta = daysFromToday(date);
+  const long = date.toLocaleDateString('fr-FR', {weekday:'short', day:'numeric', month:'short'});
+  label.textContent = isToday ? "Aujourd'hui" : delta===1 ? 'Demain' : delta===-1 ? 'Hier' : long;
   label.classList.toggle('not-today', !isToday);
-  document.getElementById('dayNextBtn').disabled = isToday;
+  label.classList.toggle('future', delta>0);
+  document.getElementById('dayNextBtn').disabled = date >= maxSelectableDate();
+
+  // Bandeau de planification : rappelle qu'on n'est pas dans du réel et propose
+  // d'importer le menu déjà planifié pour ce jour.
+  const banner = document.getElementById('futureBanner');
+  if(delta>0){
+    const iso = isoDate(date);
+    const planned = slotItems(iso,'midi').length + slotItems(iso,'soir').length;
+    banner.style.display = 'flex';
+    banner.querySelector('.fb-text').textContent = delta===1
+      ? "Demain — mode planification. Tout ce que tu ajoutes part décoché."
+      : `Dans ${delta} jours — mode planification. Tout ce que tu ajoutes part décoché.`;
+    const btn = banner.querySelector('.fb-btn');
+    btn.style.display = planned ? '' : 'none';
+    btn.textContent = `📋 Importer le menu (${planned})`;
+  } else {
+    banner.style.display = 'none';
+  }
 }
 
 // Rotation légère mais stable par jour (pas aléatoire à chaque rendu, sinon le tampon "bougerait")
@@ -4442,9 +4482,15 @@ function renderDayStamp(day, isToday){
     selectedDate.toLocaleDateString('fr-FR', {day:'numeric', month:'short'}).toUpperCase();
 }
 
+/* Horizon de planification : 7 jours devant, comme la fenêtre glissante des Menus.
+   Anticiper au-delà n'a pas de sens ici — le besoin dépend du sport, qui n'est
+   connu que par les objectifs de la semaine. */
+const FUTURE_DAYS = 7;
+function maxSelectableDate(){ return addDays(todayDate(), FUTURE_DAYS); }
+
 function goToDay(delta){
   const target = addDays(selectedDate, delta);
-  if(target > todayDate()) return;
+  if(target > maxSelectableDate()) return;
   selectedDate = target;
   render();
 }
@@ -5863,6 +5909,12 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.4.0', date:'24 août 2026', items:[
+    'Tu peux désormais naviguer jusqu\'à 7 jours dans le futur depuis l\'onglet Jour, pour préparer tes repas à l\'avance.',
+    'Un bandeau signale le mode planification : tout ce que tu ajoutes sur un jour futur part automatiquement décoché.',
+    'Nouveau bouton « Importer le menu » : les plats planifiés dans l\'onglet Menus deviennent des lignes du journal, en projection.',
+    'Les libellés « Demain » et « Hier » remplacent la date pour les jours adjacents.'
+  ]},
   {v:'3.3.0', date:'24 août 2026', items:[
     'Les estimations rapides acceptent un poids approximatif, avec trois raccourcis (léger 250 g, normal 450 g, copieux 700 g).',
     'Sans ce poids, un repas estimé restait invisible au critère de satiété ; il y entre désormais.',
@@ -8183,6 +8235,42 @@ document.getElementById('waterGoalInput').onchange = e=>{
 
 document.getElementById('weightInput').onchange = (e)=>{ state.weightKg=parseFloat(e.target.value)||75; persistState(); render(); };
 
+/* Pont entre le planning et le journal : les plats prévus au menu deviennent des
+   lignes du journal, décochées (projection). C'est la seule passerelle entre les
+   deux, elles vivaient jusqu'ici séparément. */
+document.querySelector('#futureBanner .fb-btn').onclick = ()=>{
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  let added = 0, skipped = [];
+  ['midi','soir'].forEach(slot=>{
+    slotItems(iso, slot).forEach(it=>{
+      const dish = state.dishes[it.name];
+      if(it.type==='food'){
+        const m = state.ingredients[it.name];
+        if(!m){ skipped.push(it.name); return; }
+        const g = it.grams||0;
+        day.foods.push({eaten:false, name:it.name, grams:g, unitCount:null, unitLabel:null,
+          p:m.p*g/100, f:m.f*g/100, c:m.c*g/100});
+        added++;
+      } else if(dish){
+        // 1 portion par défaut : le plat est enregistré pour N portions.
+        const t = dishTotals(dish), r = 1/(dish.portions||1);
+        day.foods.push({eaten:false, name:it.name, grams:Math.round(t.grams*r),
+          unitCount:1, unitLabel:'portion(s)', p:t.p*r, f:t.f*r, c:t.c*r});
+        added++;
+      } else {
+        skipped.push(it.name); // nom libre non encore renseigné : rien à calculer
+      }
+    });
+  });
+  if(!added && !skipped.length) return;
+  setDay(iso, day);
+  render();
+  if(skipped.length){
+    alert(`${added} plat(s) importé(s).\n\nNon importé(s), faute de recette renseignée :\n· ${skipped.join('\n· ')}`);
+  }
+};
+
 document.getElementById('dayPrevBtn').onclick = ()=> goToDay(-1);
 document.getElementById('dayNextBtn').onclick = ()=> goToDay(1);
 document.getElementById('dayNavLabel').onclick = ()=>{
@@ -8193,7 +8281,7 @@ document.getElementById('dayNavLabel').onclick = ()=>{
 document.getElementById('dayNavPicker').onchange = (e)=>{
   if(!e.target.value) return;
   const d = new Date(e.target.value+'T00:00:00');
-  if(d > todayDate()) return;
+  if(d > maxSelectableDate()) return;
   selectedDate = d;
   render();
 };
