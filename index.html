@@ -1047,6 +1047,15 @@
     background:repeating-linear-gradient(45deg,#d03b3b,#d03b3b 3px,#a32d2d 3px,#a32d2d 6px);
     box-shadow:-2px 0 0 0 var(--panel-2); transition:width 0.3s;}
   /* Case à cocher « mangé / prévu » sur chaque aliment */
+  .est-weight{margin-top:10px;}
+  .est-weight-row{display:flex; gap:6px; align-items:stretch;}
+  .est-weight-row input{flex:1; min-width:0;}
+  .est-wpreset{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text-dim); font-size:0.6rem; line-height:1.25; padding:4px 7px;
+    cursor:pointer; font-family:inherit; flex-shrink:0;
+  }
+  .est-wpreset:active{background:var(--accent); color:var(--bg);}
   .qty-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:4px;}
   .qty-mode{display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; flex-shrink:0;}
   .qty-mode button{
@@ -2478,6 +2487,16 @@
         <input type="text" id="estName" placeholder="Ex : Resto italien">
         <label class="field-label">Calories estimées</label>
         <input type="number" id="estKcal" placeholder="kcal" min="1">
+        <div class="est-weight">
+          <label class="field-inline">Poids approximatif (g)</label>
+          <div class="est-weight-row">
+            <input type="number" id="estGrams" placeholder="ex. 450" min="0" step="50">
+            <button type="button" class="est-wpreset" data-g="250">léger<br>250 g</button>
+            <button type="button" class="est-wpreset" data-g="450">normal<br>450 g</button>
+            <button type="button" class="est-wpreset" data-g="700">copieux<br>700 g</button>
+          </div>
+          <div class="check-sub" style="margin-top:5px;">Même à 100 g près, ce poids permet de calculer la densité énergétique du repas — le critère de satiété. Sans lui, la ligne reste invisible à ce calcul.</div>
+        </div>
         <details style="margin-top:8px;"><summary class="check-sub">Macros (optionnel)</summary>
           <div style="display:flex; gap:6px; margin-top:6px;">
             <input type="number" id="estP" placeholder="P (g)" min="0"><input type="number" id="estF" placeholder="L (g)" min="0"><input type="number" id="estC" placeholder="G (g)" min="0">
@@ -3370,6 +3389,19 @@ function foodDone(day){ return day.foods.length>0 || day.food===true; }
    Sur aujourd'hui ou dans le passé, c'est un log : la case part cochée. */
 function defaultEaten(iso){ return !(iso > isoDate(todayDate())); }
 function foodKcal(f){ if(f.kcalOverride!=null) return Math.round(f.kcalOverride); return Math.round(f.p*4 + f.c*4 + f.f*9 + (f.a||0)*7); }
+
+/* Le grammage est TOUJOURS affiché quand il est connu, même sur une saisie en unités :
+   c'est la donnée sur laquelle tout est calculé, autant qu'elle soit visible.
+   Le « ~ » signale un poids approximatif saisi sur une estimation rapide. */
+function foodQtyLabel(f){
+  const g = (f.grams!=null && f.grams>0) ? `${Math.round(f.grams)} g` : null;
+  if(f.unitCount!=null){
+    const u = ` · ${f.unitCount} ${f.unitLabel||''}`.trimEnd();
+    return g ? `${u} — ${g}` : u;
+  }
+  if(g) return ` · ${f.approxWeight ? '~' : ''}${g}`;
+  return '';
+}
 /* Coefficients d'activité NEAT-ONLY (vie quotidienne HORS séances loguées).
    ⚠️ Ce ne sont volontairement PAS les multiplicateurs Harris-Benedict classiques
    (1.2 / 1.375 / 1.55 / 1.725) : ceux-là incluent déjà 3 à 5 séances de sport par semaine.
@@ -4554,7 +4586,7 @@ function renderFoods(day){
     row.innerHTML = `
       <button class="food-check${eaten?' on':''}" data-idx="${idx}" title="${eaten?'Mangé — décocher pour repasser en prévu':'Prévu — cocher quand c\'est mangé'}">${eaten?'✓':''}</button>
       <div class="session-info">
-        <div class="session-type">${f.name}${f.unitCount!=null ? ' · '+f.unitCount+' '+f.unitLabel : (f.grams!=null ? ' · '+f.grams+'g' : '')}</div>
+        <div class="session-type">${f.name}${foodQtyLabel(f)}</div>
         <div class="session-meta">${f.kcalOverride!=null && (f.p+f.f+f.c)===0 ? "Estimation rapide" : `P ${f.p.toFixed(1)}g · L ${f.f.toFixed(1)}g · G ${f.c.toFixed(1)}g`}</div>
       </div>
       <div class="session-kcal">${foodKcal(f)} kcal</div>
@@ -4608,6 +4640,7 @@ function editFoodItem(idx){
   document.getElementById('foodModal').classList.add('open');
 
   if(f.kcalOverride!=null){
+    document.getElementById('estGrams').value = f.grams || '';
     // Estimation rapide : on réédite kcal + macros optionnelles
     document.getElementById('estName').value = f.name.replace(/ ⚡$/,'');
     document.getElementById('estKcal').value = f.kcalOverride;
@@ -5830,6 +5863,13 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.3.0', date:'24 août 2026', items:[
+    'Les estimations rapides acceptent un poids approximatif, avec trois raccourcis (léger 250 g, normal 450 g, copieux 700 g).',
+    'Sans ce poids, un repas estimé restait invisible au critère de satiété ; il y entre désormais.',
+    'Le grammage est affiché partout dans le journal, même quand tu saisis en unités : « 2 pot(s) — 300 g ».',
+    'Un poids approximatif est signalé par un ~ devant la valeur.',
+    'Les fiches recettes indiquent le poids par portion, qui révèle immédiatement un nombre de portions mal réglé.'
+  ]},
   {v:'3.2.0', date:'24 août 2026', items:[
     'Les aliments comptables (skyr, œufs, bananes…) peuvent maintenant être saisis en unités OU en grammes, au choix, via une bascule dans l\'écran Quantité.',
     'Une ligne d\'aide rappelle en permanence l\'équivalence : « 2 pot(s) = 300 g » ou « 250 g = 1,7 pot(s) ».',
@@ -5991,6 +6031,26 @@ function dishScore(dish){
           maxes:{prot:45, fat:30, dens:25}, meta:DISH_GRADES[grade]};
 }
 
+/* Ligne d'en-tête d'une fiche recette. Le POIDS PAR PORTION y figure parce que
+   c'est lui qui rend les plats comparables : 500 g pour 575 kcal n'est pas la même
+   expérience que 67 g pour 380 kcal, à calories proches. C'est aussi le meilleur
+   révélateur d'un nombre de portions mal réglé. */
+function recipeMetaLine(dish, seasonTxt){
+  const t = dishTotals(dish);
+  const pt = dish.portions || 1;
+  const perPortion = Math.round(t.kcal/pt);
+  const gPer = t.grams ? Math.round(t.grams/pt) : null;
+  const parts = [
+    state.mealCats[dish.mealCat||'autres'],
+    seasonTxt,
+    `${perPortion} kcal/portion${dish.macroOverride?' ✋':''}`,
+    `${pt} portion${pt>1?'s':''}`
+  ];
+  if(gPer) parts.push(`${gPer} g/portion`);
+  if(dish.source) parts.push(dish.source);
+  return parts.join(' · ');
+}
+
 /* Contrôle de cohérence des saisies manuelles : si les macros ne reconstituent pas les kcal
    annoncées (à 10% près), c'est presque toujours une confusion total / par portion. */
 function macroOverrideWarning(dish){
@@ -6106,7 +6166,7 @@ function openRecipeModal(name){
   document.getElementById('recipeModalBody').innerHTML = `
     ${dish.photo ? `<img class="recipe-photo" src="${dish.photo}" alt="${name}" style="margin-bottom:10px;">` : ''}
     <div class="recipe-meta" style="display:flex; align-items:center; gap:8px;">
-      <span style="flex:1;" id="recipeModalMetaSpan">${state.mealCats[dish.mealCat||'autres']} · ${seasonTxt} · ${perPortion} kcal/portion${dish.macroOverride?' ✋':''} · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}</span>
+      <span style="flex:1;" id="recipeModalMetaSpan">${recipeMetaLine(dish, seasonTxt)}</span>
       <button id="recipeEditToggle" style="background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:4px 8px; cursor:pointer; flex-shrink:0;">✏️</button>
     </div>
     <div class="recipe-cat-edit" id="recipeEditPanel" style="display:none; margin-top:10px;">
@@ -6163,8 +6223,7 @@ function openRecipeModal(name){
   const syncMetaSpan = ()=>{
     const tt = dishTotals(dish);
     const pp = dish.portions ? Math.round(tt.kcal/dish.portions) : tt.kcal;
-    document.getElementById('recipeModalMetaSpan').textContent =
-      `${state.mealCats[dish.mealCat||'autres']} · ${seasonTxt} · ${pp} kcal/portion${dish.macroOverride?' ✋':''} · ${dish.portions} portion${dish.portions>1?'s':''}${dish.source ? ` · ${dish.source}` : ''}`;
+    document.getElementById('recipeModalMetaSpan').textContent = recipeMetaLine(dish, seasonTxt);
   };
   document.getElementById('recipeManualMacroChk').onchange = e=>{
     document.getElementById('recipeManualMacroFields').style.display = e.target.checked ? 'flex' : 'none';
@@ -7328,6 +7387,9 @@ document.getElementById('dishSave').onclick = ()=>{
 function resetEstimateForm(){
   ['estName','estKcal','estP','estF','estC'].forEach(id=>document.getElementById(id).value='');
 }
+document.querySelectorAll('.est-wpreset').forEach(btn=>{
+  btn.onclick = ()=>{ document.getElementById('estGrams').value = btn.dataset.g; };
+});
 document.querySelectorAll('.est-preset').forEach(btn=>{
   btn.onclick = ()=>{
     document.getElementById('estKcal').value = btn.dataset.kcal;
@@ -7343,7 +7405,11 @@ document.getElementById('estConfirm').onclick = ()=>{
   const c = parseFloat(document.getElementById('estC').value)||0;
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
-  const item = {name:`${name} ⚡`, grams:null, unitCount:null, unitLabel:null, p, f, c, kcalOverride:kcal};
+  // Poids approximatif : facultatif, mais il réintègre la ligne dans le calcul
+  // de densité énergétique (kcal/100 g), sinon impossible sur une estimation.
+  const estG = parseFloat(document.getElementById('estGrams').value)||0;
+  const item = {name:`${name} ⚡`, grams: estG>0 ? Math.round(estG) : null,
+                unitCount:null, unitLabel:null, p, f, c, kcalOverride:kcal, approxWeight: estG>0};
   if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
   else { item.eaten = defaultEaten(iso); day.foods.push(item); }
   setDay(iso, day);
