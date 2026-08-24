@@ -2515,8 +2515,16 @@
       <div id="modalStepDishQty" style="display:none;">
         <div class="modal-selected" id="dishQtyName"></div>
         <div class="check-sub" id="dishQtyMacros" style="margin-bottom:10px;"></div>
-        <label class="field-label">Nombre de portions</label>
+        <div class="qty-head">
+          <label class="field-label" id="dishQtyLabel">Nombre de portions</label>
+          <div class="qty-mode" id="dishQtyMode">
+            <button type="button" data-mode="portions" class="on">portions</button>
+            <button type="button" data-mode="grams">grammes</button>
+          </div>
+        </div>
         <input type="number" id="dishQtyInput" value="1" min="0.5" step="0.5">
+        <div class="qty-hint" id="dishQtyHint"></div>
+        <div class="menu-qty-preview" id="dishQtyPreview"></div>
         <button class="add-btn" id="dishQtyConfirm" style="margin-top:12px;">Ajouter à la journée</button>
       </div>
       <div id="modalStepEstimate" style="display:none;">
@@ -4728,7 +4736,11 @@ function editFoodItem(idx){
     document.getElementById('dishQtyName').textContent = f.name;
     document.getElementById('dishQtyMacros').textContent =
       `Par portion : ${Math.round(t.kcal/dish.portions)} kcal · P ${(t.p/dish.portions).toFixed(1)}g · L ${(t.f/dish.portions).toFixed(1)}g · G ${(t.c/dish.portions).toFixed(1)}g`;
-    document.getElementById('dishQtyInput').value = f.unitCount || 1;
+    // Réédition : on retrouve le mode utilisé à la saisie.
+    dishQtyMode = (f.unitCount == null) ? 'grams' : 'portions';
+    document.getElementById('dishQtyInput').value =
+      dishQtyMode==='grams' ? (f.grams || 0) : (f.unitCount || 1);
+    syncDishQtyMode();
     modalPush('dishQty');
   } else {
     // Ingrédient classique (unitaire ou au gramme) : on reconstruit les valeurs /100g depuis les totaux stockés
@@ -5935,6 +5947,12 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'3.5.1', date:'24 août 2026', items:[
+    'Ajouter un plat au journal accepte maintenant un grammage, comme au menu : la bascule grammes / portions est présente sur les deux écrans.',
+    'Un aperçu en direct affiche le poids, les calories et les macros correspondant à la quantité saisie.',
+    'Une recette sans grammage renseigné reste en portions seules, la bascule est alors masquée.',
+    'Réouvrir un plat déjà enregistré retrouve le mode utilisé à la saisie.'
+  ]},
   {v:'3.5.0', date:'24 août 2026', items:[
     'Chaque plat planifié accepte un grammage précis : touche la vignette pour l\'éditer.',
     'Saisie en grammes ou en portions au choix, avec conversion instantanée et aperçu des calories et macros obtenues.',
@@ -7465,7 +7483,9 @@ function runFoodSearch(){
       document.getElementById('dishQtyName').textContent = modalDish;
       document.getElementById('dishQtyMacros').textContent =
         `Par portion : ${Math.round(t.kcal/dish.portions)} kcal · P ${(t.p/dish.portions).toFixed(1)}g · L ${(t.f/dish.portions).toFixed(1)}g · G ${(t.c/dish.portions).toFixed(1)}g`;
+      dishQtyMode = 'portions';
       document.getElementById('dishQtyInput').value = 1;
+      syncDishQtyMode();
       modalPush('dishQty');
     };
   });
@@ -7517,7 +7537,9 @@ function renderModalDishGrid(){
       document.getElementById('dishQtyName').textContent = modalDish;
       document.getElementById('dishQtyMacros').textContent =
         `Par portion : ${Math.round(t.kcal/dish.portions)} kcal · P ${(t.p/dish.portions).toFixed(1)}g · L ${(t.f/dish.portions).toFixed(1)}g · G ${(t.c/dish.portions).toFixed(1)}g`;
+      dishQtyMode = 'portions';
       document.getElementById('dishQtyInput').value = 1;
+      syncDishQtyMode();
       modalPush('dishQty');
     };
   });
@@ -7530,15 +7552,72 @@ function renderModalDishGrid(){
     };
   });
 }
-document.getElementById('dishQtyConfirm').onclick = ()=>{
-  const qty = parseFloat(document.getElementById('dishQtyInput').value)||0;
-  if(qty<=0){ alert("Indique un nombre de portions valide."); return; }
+/* Ajout d'un plat au journal : mêmes règles que la quantité au menu.
+   Le grammage est la donnée maîtresse, la portion un raccourci = poids_total / N. */
+let dishQtyMode = 'portions';
+
+function dishQtyPerPortion(){
   const dish = state.dishes[modalDish];
   const t = dishTotals(dish);
-  const r = qty/dish.portions;
+  return t.grams ? t.grams/(dish.portions||1) : 0;
+}
+
+function syncDishQtyMode(){
+  const input = document.getElementById('dishQtyInput');
+  const hasGrams = dishQtyPerPortion() > 0;
+  document.getElementById('dishQtyMode').style.display = hasGrams ? '' : 'none';
+  document.getElementById('dishQtyMode').querySelectorAll('button')
+    .forEach(b=>b.classList.toggle('on', b.dataset.mode===dishQtyMode));
+  document.getElementById('dishQtyLabel').textContent = dishQtyMode==='grams' ? 'Grammes' : 'Nombre de portions';
+  input.step = dishQtyMode==='grams' ? 10 : 0.5;
+  input.min  = dishQtyMode==='grams' ? 1 : 0.25;
+  updateDishQtyPreview();
+}
+
+function updateDishQtyPreview(){
+  const dish = state.dishes[modalDish];
+  const t = dishTotals(dish);
+  const gPer = dishQtyPerPortion();
+  const v = parseFloat(document.getElementById('dishQtyInput').value) || 0;
+  const grams = dishQtyMode==='grams' ? v : v*gPer;
+  const r = t.grams ? grams/t.grams : v/(dish.portions||1);
+  document.getElementById('dishQtyHint').textContent = gPer
+    ? (dishQtyMode==='grams'
+        ? `${Math.round(grams)} g = ${(grams/gPer).toFixed(2)} portion(s)`
+        : `${v} portion(s) = ${Math.round(grams)} g`)
+    : 'Recette sans grammage : saisie en portions uniquement.';
+  document.getElementById('dishQtyPreview').innerHTML =
+    `Ajouté : <b>${gPer?Math.round(grams)+' g':'—'}</b> · <b>${Math.round(t.kcal*r)} kcal</b>`
+    + ` · P <b>${(t.p*r).toFixed(1)}</b> · L <b>${(t.f*r).toFixed(1)}</b> · G <b>${(t.c*r).toFixed(1)}</b>`;
+}
+
+document.getElementById('dishQtyInput').oninput = ()=>updateDishQtyPreview();
+document.getElementById('dishQtyMode').querySelectorAll('button').forEach(btn=>{
+  btn.onclick = ()=>{
+    if(btn.dataset.mode === dishQtyMode) return;
+    const gPer = dishQtyPerPortion();
+    const input = document.getElementById('dishQtyInput');
+    const v = parseFloat(input.value) || 0;
+    if(gPer) input.value = btn.dataset.mode==='grams' ? Math.round(v*gPer) : +(v/gPer).toFixed(2);
+    dishQtyMode = btn.dataset.mode;
+    syncDishQtyMode();
+  };
+});
+
+document.getElementById('dishQtyConfirm').onclick = ()=>{
+  const v = parseFloat(document.getElementById('dishQtyInput').value)||0;
+  if(v<=0){ alert("Indique une quantité valide."); return; }
+  const dish = state.dishes[modalDish];
+  const t = dishTotals(dish);
+  const gPer = dishQtyPerPortion();
+  const inGrams = dishQtyMode==='grams' && gPer>0;
+  const grams = inGrams ? v : v*gPer;
+  const r = t.grams ? (grams/t.grams) : v/(dish.portions||1);
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
-  const item = {name:modalDish, grams:Math.round(t.grams*r), unitCount:qty, unitLabel:'portion(s)',
+  const item = {name:modalDish, grams:Math.round(grams),
+    // Saisie en grammes : pas de nombre de portions à virgule dans le journal.
+    unitCount: inGrams ? null : v, unitLabel: inGrams ? null : 'portion(s)',
     p:t.p*r, f:t.f*r, c:t.c*r};
   if(modalEditIndex!=null){ item.eaten = day.foods[modalEditIndex].eaten; day.foods[modalEditIndex] = item; modalEditIndex = null; }
   else { item.eaten = defaultEaten(iso); day.foods.push(item); }
