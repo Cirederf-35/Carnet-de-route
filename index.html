@@ -625,6 +625,109 @@
   /* La bibliothèque latérale et le glisser-déposer n'existent QUE sur grand écran.
      Sur mobile, l'API HTML5 drag-and-drop n'est pas déclenchée par le tactile : la
      colonne serait inutilisable et ferait doublon avec le sélecteur « + Ajouter ». */
+
+  /* ================= MODULE MUSCULATION ================= */
+  .member-btn{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);
+    background:var(--panel-2);font-size:1.4rem;cursor:pointer;flex-shrink:0}
+  .member-btn:active{transform:scale(.93)}
+  /* Carte d'adhérent en plein écran : fond sombre pour maximiser le contraste
+     à l'entrée de la salle, et image contenue sans rognage. */
+  .member-full{position:fixed;inset:0;z-index:400;background:#000;display:none;
+    align-items:center;justify-content:center;padding:12px}
+  .member-full.on{display:flex}
+  .member-full img{max-width:100%;max-height:88vh;object-fit:contain;border-radius:10px}
+  .member-actions{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));
+    display:flex;gap:10px;justify-content:center}
+  .member-actions .btn-sm{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3)}
+  .mg-sel{display:flex;flex-wrap:wrap;gap:7px}
+  .mg{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel-2);
+      font-size:.74rem;cursor:pointer;color:var(--text);font-family:inherit}
+  .mg.on{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:700}
+  .io-msg{font-size:.7rem;margin-top:8px;line-height:1.5;word-break:break-word;color:var(--text-dim)}
+  .ex-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .ex-card{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer}
+  .ex-photo{height:74px;background:var(--panel);display:flex;align-items:center;justify-content:center}
+  .ex-photo img{width:100%;height:100%;object-fit:cover}
+  .ex-photo svg{width:60px;height:auto;color:var(--text-dim)}
+  .ex-body{padding:7px 9px}
+  .ex-name{font-size:.76rem;line-height:1.25;font-weight:500}
+  .ex-meta{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--text-dim);margin-top:3px}
+  /* Écran de séance : plein écran, une seule information dominante à la fois. */
+  .seance-screen{position:fixed;inset:0;z-index:300;background:var(--bg);display:none;flex-direction:column}
+  .seance-screen.on{display:flex}
+  .sc-top{display:flex;align-items:center;gap:10px;padding:calc(12px + env(safe-area-inset-top)) 14px 10px;
+    border-bottom:1px solid var(--line);background:var(--panel)}
+  .sc-quit{background:none;border:none;font-size:1.1rem;color:var(--text-dim);cursor:pointer;padding:4px}
+  .sc-bar{flex:1;height:5px;background:var(--panel-2);border-radius:3px;overflow:hidden}
+  .sc-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .35s}
+  .sc-body{flex:1;overflow-y:auto;padding:16px 14px calc(20px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+  .sc-group{font-size:.68rem;color:var(--accent);font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+  .sc-name{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;font-weight:600;line-height:1.15;margin:4px 0 6px}
+  .sc-setup{font-size:.74rem;color:var(--text-dim);line-height:1.4}
+  .sc-dots{display:flex;gap:7px;margin:14px 0;flex-wrap:wrap}
+  .sdot{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-family:'JetBrains Mono',monospace;font-size:.7rem;border:1px solid var(--line);color:var(--text-dim);background:var(--panel)}
+  .sdot.done{background:var(--success);border-color:var(--success);color:#fff;font-weight:700}
+  .sdot.skip{background:var(--panel-2);border-style:dashed}
+  .sdot.cur{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:800;transform:scale(1.14)}
+  .sc-load{background:var(--accent-soft);border:1px solid rgba(169,111,36,.28);border-radius:16px;
+    padding:20px 14px;text-align:center;margin-bottom:14px}
+  .sc-kg{font-family:'JetBrains Mono',monospace;font-size:3.6rem;font-weight:700;line-height:.95;color:var(--accent);letter-spacing:-.03em}
+  .sc-kg small{font-size:1.1rem;font-weight:400;letter-spacing:0}
+  .sc-reps{font-family:'JetBrains Mono',monospace;font-size:1.6rem;font-weight:700;margin-top:4px}
+  .sc-prev{font-size:.68rem;color:var(--text-dim);margin-top:10px}
+  .sc-q{font-size:.76rem;color:var(--text-dim);margin-bottom:8px}
+  .feel{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .feel button{padding:16px 8px;font-size:.9rem;font-weight:700;font-family:'Space Grotesk',sans-serif;
+    border-radius:11px;border:1.5px solid var(--line);background:var(--panel);color:var(--text);cursor:pointer}
+  .feel button:active{transform:scale(.95)}
+  /* Porte d'entrée du module depuis la page Sport : la musculation reste un sport,
+     elle n'a pas d'onglet propre. */
+  .muscu-entry{
+    display:flex; align-items:center; gap:12px; width:100%; margin-bottom:12px;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; cursor:pointer; color:var(--text); font-family:inherit; text-align:left;
+  }
+  .muscu-entry:active{transform:scale(.985)}
+  .me-icon{font-size:1.5rem; flex-shrink:0}
+  .me-text{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px}
+  .me-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:.88rem}
+  .me-sub{font-family:'JetBrains Mono',monospace; font-size:.64rem; color:var(--text-dim)}
+  .me-go{font-size:1.2rem; color:var(--text-dim); flex-shrink:0}
+  .row{display:flex;gap:8px;align-items:center}
+  .feel .f-mid{border-color:var(--line);color:var(--text)}
+  .feel .f-easy{border-color:var(--success);color:var(--success)}
+  .feel .f-hard{border-color:var(--warn);color:var(--warn)}
+  .feel .f-fail{border-color:var(--danger);color:var(--danger)}
+  .sc-sub{display:flex;gap:8px;margin-top:8px}
+  .sc-sub button{flex:1;padding:9px;font-size:.7rem;color:var(--text-dim);background:none;
+    border:1px solid var(--line);border-radius:11px;cursor:pointer}
+  .reps-adj{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:4px}
+  .reps-adj button{width:56px;height:56px;border-radius:11px;border:1.5px solid var(--line);
+    background:var(--panel);color:var(--text);font-size:1.6rem;line-height:1;cursor:pointer}
+  .reps-adj span{font-family:'JetBrains Mono',monospace;font-size:2.4rem;font-weight:800;min-width:70px;text-align:center;color:var(--accent)}
+  .rest-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .ring{width:190px;height:190px;position:relative;margin-bottom:18px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring-txt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .ring-num{font-family:'JetBrains Mono',monospace;font-size:2.7rem;font-weight:800;line-height:1;color:var(--accent)}
+  .next-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 16px;margin-bottom:16px}
+  .body-map{display:flex;justify-content:center}
+  .body-map svg{width:100%;max-width:250px;height:auto}
+  .m-legend{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+  .m-legend span{display:flex;align-items:center;gap:5px;font-size:.68rem;color:var(--text-dim)}
+  .m-legend i{width:11px;height:11px;border-radius:3px;display:block}
+  .machine-art{display:flex;align-items:center;justify-content:center;padding:6px 0}
+  .machine-art svg{width:150px;height:auto;color:var(--accent)}
+  .machine-art img{max-width:100%;border-radius:11px}
+  .rec-row{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px dashed var(--line);font-size:.8rem}
+  .rec-row:last-child{border-bottom:none}
+  .chip{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:2px 6px;border-radius:5px;margin:2px 3px 0 0}
+  .c-easy{background:rgba(63,126,84,.16);color:var(--success)}
+  .c-mid{background:var(--panel-2);color:var(--text-dim)}
+  .c-hard{background:rgba(193,121,58,.18);color:var(--warn)}
+  .c-fail{background:rgba(163,79,67,.16);color:var(--danger)}
+  .c-skip{background:var(--panel-2);color:var(--text-dim);text-decoration:line-through}
   /* ---- Pesées : source, vignettes et comparaison deux colonnes ---- */
   .wi-src{font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:var(--text-dim); margin-left:6px;}
   .wi-thumb{width:34px; height:44px; object-fit:cover; border-radius:5px; cursor:pointer; display:block;}
@@ -1811,6 +1914,15 @@
       <div class="pct-sticker" data-section="sport">0%</div>
       <div class="ring-count" id="count-sport"></div>
     </div>
+    <button class="muscu-entry" id="muscuEntry">
+      <span class="me-icon">💪</span>
+      <span class="me-text">
+        <span class="me-title">Musculation</span>
+        <span class="me-sub" id="muscuEntrySub">—</span>
+      </span>
+      <span class="me-go">›</span>
+    </button>
+
     <div class="session-list" id="sessionList"></div>
     <div class="macro-total"><span>Total dépense sport du jour</span><span class="val" id="sportTotalKcal">0 kcal</span></div>
 
@@ -1975,6 +2087,56 @@
     <button class="add-btn" id="saveGoalsBtn" style="margin-top:16px;">Enregistrer les objectifs</button>
   </div>
   </div><!-- /tab objectifs -->
+
+  <div class="tab-page" data-tab="muscu">
+    <div class="section-header"><button class="back-btn" id="muscuBack">← Retour</button><h2>💪 Musculation</h2></div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div><h2>Salle de sport</h2><div class="check-sub" style="margin:2px 0 0">Ta carte d'adhérent, à présenter à l'entrée.</div></div>
+        <button class="member-btn" id="memberOpenBtn" title="Afficher la carte">🎫</button>
+      </div>
+      <div id="memberEmpty" class="check-sub" style="margin-top:10px;">
+        Aucune carte enregistrée. <button class="btn-sm" id="memberAddBtn">Importer une image</button>
+        <input type="file" accept="image/*" id="memberFile" style="display:none;">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Groupes à travailler</h2>
+      <div class="check-sub" style="margin:3px 0 8px">Coche avant de générer la séance.</div>
+      <div class="mg-sel" id="mgSel"></div>
+    </div>
+
+    <div class="card">
+      <h2>Préparer la séance</h2>
+      <div class="check-sub" style="margin:3px 0 10px">Copie le prompt, colle la réponse JSON ici.</div>
+      <button class="add-btn" id="muscuPromptBtn" style="margin-bottom:8px;">📋 Copier le prompt de séance</button>
+      <textarea id="muscuJsonIn" rows="4" placeholder='{"seance":[{"ex":"...","rest":90,"sets":[{"load":45,"reps":8}]}]}'></textarea>
+      <button class="add-btn" id="muscuImportBtn" style="margin-top:8px;">Importer cette séance</button>
+      <div class="io-msg" id="muscuIoMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Séance du jour</h2>
+      <div class="check-sub" style="margin:3px 0 10px" id="seanceSummary">Aucune séance chargée.</div>
+      <button class="add-btn" id="muscuStartBtn">💪 Démarrer la séance</button>
+    </div>
+
+    <div class="card">
+      <h2>Catalogue d'exercices <span class="tag mono" id="exCountTag"></span></h2>
+      <div class="check-sub" style="margin:3px 0 10px">Colle ici le JSON des machines de ta salle.</div>
+      <textarea id="exJsonIn" rows="3" placeholder='{"exercices":[{"nom":"...","groupe":"pecs","unite":"kg","reglages":"...","muscles":{"pectoraux":1},"substitut":"..."}]}'></textarea>
+      <button class="add-btn" id="exImportBtn" style="margin-top:8px;">Importer ces exercices</button>
+      <div class="io-msg" id="exIoMsg"></div>
+      <div class="ex-grid" id="exGrid" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Historique</h2>
+      <div id="muscuHistory"></div>
+    </div>
+  </div>
 
   <div class="tab-page" data-tab="pesees">
     <div class="sub-tabs"><button class="sub-tab " data-go="semaine">📊 Bilan</button><button class="sub-tab on" data-go="pesees">⚖️ Pesées</button></div>
@@ -2424,6 +2586,24 @@
 </div>
 
 <!-- POP-UP LOG RAPIDE -->
+<div class="member-full" id="memberFull">
+  <img id="memberFullImg" alt="Carte d'adhérent">
+  <div class="member-actions">
+    <button class="btn-sm" id="memberReplace">Remplacer</button>
+    <button class="btn-sm" id="memberClose">Fermer</button>
+  </div>
+</div>
+
+<div class="seance-screen" id="seanceScreen">
+  <div class="sc-top">
+    <button class="sc-quit" id="scQuit">✕</button>
+    <span class="mono" id="scCount" style="font-size:.66rem;color:var(--text-dim)"></span>
+    <div class="sc-bar"><i id="scBar"></i></div>
+    <span class="mono" id="scClock" style="font-size:.72rem;color:var(--text-dim)">00:00</span>
+  </div>
+  <div class="sc-body" id="scBody"></div>
+</div>
+
 <div class="modal-overlay" id="menuQtyModal">
   <div class="modal-box">
     <div class="modal-header">
@@ -2732,7 +2912,8 @@ const SPORT_ACTIVITIES = {
   hiit:{label:"HIIT", icon:"⚡", fields:["hiit"]},
   padel:{label:"Padel", icon:"🏓", met:6, fields:["duration","kcal"]},
   tennis:{label:"Tennis", icon:"🎾", met:7, fields:["duration","kcal"]},
-  natation:{label:"Natation", icon:"🏊", met:6, fields:["duration","kcal"]}
+  natation:{label:"Natation", icon:"🏊", met:6, fields:["duration","kcal"]},
+  muscu:{label:"Musculation", icon:"💪", met:5, fields:["duration","kcal"]}
 };
 let currentSportActivity = null;
 const UNIT_ITEMS = {
@@ -3235,7 +3416,7 @@ function switchTab(name){
   }
   currentTab = name;
   // Sous-onglets : pesees vit sous Bilan (semaine), menus sous Cuisine (recettes)
-  const NAV_PARENT = {pesees:'semaine', menus:'recettes'};
+  const NAV_PARENT = {pesees:'semaine', menus:'recettes', muscu:'jour'};
   const navKey = NAV_PARENT[name] || name;
   document.querySelectorAll('.tab-page').forEach(el=>el.classList.toggle('active', el.dataset.tab===name));
   document.querySelectorAll('.bn-tab').forEach(b=>b.classList.toggle('on', b.dataset.tab===navKey));
@@ -3244,6 +3425,7 @@ function switchTab(name){
   if(name==='objectifs'){ goalsViewMonday = null; renderGoalsPage(); }
   if(name==='recettes') renderRecipes();
   if(name==='menus') renderMenus();
+  if(name==='muscu') renderMuscu();
   // Élargit le conteneur pour la vue 7 colonnes, uniquement sur cet onglet et sur grand écran.
   document.body.classList.toggle('menus-wide', name==='menus');
   if(name==='semaine' && document.getElementById('bilanDetails').open) drawCharts(getPeriodInfo());
@@ -4268,7 +4450,7 @@ function renderInbody(){
 
 /* ---------- OBJECTIFS DE LA SEMAINE ---------- */
 const GOAL_DAYS = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-const GOAL_ACTIVITIES = ['tapis','footing','hiit','padel','tennis','natation']; // pas de marche
+const GOAL_ACTIVITIES = ['tapis','footing','hiit','padel','tennis','natation','muscu']; // pas de marche
 
 function dowIndexMondayBased(date){
   const d = date.getDay(); // 0=dim..6=sam
@@ -5946,6 +6128,7 @@ function crossfade(hideEl, showEl){
 }
 function openSection(sec){
   if(currentTab!=='jour') switchTab('jour');
+  if(sec==='sport' && typeof updateMuscuEntry==='function') updateMuscuEntry();
   const overview = document.getElementById('dayOverview');
   const page = document.querySelector(`.section-page[data-section="${sec}"]`);
   activeDaySection = sec;
@@ -6076,6 +6259,21 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'4.0.1', date:'26 août 2026', items:[
+    'La musculation devient une activité à part entière : elle apparaît dans les objectifs hebdomadaires au même titre que le footing ou le HIIT.',
+    'Le module s\'ouvre depuis la page Sport de la journée, plus depuis les Objectifs.',
+    'Le bouton d\'entrée résume l\'état sans avoir à ouvrir : séance prête, séance prévue non générée, ou catalogue vide.',
+    'Une séance terminée est journalisée comme un sport : ses calories comptent dans le besoin du jour et dans le suivi d\'objectifs.'
+  ]},
+  {v:'4.0.0', date:'26 août 2026', items:[
+    'Nouveau module Musculation, dans Objectifs › 💪 Muscu.',
+    'Ta carte d\'adhérent s\'affiche en plein écran sur fond noir d\'un seul tap, prête à présenter à l\'entrée.',
+    'Coche les groupes à travailler, copie le prompt, colle la réponse JSON : la séance est prescrite avant d\'arriver à la salle.',
+    'Pendant la séance, l\'écran affiche la charge et les répétitions ; tu valides « série faite », tu notes les répétitions réelles et ton ressenti, le chrono de repos s\'enchaîne seul.',
+    'Un barème fixe traduit tes ressentis en ajustement de charge pour la fois suivante — plus jamais de décision à prendre pendant l\'effort.',
+    'Schéma corporel des muscles sollicités par exercice, et cumul de la séance sur le bilan final.',
+    'Catalogue d\'exercices importable en JSON, avec pictogrammes de machines en attendant tes photos.'
+  ]},
   {v:'3.6.0', date:'24 août 2026', items:[
     'Les aliments de la journée sont répartis en trois moments : Déjeuner, En-cas et Dîner, chacun avec son sous-total calories et protéines.',
     'Un appui sur l\'icône d\'un aliment le fait passer au moment suivant. Sur ordinateur, tu peux aussi le glisser d\'un bloc à l\'autre.',
@@ -8690,6 +8888,556 @@ window.addEventListener('resize', ()=>{
     catch(e){ render(); }
   }, 180);
 });
+
+
+/* ================================================================
+   MODULE MUSCULATION
+   Trois temps : on prépare AVANT (prompt -> JSON), on exécute SANS
+   décider, on exploite les ressentis APRÈS. Aucune logique de
+   programmation ne vit pendant la séance : l'écran n'est qu'un prompteur.
+   ================================================================ */
+const MUSCLE_ZONES = {pectoraux:'Pectoraux',deltAnt:'Deltoïdes ant.',deltLat:'Deltoïdes lat.',
+  deltPost:'Deltoïdes post.',biceps:'Biceps',triceps:'Triceps',avantbras:'Avant-bras',dorsaux:'Dorsaux',
+  trapezes:'Trapèzes',lombaires:'Lombaires',abdos:'Abdominaux',obliques:'Obliques',
+  quadriceps:'Quadriceps',ischios:'Ischios',fessiers:'Fessiers',mollets:'Mollets'};
+
+const MUSCLE_GROUPS = [
+  {key:'pecs',label:'Pectoraux'},{key:'dos',label:'Dos'},{key:'epaules',label:'Épaules'},
+  {key:'bras',label:'Bras'},{key:'jambes',label:'Jambes'},{key:'gainage',label:'Gainage'}];
+
+const FEELINGS = {easy:{label:'Facile',cls:'c-easy',short:'facile'},mid:{label:'Moyen',cls:'c-mid',short:'moyen'},
+  hard:{label:'Dur',cls:'c-hard',short:'dur'},fail:{label:'Échec',cls:'c-fail',short:'échec'},
+  skip:{label:'Pas fait',cls:'c-skip',short:'pas fait'}};
+
+/* Barème déterministe. Il est aussi écrit dans le prompt : sans lui, deux séances
+   identiques produiraient des décisions différentes d'une semaine à l'autre. */
+function nextLoadAdvice(feels){
+  const real = feels.filter(f=>f && f!=='skip');
+  if(!real.length) return 'Non réalisé — on reconduit à l\u2019identique.';
+  if(real.every(f=>f==='easy')) return 'Tout facile → charge +5 %.';
+  if(real.includes('fail')) return 'Échec atteint → charge −10 %, à revalider sur 2 séances.';
+  const h = real.indexOf('hard');
+  if(h===0||h===1) return 'Dur dès le début → charge −5 %.';
+  if(h===real.length-1) return 'Dur sur la dernière → charge inchangée, c\u2019est la zone cible.';
+  return 'Majorité moyenne → charge inchangée, +1 répétition par série.';
+}
+
+/* --- Silhouette générique. Chaque exercice ne déclare que ses zones. --- */
+const BODY_SHAPE = `<g fill="var(--panel-2)" stroke="var(--line)" stroke-width="1">
+  <circle cx="70" cy="24" r="14"/><path d="M56 44h28l22 10v52l-8 4V64l-4 44 8 40h-8l-10-38-8-6-8 6-10 38h-8l8-40-4-44v46l-8-4V54z"/>
+  <path d="M50 148h40l-2 96H74l-4-84-4 84H52z"/><circle cx="250" cy="24" r="14"/>
+  <path d="M236 44h28l22 10v52l-8 4V64l-4 44 8 40h-8l-10-38-8-6-8 6-10 38h-8l8-40-4-44v46l-8-4V54z"/>
+  <path d="M230 148h40l-2 96h-14l-4-84-4 84h-14z"/></g>`;
+const ZONE_SHAPES = {
+  pectoraux:[[61,66,12,9],[79,66,12,9]], deltAnt:[[48,53,9,8],[92,53,9,8]], deltLat:[[45,56,7,9],[95,56,7,9]],
+  deltPost:[[228,53,9,8],[272,53,9,8]], biceps:[[44,76,7,12],[96,76,7,12]], triceps:[[224,76,7,13],[276,76,7,13]],
+  avantbras:[[41,100,6,13],[99,100,6,13]], dorsaux:[[241,72,13,17],[259,72,13,17]], trapezes:[[250,48,17,9]],
+  lombaires:[[250,105,15,11]], abdos:[[70,96,13,20]], obliques:[[54,96,6,17],[86,96,6,17]],
+  quadriceps:[[60,175,10,26],[80,175,10,26]], ischios:[[240,175,10,25],[260,175,10,25]],
+  fessiers:[[241,148,12,13],[259,148,12,13]], mollets:[[240,222,8,17],[260,222,8,17]]};
+
+function bodyMapSVG(muscles){
+  let p='',sc='';
+  Object.entries(muscles||{}).forEach(([z,lvl])=>{
+    (ZONE_SHAPES[z]||[]).forEach(([x,y,rx,ry])=>{
+      const el=`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}"/>`;
+      if(lvl===1) p+=el; else sc+=el;
+    });
+  });
+  return `<svg viewBox="0 0 320 258" xmlns="http://www.w3.org/2000/svg">${BODY_SHAPE}
+    <g fill="#e0a898" opacity=".9">${sc}</g><g fill="#a34f43" opacity=".92">${p}</g>
+    <text x="70" y="255" text-anchor="middle" font-size="10" fill="var(--text-dim)">face</text>
+    <text x="250" y="255" text-anchor="middle" font-size="10" fill="var(--text-dim)">dos</text></svg>`;
+}
+function muscleLegend(m){
+  const p=Object.entries(m||{}).filter(([,l])=>l===1).map(([z])=>MUSCLE_ZONES[z]||z);
+  const s=Object.entries(m||{}).filter(([,l])=>l!==1).map(([z])=>MUSCLE_ZONES[z]||z);
+  return `<div class="m-legend">${p.length?`<span><i style="background:#a34f43"></i>${p.join(', ')}</span>`:''}
+    ${s.length?`<span><i style="background:#e0a898"></i>${s.join(', ')}</span>`:''}</div>`;
+}
+
+/* Pictogrammes générés : ils tiennent dans le fichier, marchent hors ligne et
+   servent de remplaçants tant qu'aucune photo de machine n'a été importée. */
+const MACHINE_ART = {
+ chestpress:`<g><path d="M30 62V26a8 8 0 0 1 8-8h6"/><path d="M22 62h20"/><rect x="44" y="14" width="12" height="34" rx="4"/><path d="M56 24h14M56 38h14"/><circle cx="74" cy="24" r="4"/><circle cx="74" cy="38" r="4"/><path d="M78 20v22"/><path d="M14 30h10M14 38h10M14 46h10"/></g>`,
+ latpulldown:`<g><path d="M20 10h60M50 10v12M34 22h32M80 10v52"/><rect x="72" y="28" width="16" height="26" rx="3"/><path d="M72 34h16M72 40h16M72 46h16M26 62h32M32 62V46a6 6 0 0 1 6-6h10M30 40h20"/></g>`,
+ legpress:`<g><path d="M12 62h46M18 62V46a6 6 0 0 1 6-6h12M36 44 74 18M44 58 78 34"/><rect x="62" y="10" width="26" height="16" rx="3"/><circle cx="30" cy="34" r="7"/></g>`,
+ cable:`<g><path d="M18 8v58M82 8v58M18 8h64M10 66h80"/><circle cx="18" cy="16" r="4"/><circle cx="82" cy="16" r="4"/><path d="M22 18 40 40M78 18 60 40M36 40h8M56 40h8"/><rect x="12" y="30" width="12" height="24" rx="3"/><rect x="76" y="30" width="12" height="24" rx="3"/></g>`,
+ dumbbell:`<g><path d="M32 37h36"/><rect x="18" y="24" width="12" height="26" rx="4"/><rect x="70" y="24" width="12" height="26" rx="4"/><path d="M12 30v14M88 30v14"/></g>`,
+ bodyweight:`<g><circle cx="26" cy="30" r="7"/><path d="M14 52h58M33 34 60 46M26 37v11M20 52l6-8M60 46l12-2"/></g>`};
+function machineArt(k){
+  return `<svg viewBox="0 0 100 74" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor"
+    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${MACHINE_ART[k]||MACHINE_ART.bodyweight}</svg>`;
+}
+
+/* --- État persistant --- */
+function muscuState(){
+  if(!state.muscu) state.muscu = {exercises:{}, seance:[], groups:['pecs','dos','epaules'], card:null, history:[]};
+  const m = state.muscu;
+  m.exercises = m.exercises||{}; m.seance = m.seance||[]; m.groups = m.groups||[]; m.history = m.history||[];
+  return m;
+}
+
+/* --- Carte d'adhérent : compressée plus finement que les photos de plats,
+   elle doit rester lisible sur un lecteur ou par un humain à l'entrée. --- */
+function renderMemberCard(){
+  const m = muscuState();
+  document.getElementById('memberEmpty').style.display = m.card ? 'none' : '';
+  document.getElementById('memberOpenBtn').style.opacity = m.card ? '1' : '.35';
+}
+function openMemberCard(){
+  const m = muscuState();
+  if(!m.card){ document.getElementById('memberFile').click(); return; }
+  document.getElementById('memberFullImg').src = m.card;
+  document.getElementById('memberFull').classList.add('on');
+}
+function importMemberCard(file){
+  const img = new Image();
+  img.onload = ()=>{
+    const maxW = 1400; // plus large que les photos de plats : la carte doit rester lisible
+    const sc = Math.min(1, maxW/img.width);
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width*sc); c.height = Math.round(img.height*sc);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    muscuState().card = c.toDataURL('image/jpeg', 0.88);
+    URL.revokeObjectURL(img.src);
+    persistState(); renderMemberCard(); openMemberCard();
+  };
+  img.onerror = ()=>{ alert("Image illisible."); URL.revokeObjectURL(img.src); };
+  img.src = URL.createObjectURL(file);
+}
+
+/* --- Groupes, catalogue, séance --- */
+function renderMuscuGroups(){
+  const m = muscuState();
+  document.getElementById('mgSel').innerHTML = MUSCLE_GROUPS.map(g=>
+    `<button class="mg ${m.groups.includes(g.key)?'on':''}" data-g="${g.key}">${g.label}</button>`).join('');
+  document.querySelectorAll('#mgSel .mg').forEach(b=>{
+    b.onclick = ()=>{
+      const k=b.dataset.g, i=m.groups.indexOf(k);
+      if(i<0) m.groups.push(k); else m.groups.splice(i,1);
+      persistState(); renderMuscuGroups();
+    };
+  });
+}
+
+function renderExCatalogue(){
+  const m = muscuState();
+  const names = Object.keys(m.exercises);
+  document.getElementById('exCountTag').textContent = names.length ? names.length : '';
+  document.getElementById('exGrid').innerHTML = names.length ? names.map(n=>{
+    const e = m.exercises[n];
+    const prim = Object.entries(e.muscles||{}).filter(([,l])=>l===1).map(([z])=>MUSCLE_ZONES[z]||z).join(', ');
+    const visual = e.photo ? `<img src="${e.photo}" alt="" loading="lazy">` : machineArt(e.art);
+    return `<div class="ex-card" data-ex="${n.replace(/"/g,'&quot;')}">
+      <div class="ex-photo">${visual}</div>
+      <div class="ex-body"><div class="ex-name">${n}</div><div class="ex-meta">${prim||'—'}</div></div></div>`;
+  }).join('') : `<div class="check-sub">Aucun exercice. Importe le JSON de tes machines ci-dessus.</div>`;
+  document.querySelectorAll('#exGrid .ex-card').forEach(c=> c.onclick = ()=> openExerciseSheet(c.dataset.ex));
+}
+
+function renderSeanceSummary(){
+  const m = muscuState();
+  const el = document.getElementById('seanceSummary');
+  const btn = document.getElementById('muscuStartBtn');
+  if(!m.seance.length){ el.textContent = 'Aucune séance chargée.'; btn.disabled = true; btn.style.opacity='.4'; return; }
+  const sets = m.seance.reduce((a,e)=>a+e.sets.length,0);
+  el.textContent = `${m.seance.length} exercices · ${sets} séries`;
+  btn.disabled = false; btn.style.opacity='1';
+}
+
+function renderMuscuHistory(){
+  const m = muscuState();
+  const el = document.getElementById('muscuHistory');
+  if(!m.history.length){ el.innerHTML = '<div class="check-sub">Aucune séance terminée pour l\u2019instant.</div>'; return; }
+  el.innerHTML = m.history.slice(-8).reverse().map(h=>`
+    <div class="rec-row"><div style="flex:1">
+      <div>${h.date} · ${h.exos} exos · ${h.sets} séries</div>
+      <div class="check-sub" style="margin-top:3px">${h.summary}</div>
+    </div></div>`).join('');
+}
+
+function renderMuscu(){
+  renderMemberCard(); renderMuscuGroups(); renderExCatalogue();
+  renderSeanceSummary(); renderMuscuHistory();
+}
+
+function openExerciseSheet(name){
+  const e = muscuState().exercises[name];
+  if(!e) return;
+  const visual = e.photo ? `<img src="${e.photo}" alt="">` : machineArt(e.art);
+  document.getElementById('scBody').innerHTML = `
+    <div class="sc-group">${(MUSCLE_GROUPS.find(g=>g.key===e.group)||{}).label||''}</div>
+    <div class="sc-name">${name}</div>
+    <div class="sc-setup">${e.setup||''}</div>
+    <div class="card" style="margin-top:14px"><div class="machine-art">${visual}</div></div>
+    <div class="card"><div class="body-map">${bodyMapSVG(e.muscles)}</div>${muscleLegend(e.muscles)}</div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between"><span class="check-sub" style="margin:0">Unité de charge</span><b class="mono" style="font-size:.78rem">${e.unit||'kg'}</b></div>
+      <div class="row" style="justify-content:space-between;margin-top:6px"><span class="check-sub" style="margin:0">Substitut</span><b style="font-size:.78rem">${e.sub||'—'}</b></div>
+    </div>
+    <button class="add-btn" id="closeSheet">Fermer</button>`;
+  document.getElementById('scCount').textContent = 'fiche';
+  document.getElementById('scBar').style.width = '0%';
+  document.getElementById('seanceScreen').classList.add('on');
+  document.getElementById('closeSheet').onclick = ()=> document.getElementById('seanceScreen').classList.remove('on');
+}
+
+/* --- Déroulé de la séance : deux phases par série.
+   Phase 'todo' = à faire, aucune question. Phase 'feel' = faite, on note. --- */
+let scEx=0, scSet=0, scPhase='todo', scReps=0, scLog=[], scStart=null, scClock=null, scRest=null;
+
+function scTotalSets(){ return muscuState().seance.reduce((a,e)=>a+e.sets.length,0); }
+function scDoneSets(){ return scLog.flat().filter(Boolean).length; }
+function scFmt(s){ return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+
+function startSeance(){
+  const m = muscuState();
+  if(!m.seance.length) return;
+  scEx=0; scSet=0; scPhase='todo';
+  scLog = m.seance.map(e=>e.sets.map(()=>null));
+  scStart = Date.now();
+  clearInterval(scClock);
+  scClock = setInterval(()=>{ const el=document.getElementById('scClock');
+    if(el) el.textContent = scFmt(Math.round((Date.now()-scStart)/1000)); }, 1000);
+  document.getElementById('seanceScreen').classList.add('on');
+  renderScSet();
+}
+
+function renderScSet(){
+  const m = muscuState();
+  const e = m.seance[scEx], meta = m.exercises[e.ex] || {unit:'kg'}, set = e.sets[scSet];
+  document.getElementById('scCount').textContent = `exo ${scEx+1}/${m.seance.length}`;
+  document.getElementById('scBar').style.width = Math.round(scDoneSets()/scTotalSets()*100)+'%';
+
+  const dots = e.sets.map((s,i)=>{
+    const v = scLog[scEx][i];
+    const cls = (v&&v.feel==='skip')?'skip' : v?'done' : (i===scSet?'cur':'');
+    return `<span class="sdot ${cls}">${(v&&v.feel==='skip')?'−':v?'✓':i+1}</span>`;
+  }).join('');
+  const u = meta.unit||'kg';
+  const loadTxt = u==='sec' ? `${set.load}<small> s</small>` : u==='plaques' ? `plaque ${set.load}` : `${set.load}<small> ${u}</small>`;
+  const repsTxt = u==='sec' ? 'tenir' : `× ${set.reps}`;
+  const head = `
+    <div class="sc-group">${(MUSCLE_GROUPS.find(g=>g.key===meta.group)||{}).label||''}</div>
+    <div class="sc-name">${e.ex}</div>
+    <div class="sc-setup">${meta.setup||''}</div>
+    <div class="sc-dots">${dots}</div>
+    <div class="sc-load"><div class="sc-kg">${loadTxt}</div><div class="sc-reps">${repsTxt}</div>
+      <div class="sc-prev">dernière fois : ${e.prev||'—'}</div></div>`;
+
+  if(scPhase==='todo'){
+    document.getElementById('scBody').innerHTML = head + `
+      <button class="add-btn" id="scDone" style="padding:18px;font-size:1rem;margin-bottom:8px">Série faite</button>
+      <div class="sc-sub"><button id="scSkip">Pas fait</button>
+        <button class="sc-map">Muscles</button>
+        <button class="sc-subst">Substitut</button></div>`;
+    document.getElementById('scDone').onclick = ()=>{ scPhase='feel'; scReps=set.reps; renderScSet(); };
+    document.getElementById('scSkip').onclick = ()=> recordScSet('skip',0);
+  } else {
+    document.getElementById('scBody').innerHTML = head + `
+      <div class="sc-q">Répétitions réalisées</div>
+      <div class="reps-adj"><button id="rMinus">−</button><span id="rVal">${scReps}</span><button id="rPlus">+</button></div>
+      <div class="sc-q" style="margin-top:16px">Comment c'était ?</div>
+      <div class="feel">
+        <button class="f-easy" data-f="easy">Facile</button><button class="f-mid" data-f="mid">Moyen</button>
+        <button class="f-hard" data-f="hard">Dur</button><button class="f-fail" data-f="fail">Échec</button></div>
+      <div class="sc-sub"><button id="scBack">← Annuler</button><button class="sc-map">Muscles</button></div>`;
+    document.getElementById('rMinus').onclick = ()=>{ scReps=Math.max(0,scReps-1); document.getElementById('rVal').textContent=scReps; };
+    document.getElementById('rPlus').onclick  = ()=>{ scReps++; document.getElementById('rVal').textContent=scReps; };
+    document.getElementById('scBack').onclick = ()=>{ scPhase='todo'; renderScSet(); };
+    document.querySelectorAll('.feel button').forEach(b=> b.onclick = ()=> recordScSet(b.dataset.f, scReps));
+  }
+  document.querySelectorAll('.sc-map').forEach(b=> b.onclick = ()=> showMuscleOverlay(meta));
+  document.querySelectorAll('.sc-subst').forEach(b=> b.onclick = ()=>
+    alert(meta.sub ? `Substitut prévu : ${meta.sub}` : 'Aucun substitut renseigné pour cet exercice.'));
+}
+
+function showMuscleOverlay(meta){
+  const box = document.createElement('div');
+  box.className='card';
+  box.style.cssText='position:fixed;left:14px;right:14px;top:50%;transform:translateY(-50%);z-index:350;box-shadow:0 14px 40px rgba(0,0,0,.35)';
+  box.innerHTML = `<div class="body-map">${bodyMapSVG(meta.muscles)}</div>${muscleLegend(meta.muscles)}
+    <button class="add-btn" style="margin-top:10px">Fermer</button>`;
+  box.querySelector('button').onclick = ()=> box.remove();
+  document.body.appendChild(box);
+}
+
+function recordScSet(feel, reps){
+  const m = muscuState();
+  scLog[scEx][scSet] = {feel, reps:reps||0};
+  scPhase = 'todo';
+  const e = m.seance[scEx];
+  const lastOfEx = scSet >= e.sets.length-1;
+  const lastEx = scEx >= m.seance.length-1;
+  if(lastOfEx && lastEx){ renderScRecap(); return; }
+  startScRest(e.rest||90, lastOfEx);
+}
+
+function startScRest(sec, changing){
+  let left = sec, total = sec;
+  const tick = ()=>{
+    const m = muscuState();
+    const nextE = changing ? m.seance[scEx+1] : m.seance[scEx];
+    const nextIdx = changing ? 0 : scSet+1;
+    const meta = m.exercises[nextE.ex] || {unit:'kg'};
+    const s = nextE.sets[nextIdx];
+    const u = meta.unit||'kg';
+    const lt = u==='sec' ? `${s.load} s` : u==='plaques' ? `plaque ${s.load}` : `${s.load} ${u}`;
+    const R=85, C=2*Math.PI*R, pct = total ? (total-left)/total : 0;
+    document.getElementById('scBody').innerHTML = `
+      <div class="rest-wrap">
+        <div class="check-sub" style="margin-bottom:14px">${changing?'Transition — exercice suivant':'Repos'}</div>
+        <div class="ring"><svg viewBox="0 0 190 190" width="190" height="190">
+          <circle cx="95" cy="95" r="${R}" fill="none" stroke="var(--panel-2)" stroke-width="8"/>
+          <circle cx="95" cy="95" r="${R}" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"
+                  stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}"/></svg>
+          <div class="ring-txt"><div class="ring-num">${scFmt(left)}</div>
+            <div class="check-sub" style="margin:2px 0 0">sur ${total} s</div></div></div>
+        <div class="next-box"><div class="check-sub" style="margin:0 0 3px">Ensuite</div>
+          <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:.92rem">${changing?nextE.ex:'Série '+(nextIdx+1)}</div>
+          <div class="mono" style="font-size:.8rem;color:var(--accent);margin-top:3px">${lt}${u==='sec'?'':' × '+s.reps}</div></div>
+        <div class="row"><button class="btn-sm" id="restSkip">Passer</button><button class="btn-sm" id="restAdd">+30 s</button></div>
+      </div>`;
+    document.getElementById('restSkip').onclick = ()=>{ clearInterval(scRest); advanceSc(changing); };
+    document.getElementById('restAdd').onclick  = ()=>{ left+=30; total+=30; tick(); };
+  };
+  tick();
+  clearInterval(scRest);
+  scRest = setInterval(()=>{ left--; if(left<=0){ clearInterval(scRest); advanceSc(changing); return; } tick(); }, 1000);
+}
+
+function advanceSc(changing){
+  scPhase='todo';
+  if(changing){ scEx++; scSet=0; } else { scSet++; }
+  renderScSet();
+}
+
+/* --- Bilan de fin : cumule les zones travaillées et rend les décisions du barème.
+   Les ressentis sont archivés dans l'historique, qui alimentera le prochain prompt. --- */
+function renderScRecap(){
+  clearInterval(scClock); clearInterval(scRest);
+  const m = muscuState();
+  const elapsed = Math.round((Date.now()-scStart)/1000);
+  const cumul = {};
+  m.seance.forEach((e,i)=>{
+    if(!scLog[i].some(v=>v && v.feel!=='skip')) return;
+    const meta = m.exercises[e.ex];
+    if(meta) Object.entries(meta.muscles||{}).forEach(([z,l])=>{ cumul[z] = Math.min(cumul[z]||9, l); });
+  });
+  const rows = m.seance.map((e,i)=>{
+    const chips = scLog[i].map(v=> v
+      ? `<span class="chip ${FEELINGS[v.feel].cls}">${v.feel==='skip'?'pas fait':v.reps+'× '+FEELINGS[v.feel].short}</span>`
+      : `<span class="chip c-mid">—</span>`).join('');
+    return `<div class="rec-row"><div style="flex:1"><div>${e.ex}</div>
+      <div style="margin-top:3px">${chips}</div>
+      <div class="check-sub" style="margin-top:4px">→ ${nextLoadAdvice(scLog[i].map(v=>v?v.feel:null))}</div></div></div>`;
+  }).join('');
+  const skipped = scLog.flat().filter(v=>v && v.feel==='skip').length;
+
+  document.getElementById('scBody').innerHTML = `
+    <div class="sc-group">Séance terminée</div><div class="sc-name">Bilan</div>
+    <div class="row" style="gap:10px;margin:10px 0 4px;flex-wrap:wrap">
+      <span class="tag mono">${scFmt(elapsed)}</span>
+      <span class="tag mono">${scDoneSets()-skipped}/${scTotalSets()} séries</span>
+      ${skipped?`<span class="tag mono">${skipped} non faite(s)</span>`:''}</div>
+    <div class="card" style="margin-top:12px"><h2 style="font-size:.85rem;margin-bottom:8px">Ce que tu as sollicité</h2>
+      <div class="body-map">${bodyMapSVG(cumul)}</div>${muscleLegend(cumul)}</div>
+    <div class="card"><h2 style="font-size:.85rem;margin-bottom:6px">Pour la prochaine fois</h2>${rows}</div>
+    <button class="add-btn" id="scFinish">Enregistrer et terminer</button>`;
+
+  document.getElementById('scFinish').onclick = ()=>{
+    const iso = isoDate(selectedDate);
+    // Archivage : la séance rejoint l'historique, qui sera injecté dans le prochain prompt.
+    m.history.push({date: iso, exos: m.seance.length, sets: scDoneSets()-skipped,
+      summary: m.seance.map((e,i)=>`${e.ex} : ${scLog[i].filter(Boolean).map(v=>v.feel==='skip'?'—':v.reps+'/'+FEELINGS[v.feel].short).join(', ')}`).join(' | '),
+      detail: m.seance.map((e,i)=>({ex:e.ex, sets:e.sets, log:scLog[i]}))});
+    if(m.history.length > 40) m.history = m.history.slice(-40);
+    // La séance rejoint le journal sportif du jour : sans ça, la musculation
+    // n'apparaîtrait ni dans les calories dépensées ni dans le suivi d'objectifs.
+    const day = getDay(iso);
+    day.sessions = day.sessions || [];
+    day.sessions.push({type:'muscu', duration: Math.max(1, Math.round(elapsed/60)),
+      kcalEst: Math.round((elapsed/60) * 5 * 3.5 * (weightAt(iso)||77) / 200), notDone:false});
+    setDay(iso, day);
+    // La séance consommée est vidée : il faudra en générer une nouvelle.
+    m.seance = [];
+    persistState();
+    closeSeance();
+    renderMuscu();
+  };
+}
+
+function closeSeance(){
+  clearInterval(scClock); clearInterval(scRest);
+  document.getElementById('seanceScreen').classList.remove('on');
+}
+
+/* --- Le prompt. Il embarque le barème tel quel pour que l'IA ne l'improvise pas. --- */
+function buildMuscuPrompt(){
+  const m = muscuState();
+  const groups = MUSCLE_GROUPS.filter(g=>m.groups.includes(g.key)).map(g=>g.label);
+  const names = Object.keys(m.exercises);
+  const cat = names.length ? names.map(n=>{
+    const e = m.exercises[n];
+    const prim = Object.entries(e.muscles||{}).filter(([,l])=>l===1).map(([z])=>MUSCLE_ZONES[z]||z).join(', ');
+    const sec  = Object.entries(e.muscles||{}).filter(([,l])=>l!==1).map(([z])=>MUSCLE_ZONES[z]||z).join(', ');
+    return `  - "${n}" | groupe ${e.group||'?'} | unité ${e.unit||'kg'} | principal : ${prim||'—'} | secondaire : ${sec||'—'} | réglages : ${e.setup||'—'} | substitut : ${e.sub||'—'}`;
+  }).join('\n') : '  (catalogue vide — demande-moi d\'abord de photographier les machines)';
+
+  const last = m.history.slice(-3).reverse();
+  const hist = last.length ? last.map(h=>{
+    const lines = (h.detail||[]).map(d=>{
+      const perf = (d.log||[]).map((v,i)=> v
+        ? (v.feel==='skip' ? 'pas fait' : `${d.sets[i].load}×${v.reps} ${FEELINGS[v.feel].short}`)
+        : '—').join(' | ');
+      return `    ${d.ex} : ${perf}`;
+    }).join('\n');
+    return `  ▸ ${h.date}\n${lines}`;
+  }).join('\n') : '  (aucune séance enregistrée — c\'est une REPRISE)';
+
+  const bmr = (typeof measuredBmrAt==='function') ? measuredBmrAt(null) : null;
+  const w = (typeof weightAt==='function') ? weightAt(null) : state.weightKg;
+
+  return `Tu es préparateur physique. Tu construis UNE séance de musculation et tu la rends au format JSON, sans aucun texte autour.
+
+═══ PROFIL ═══
+${state.sex==='F'?'Femme':'Homme'}, ${state.age} ans, ${w} kg, ${state.heightCm} cm.
+${bmr!=null?`Métabolisme de base mesuré à l'InBody : ${bmr} kcal.`:''}
+Objectif : recomposition, faire baisser la masse grasse vers 13 % en préservant le muscle.
+Déficit calorique de ${Math.round(parseFloat(state.deficitKcal)||0)} kcal par jour — la progression en charges sera donc plus lente que la normale, ce n'est pas un problème.
+Autres sports dans la semaine : footing, padel, tennis, natation, HIIT, marche.
+
+═══ CADRE DE LA SÉANCE ═══
+Full body avec biais haut du corps : 6 exercices, dont 4 pour le haut et 2 pour le bas.
+45 minutes hors échauffement, soit environ 20 séries.
+Repos imposés : 90 s sur les polyarticulaires, 60 s sur l'analytique, 45 s sur gainage et mollets.
+
+═══ GROUPES DEMANDÉS AUJOURD'HUI ═══
+${groups.length ? groups.join(', ') : '(aucun coché — propose un équilibre full body)'}
+Respecte cette demande, mais garde au moins un exercice de bas du corps même s'il n'est pas coché.
+
+═══ EXERCICES DISPONIBLES (n'en propose AUCUN autre) ═══
+${cat}
+
+═══ TROIS DERNIÈRES SÉANCES ═══
+${hist}
+
+═══ BARÈME DE PROGRESSION (applique-le mécaniquement, n'improvise pas) ═══
+- Toutes les séries "facile"       -> charge +5 %
+- Majorité "moyen"                  -> charge inchangée, +1 répétition par série
+- "dur" uniquement sur la dernière  -> rien ne change, c'est la zone cible
+- "dur" dès la 1re ou 2e série      -> charge −5 %
+- "échec" atteint                   -> charge −10 %, à revalider sur 2 séances
+- "pas fait"                        -> reconduis à l'identique, n'en tire aucune conclusion
+Arrondis aux incréments réels : 2,5 kg pour haltères et barres, 1 plaque pour les machines à plaques, 5 s pour le gainage.
+S'il n'y a aucun historique, c'est une REPRISE : propose des charges volontairement légères avec des répétitions hautes, et dis-le dans le champ "prev". Cette séance sert à calibrer, pas à performer.
+
+═══ FORMAT DE SORTIE — JSON UNIQUEMENT ═══
+{"seance":[{"ex":"nom exact du catalogue","rest":90,"prev":"rappel de la dernière fois","sets":[{"load":45,"reps":8},{"load":45,"reps":8}]}]}
+"ex" doit correspondre EXACTEMENT à un nom du catalogue. "load" est un nombre dans l'unité de l'exercice (kg, numéro de plaque, ou secondes pour le gainage). Aucun commentaire, aucun texte avant ou après le JSON.`;
+}
+
+/* --- Imports JSON : on valide TOUT avant de remplacer quoi que ce soit.
+   Un JSON partiellement appliqué serait pire qu'un refus. --- */
+function stripFences(raw){ return raw.replace(/```json|```/g,'').trim(); }
+
+document.getElementById('muscuPromptBtn').onclick = async ()=>{
+  const msg = document.getElementById('muscuIoMsg');
+  try{ await navigator.clipboard.writeText(buildMuscuPrompt()); msg.textContent = '✓ Prompt copié — colle-le dans ton IA.'; }
+  catch(e){ msg.textContent = 'Copie impossible sur ce navigateur.'; }
+};
+
+document.getElementById('muscuImportBtn').onclick = ()=>{
+  const msg = document.getElementById('muscuIoMsg');
+  const m = muscuState();
+  const raw = document.getElementById('muscuJsonIn').value.trim();
+  if(!raw){ msg.textContent = 'Colle d\u2019abord le JSON.'; return; }
+  let data; try{ data = JSON.parse(stripFences(raw)); }
+  catch(e){ msg.textContent = '✕ JSON illisible : ' + e.message; return; }
+  const arr = data.seance || data;
+  if(!Array.isArray(arr) || !arr.length){ msg.textContent = '✕ Attendu : un tableau "seance".'; return; }
+  const errs = [];
+  arr.forEach((e,i)=>{
+    if(!e.ex || !m.exercises[e.ex]) errs.push(`exercice ${i+1} : "${e.ex||'sans nom'}" absent du catalogue`);
+    if(!Array.isArray(e.sets) || !e.sets.length) errs.push(`exercice ${i+1} : aucune série`);
+    else e.sets.forEach((s,j)=>{ if(typeof s.load!=='number' || typeof s.reps!=='number')
+      errs.push(`exercice ${i+1}, série ${j+1} : load et reps doivent être des nombres`); });
+  });
+  if(errs.length){ msg.innerHTML = '✕ ' + errs.join('<br>✕ '); return; }
+  m.seance = arr.map(e=>({ex:e.ex, rest:e.rest||90, prev:e.prev||'première fois', sets:e.sets}));
+  persistState();
+  msg.textContent = `✓ ${m.seance.length} exercices, ${m.seance.reduce((a,e)=>a+e.sets.length,0)} séries importés.`;
+  document.getElementById('muscuJsonIn').value = '';
+  renderSeanceSummary();
+};
+
+/* Import du catalogue : additif, il n'écrase jamais un exercice existant sans le dire. */
+document.getElementById('exImportBtn').onclick = ()=>{
+  const msg = document.getElementById('exIoMsg');
+  const m = muscuState();
+  const raw = document.getElementById('exJsonIn').value.trim();
+  if(!raw){ msg.textContent = 'Colle d\u2019abord le JSON.'; return; }
+  let data; try{ data = JSON.parse(stripFences(raw)); }
+  catch(e){ msg.textContent = '✕ JSON illisible : ' + e.message; return; }
+  const arr = data.exercices || data.exercises || data;
+  if(!Array.isArray(arr) || !arr.length){ msg.textContent = '✕ Attendu : un tableau "exercices".'; return; }
+  const errs = [], ok = [];
+  const ARTS = ['chestpress','latpulldown','legpress','cable','dumbbell','bodyweight'];
+  arr.forEach((e,i)=>{
+    const nom = e.nom || e.name;
+    if(!nom){ errs.push(`exercice ${i+1} : nom manquant`); return; }
+    if(e.muscles && typeof e.muscles !== 'object'){ errs.push(`${nom} : "muscles" doit être un objet`); return; }
+    const bad = Object.keys(e.muscles||{}).filter(z=>!MUSCLE_ZONES[z]);
+    if(bad.length){ errs.push(`${nom} : zone(s) inconnue(s) ${bad.join(', ')}`); return; }
+    ok.push([nom, {group:e.groupe||e.group||'autres', unit:e.unite||e.unit||'kg',
+      setup:e.reglages||e.setup||'', muscles:e.muscles||{}, sub:e.substitut||e.sub||'',
+      art: ARTS.includes(e.art) ? e.art : 'bodyweight', photo:null}]);
+  });
+  if(errs.length){ msg.innerHTML = '✕ ' + errs.join('<br>✕ '); return; }
+  let maj = 0;
+  ok.forEach(([n,e])=>{ if(m.exercises[n]) maj++; m.exercises[n] = Object.assign({}, m.exercises[n], e); });
+  persistState();
+  msg.textContent = `✓ ${ok.length} exercice(s) importé(s)${maj?`, dont ${maj} mis à jour`:''}.`;
+  document.getElementById('exJsonIn').value = '';
+  renderExCatalogue();
+};
+
+/* Navigation : on entre par la page Sport, on en revient par le même chemin.
+   La musculation n'a pas d'onglet dans la barre du bas — c'est un sport parmi
+   les autres, elle vit dans la journée. */
+document.getElementById('muscuEntry').onclick = ()=>{ switchTab('muscu'); };
+document.getElementById('muscuBack').onclick = ()=>{ switchTab('jour'); openSection('sport'); };
+
+/* Résumé affiché sur le bouton d'entrée, pour savoir sans ouvrir où on en est. */
+function updateMuscuEntry(){
+  const el = document.getElementById('muscuEntrySub');
+  if(!el) return;
+  const m = muscuState();
+  const iso = isoDate(selectedDate);
+  const rem = (typeof remainingSport==='function') ? remainingSport(iso) : {list:[]};
+  const planned = (rem.list||[]).find(r=>r.act==='muscu');
+  if(m.seance.length){
+    const sets = m.seance.reduce((a,e)=>a+e.sets.length,0);
+    el.textContent = `séance prête · ${m.seance.length} exos · ${sets} séries`;
+  } else if(planned){
+    el.textContent = 'prévue aujourd\u2019hui · aucune séance générée';
+  } else if(!Object.keys(m.exercises).length){
+    el.textContent = 'catalogue vide · importe tes machines';
+  } else {
+    el.textContent = `${Object.keys(m.exercises).length} exercices · ${m.history.length} séance(s) faites`;
+  }
+}
+
+document.getElementById('muscuStartBtn').onclick = startSeance;
+document.getElementById('scQuit').onclick = ()=>{
+  if(scDoneSets()===0 || confirm('Quitter la séance en cours ? Les séries saisies seront perdues.')) closeSeance();
+};
+document.getElementById('memberOpenBtn').onclick = openMemberCard;
+document.getElementById('memberAddBtn').onclick = ()=> document.getElementById('memberFile').click();
+document.getElementById('memberReplace').onclick = ()=> document.getElementById('memberFile').click();
+document.getElementById('memberClose').onclick = ()=> document.getElementById('memberFull').classList.remove('on');
+document.getElementById('memberFile').onchange = e=>{ const f=e.target.files[0]; if(f) importMemberCard(f); e.target.value=''; };
 
 document.getElementById('appVersionNum').textContent = 'v' + CHANGELOG[0].v;
 document.getElementById('appVersionBtn').onclick = ()=>{
