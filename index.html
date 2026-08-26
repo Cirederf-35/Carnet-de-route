@@ -1230,6 +1230,23 @@
   }
   .macro-ai-btn:active{transform:scale(.98);}
   @media (hover:hover){ .macro-ai-btn:hover{border-color:var(--accent);} }
+  /* Quatre tons d'analyse, accessibles d'un tap sous la jauge. Le bouton du haut
+     lance le mode courant ; ceux-ci permettent d'en changer sans passer par un menu. */
+  .ai-modes{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;}
+  .ai-mode{
+    display:flex; flex-direction:column; align-items:flex-start; gap:1px;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
+    padding:8px 10px; cursor:pointer; color:var(--text); font-family:inherit; text-align:left;
+  }
+  .ai-mode:active{transform:scale(.97)}
+  .ai-mode.on{border-color:var(--accent); background:var(--accent-soft)}
+  .ai-mode b{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.74rem;}
+  .ai-mode span{font-size:0.6rem; color:var(--text-dim); line-height:1.3;}
+  #aiQuestionRow input{
+    width:100%; box-sizing:border-box; margin-top:6px; padding:9px 11px;
+    border:1px solid var(--accent); border-radius:10px;
+    background:var(--panel); color:var(--text); font-size:0.76rem; font-family:inherit;
+  }
   .macro-ai-status{font-size:0.66rem; color:var(--text-dim); text-align:center; margin-top:6px; min-height:0.9rem;}
   .macro-foot{font-size:0.62rem; color:var(--text-dim); opacity:0.75; margin-top:2px; line-height:1.4;}
 
@@ -1851,6 +1868,10 @@
     </div>
     <div class="macro-foot" id="macroFoot"></div>
     <button class="macro-ai-btn" id="macroAiBtn">🍽️ Analyser ma journée</button>
+    <div class="ai-modes" id="aiModes"></div>
+    <div id="aiQuestionRow" style="display:none;">
+      <input type="text" id="nutriQuestion" placeholder="Ta question : un dessert ce soir ?" autocomplete="off">
+    </div>
     <div class="macro-ai-status" id="macroAiStatus"></div>
   </div>
 
@@ -3357,6 +3378,8 @@ const DEFAULT_STATE = {
   sex:"H",
   activityLevel:"leger",
   sportFactor:0.8, // dégonflage des kcal sport saisies (voir sportFactor())
+  nutriMode:'boost', // ton de l'analyse quotidienne (voir NUTRI_MODES)
+  nutriQuestion:'',
   deficitKcal:300,   // déficit visé par jour (kcal sous le besoin)
   proteinPerKg:2.1,  // plancher protéines, en g par kg de poids
   fatPerKg:1.05,     // centre du couloir lipides, en g par kg de poids
@@ -5968,6 +5991,7 @@ function updateMacroBars(day, iso, needToday){
   paintMacroBar('F', F, t.f.low, t.f.high, true, hasPlan?all.f:null);
   paintMacroBar('C', C, t.c.low, t.c.high, true, hasPlan?all.c:null);
 
+  renderAiModes();
   let foot = 'Budget ' + t.budget + ' kcal (besoin ' + needToday + ' − déficit ' + (parseFloat(state.deficitKcal)||0) + '). Les glucides suivent le sport du jour.';
   if(hasPlan){
     foot += ' Hachuré = menu prévu non coché : ' + Math.round(all.kcal) + ' kcal projetés, P ' + Math.round(all.p) + ' · L ' + Math.round(all.f) + ' · G ' + Math.round(all.c) + '.';
@@ -6261,6 +6285,19 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'4.2.1', date:'26 août 2026', items:[
+    'Les quatre tons d\'analyse sont désormais des boutons directement sous la jauge de la page Jour, sous « Analyser ma journée ».',
+    'Un tap sur un ton le sélectionne et copie le prompt dans la foulée — plus de menu intermédiaire.',
+    'Le mode « Ma question » fait apparaître un champ de saisie sur place ; Entrée lance l\'analyse.'
+  ]},
+  {v:'4.2.0', date:'26 août 2026', items:[
+    'L\'analyse de la journée propose maintenant quatre tons au choix : Coup de pouce, Bilan, Cadrage et Ma question.',
+    'Coup de pouce est le mode par défaut : trois réussites chiffrées puis un seul levier, sans liste de reproches.',
+    'Bilan décrit sans prescrire, Cadrage reste l\'analyse exigeante mais plafonne les critiques à deux points et interdit d\'en inventer.',
+    'Ma question répond à une seule interrogation précise, sans auditer le reste de la journée.',
+    'Nouvelle règle : l\'IA ne peut plus critiquer un aliment qu\'elle t\'a elle-même recommandé, et doit toujours citer au moins deux choses qui vont bien.',
+    'Un aliment conseillé récemment échappe désormais à la règle anti-répétition.'
+  ]},
   {v:'4.1.1', date:'26 août 2026', items:[
     'Correction : le prompt de séance pouvait être copié alors que le catalogue d\'exercices était vide. Il exigeait alors des exercices inexistants, et la séance obtenue était rejetée à l\'import.',
     'Le bouton est maintenant grisé et explique quoi faire tant qu\'aucune machine n\'est enregistrée.'
@@ -8634,7 +8671,73 @@ ${weeks.length ? weeks.join('\n') : '  (pas assez de jours tracés)'}
 Sois précis et chiffré. Rappelle en une ligne que l'impédancemétrie a une marge d'erreur de plusieurs points et que seule la tendance sur plusieurs mesures est exploitable. Maximum 600 mots.`;
 }
 
-function buildNutriPrompt(){
+/* ---------- MODES D'ANALYSE ----------
+   Un format qui impose une rubrique « ce qui coince » force l'IA à trouver des
+   défauts même quand la journée est bonne, et décourage à la longue. Les modes
+   ci-dessous changent la QUESTION posée, pas les données transmises. */
+const NUTRI_MODES = {
+  boost: {label:'🌱 Coup de pouce', hint:'3 réussites, 1 seul levier',
+    body: (hasPlan)=>`═══ CE QUE J'ATTENDS ═══
+Ton rôle ici n'est pas de traquer les erreurs mais de m'aider à tenir dans la durée. Une journée imparfaite reste une journée tracée : dis-le.
+
+1. ✅ TROIS RÉUSSITES — trois choses concrètes et CHIFFRÉES qui vont bien aujourd'hui. Cherche-les vraiment, il y en a toujours : un aliment à bonne densité protéique, un plafond respecté, un volume rassasiant, une régularité. Si la journée est bonne, dis-le franchement sans chercher un défaut pour équilibrer.
+
+2. 🎯 UN SEUL LEVIER — le point le plus rentable, et rien d'autre. Un seul. Chiffre ce qu'il rapporterait, donne l'action précise avec grammage, et explique pourquoi c'est celui-là plutôt qu'un autre.
+${hasPlan?`Si le menu prévu contient déjà de quoi corriger ce levier, dis-le et n'ajoute rien.
+`:''}
+3. 💬 UNE PHRASE POUR LA SUITE — encourageante et honnête, sans flatterie creuse.
+
+INTERDITS : aucune liste de problèmes, aucun « attention à », aucun rappel de ce que j'aurais dû faire. Maximum 250 mots.`},
+
+  bilan: {label:'⚖️ Bilan', hint:'factuel, symétrique, sans injonction',
+    body: (hasPlan)=>`═══ CE QUE J'ATTENDS ═══
+Décris, ne prescris pas. Autant de constats favorables que de points d'attention, dans cet ordre. Je décide ensuite.
+
+1. 📊 LES FAITS — où j'en suis sur les calories, les trois macros et l'équilibre entre déjeuner, en-cas et dîner. Des chiffres, aucune interprétation morale.
+
+2. ✅ CE QUI VA — au moins trois constats chiffrés.
+
+3. 👁️ CE QUI MÉRITE ATTENTION — au plus trois, chiffrés eux aussi. Pas de « il faut », pas de « tu devrais » : formule en constat, par exemple « le dîner concentre 61 des 124 g de lipides ».
+${hasPlan?`
+4. 🔮 PROJECTION — où atterrit la journée si je suis le menu prévu tel quel. Un constat, pas un jugement.
+`:''}
+Termine par une seule phrase de synthèse. Aucune recommandation non demandée. Maximum 350 mots.`},
+
+  cadrage: {label:'🎯 Cadrage', hint:'exigeant, remplacements chiffrés',
+    body: (hasPlan)=>`═══ CE QUE J'ATTENDS ═══
+
+1. 🎯 VERDICT — une phrase. Journée alignée sur l'objectif ou non, et pourquoi.
+
+2. ✅ CE QUI EST BIEN — au moins DEUX choix, en citant l'aliment et son chiffre.
+
+3. ⚠️ CE QUI COINCE — au plus DEUX points, les plus coûteux, avec le COÛT CHIFFRÉ. Exemple : « 150 g de fromage = 522 kcal et 42 g de lipides, soit 45 % du plafond quotidien dans un seul aliment. » Des chiffres, pas de jugement. S'il n'y a pas deux vrais problèmes, n'en invente pas.
+${hasPlan?`
+3bis. 🔮 ARBITRAGE SUR LE MENU PRÉVU — rien n'est encore joué. Pour chaque aliment prévu, tranche : À GARDER, À RÉDUIRE (nouveau grammage) ou À REMPLACER (alternative et grammage). Dis où j'atterris en suivant le menu tel quel, et où j'atterrirais avec tes arbitrages.
+`:''}
+4. 🔁 REMPLACEMENTS — pour chaque point du 3, DEUX options :
+   a) une piochée dans mes plats déjà enregistrés ;
+   b) une NOUVELLE, hors bibliothèque, cohérente avec mon univers culinaire.
+   Format : « à la place de [X] ([n] kcal, [n] g L) → [Y], [grammage] ([n] kcal, [n] g L) — gain : [n] kcal et [n] g de lipides »
+
+5. ➕ CE QU'IL RESTE À AJOUTER — s'il reste du budget après le menu prévu, 1 ou 2 options avec grammages, en visant le plancher protéines. Si la projection dépasse déjà le budget, ne propose rien et dis-le.
+
+6. 🕐 ÉQUILIBRE ENTRE LES MOMENTS — dis lequel du déjeuner, de l'en-cas ou du dîner pose problème, plutôt que de juger la journée en bloc. Jeûne intermittent : rien le matin. Si un moment est « Non classé », signale-le sans en tirer de conclusion.
+
+7. 📌 LA RÈGLE À RETENIR — une seule, applicable dès demain.
+
+Maximum 600 mots.`},
+
+  question: {label:'❓ Ma question', hint:'réponse ciblée, rien d\'autre',
+    body: (hasPlan)=>`═══ CE QUE J'ATTENDS ═══
+Réponds à MA QUESTION ci-dessous, et à elle seule. Appuie-toi sur les données de la journée pour chiffrer ta réponse. N'audite pas le reste, ne propose rien que je n'aie pas demandé.
+
+MA QUESTION : ${(state.nutriQuestion||'').trim() || '(aucune question saisie — demande-moi de la préciser)'}
+
+Si la question appelle un arbitrage, donne une réponse claire et son coût chiffré, puis une alternative si elle existe. Maximum 250 mots.`}
+};
+
+function buildNutriPrompt(mode){
+  mode = NUTRI_MODES[mode] ? mode : (state.nutriMode && NUTRI_MODES[state.nutriMode] ? state.nutriMode : 'boost');
   const iso = isoDate(selectedDate);
   const day = getDay(iso);
   const d = new Date(iso+'T12:00:00');
@@ -8747,6 +8850,10 @@ ${hist.repeats}
 
 RÈGLE ANTI-RÉPÉTITION : ne propose PAS ce qui apparaît 3 fois ou plus dans cette liste. Ce qui apparaît 2 fois, tu peux le proposer seulement si aucune alternative équivalente n'existe — et dans ce cas, dis-le explicitement.
 
+═══ DEUX RÈGLES QUI PRIMENT SUR TOUT LE RESTE ═══
+1. NE TE CONTREDIS PAS. Si un aliment ou un plat t'a été recommandé lors d'une analyse précédente, tu ne peux pas le critiquer aujourd'hui comme s'il s'agissait d'une erreur de ma part. Soit tu l'assumes, soit tu expliques franchement ce qui a changé — jamais de reproche implicite sur un conseil que tu as toi-même donné. Un aliment recommandé récemment échappe aussi à la règle anti-répétition ci-dessous.
+2. LE POSITIF N'EST PAS OPTIONNEL. Tu dois citer au moins DEUX choses qui vont bien, chiffrées, dans toutes tes réponses. Si la journée est bonne, tu dois pouvoir le dire sans chercher un défaut pour faire bonne mesure. Une journée imparfaite mais tracée reste un progrès, et le dire fait partie de ton travail : une analyse qui ne relève que des manques me pousse soit à abandonner, soit à durcir inutilement mon alimentation. Ni l'un ni l'autre ne sert mon objectif.
+
 EXCEPTIONS À LA RÈGLE ANTI-RÉPÉTITION (aliments de fond, la répétition y est voulue) :
 - LE SKYR NATURE, ma base protéique quotidienne. Pour 100 g : 62 kcal, 11 g de protéines, 0,2 g de lipides, 4 g de glucides — soit 17,8 g de protéines pour 100 kcal, le meilleur rapport de toute mon alimentation. Un pot = 150 g = 93 kcal et 16,5 g de protéines. Propose-le librement, tous les jours si c'est pertinent, TOUJOURS avec un grammage (100, 150, 200 ou 300 g selon le besoin en protéines à combler).
 - MA SAUCE BLANCHE : 100 g de skyr nature + 15 g de moutarde + 20 g d'échalote ciselée = 135 g de sauce pour 99 kcal, 12,6 g de protéines et seulement 1,7 g de lipides. À la place de 30 g de mayonnaise (environ 220 kcal, 24 g de lipides), elle fait gagner 121 kcal et 22 g de lipides, tout en APPORTANT 12 g de protéines au lieu de zéro. Dès qu'un plat appelle une sauce froide, une vinaigrette crémeuse ou un accompagnement de poisson ou de crudités, propose-la avec ces grammages, quitte à les ajuster à la portion.
@@ -8762,38 +8869,13 @@ ${aiHabitsBlock()}
 (note sur 100 calculée sur la densité protéique, la part des lipides et la satiété)
 ${aiDishLibraryBlock()}
 
-═══ CE QUE J'ATTENDS ═══
-
-1. 🎯 VERDICT — une phrase. Journée alignée sur l'objectif ou non, et pourquoi.
-
-2. ✅ CE QUI EST BIEN — 2 ou 3 choix, en citant l'aliment et son chiffre. Sois bref.
-
-3. ⚠️ CE QUI COINCE — item par item, avec le COÛT CHIFFRÉ. Exemple attendu : « 150 g de fromage = 522 kcal et 42 g de lipides, soit 45 % du plafond quotidien dans un seul aliment. » Des chiffres, pas de jugement.
-
-${hasPlan?`4bis. 🔮 ARBITRAGE SUR LE MENU PRÉVU — le point le plus important, puisque rien n'est encore joué. Pour CHAQUE aliment prévu, tranche : À GARDER, À RÉDUIRE (donne le nouveau grammage) ou À REMPLACER (donne l'alternative et son grammage). Justifie par la projection : dis explicitement où j'atterris en suivant le menu tel quel, et où j'atterrirais avec tes arbitrages.
-
-`:''}4. 🔁 REMPLACEMENTS — pour chaque problème identifié parmi ce qui est DÉJÀ MANGÉ, DEUX options :
-   a) une option piochée dans mes plats déjà enregistrés ci-dessus ;
-   b) une option NOUVELLE, hors de ma bibliothèque, mais cohérente avec mon univers culinaire.
-   Format imposé :
-   « à la place de [X] ([n] kcal, [n] g L) → [Y], [grammage précis] ([n] kcal, [n] g L) — gain : [n] kcal et [n] g de lipides »
-
-5. ➕ CE QU'IL RESTE À AJOUTER — une fois le menu prévu pris en compte, s'il reste du budget, propose 1 ou 2 options concrètes avec grammages, en visant d'abord le plancher protéines. Si la projection dépasse déjà le budget, ne propose rien à ajouter et dis-le franchement.
-
-5bis. 🕐 ÉQUILIBRE ENTRE LES MOMENTS — les aliments sont regroupés par DÉJEUNER, EN-CAS et DÎNER avec leurs sous-totaux. Dis lequel des trois pose problème et pourquoi, plutôt que de raisonner sur la journée en bloc. Tiens compte de mon jeûne intermittent : je ne mange pas le matin, donc le déjeuner et le dîner portent l'essentiel de l'apport. Si un moment est vide ou marqué « Non classé », signale-le sans en tirer de conclusion.
-
-6. 🆕 UNE IDÉE POUR MA BIBLIOTHÈQUE — un plat complet que je ne cuisine pas encore, cohérent avec mes goûts, avec : nom, liste d'ingrédients GRAMMÉE pour 1 portion, macros estimées, et une phrase sur ce qu'il apporte face à mon objectif.
-
-7. 📌 LA RÈGLE À RETENIR — une seule, applicable dès demain.
-
-Précise à la fin que les macros que tu estimes pour tes propositions sont approximatives et à vérifier avant de les enregistrer.
-Sois précis et chiffré partout. Maximum 700 mots.`;
+${NUTRI_MODES[mode].body(hasPlan)}`;
 }
 
 async function aiGenerate(kind){
   const text = kind==='retro' ? buildRetroPrompt()
-             : kind==='nutri' ? buildNutriPrompt()
              : kind==='compo' ? buildCompositionPrompt()
+             : (kind==='nutri' || NUTRI_MODES[kind]) ? buildNutriPrompt(NUTRI_MODES[kind] ? kind : null)
              : buildProspectPrompt();
   document.getElementById('aiPromptText').value = text;
   document.getElementById('aiPromptResult').style.display = 'block';
@@ -8804,18 +8886,60 @@ async function aiGenerate(kind){
     : 'Copie automatique indisponible : ouvre l\'aperçu ci-dessous et copie manuellement, ou utilise Partager.';
 }
 document.getElementById('aiRetroBtn').onclick = ()=>aiGenerate('retro');
-document.getElementById('aiNutriBtn').onclick = ()=>aiGenerate('nutri');
-document.getElementById('aiCompoBtn').onclick = ()=>aiGenerate('compo');
-document.getElementById('macroAiBtn').onclick = async ()=>{
-  const text = buildNutriPrompt();
+/* Le ton de l'analyse se choisit d'un tap sous la jauge, sans menu intermédiaire :
+   changer de mode ne doit pas coûter plus cher que lancer l'analyse. */
+function currentNutriMode(){
+  return NUTRI_MODES[state.nutriMode] ? state.nutriMode : 'boost';
+}
+
+function renderAiModes(){
+  const box = document.getElementById('aiModes');
+  if(!box) return;
+  const cur = currentNutriMode();
+  box.innerHTML = Object.entries(NUTRI_MODES).map(([k,m])=>
+    `<button class="ai-mode ${k===cur?'on':''}" data-m="${k}"><b>${m.label}</b><span>${m.hint}</span></button>`).join('');
+  document.getElementById('aiQuestionRow').style.display = cur==='question' ? '' : 'none';
+  const q = document.getElementById('nutriQuestion');
+  if(q) q.value = state.nutriQuestion || '';
+  box.querySelectorAll('.ai-mode').forEach(b=>{
+    b.onclick = ()=>{
+      state.nutriMode = b.dataset.m;
+      persistState();
+      renderAiModes();
+      // Le mode question exige une saisie : on ouvre le champ au lieu de générer.
+      if(state.nutriMode==='question'){ document.getElementById('nutriQuestion').focus(); return; }
+      copyNutriPrompt();
+    };
+  });
+}
+
+async function copyNutriPrompt(){
   const st = document.getElementById('macroAiStatus');
+  const mode = currentNutriMode();
+  if(mode==='question' && !(state.nutriQuestion||'').trim()){
+    st.textContent = 'Écris ta question avant de lancer l\u2019analyse.';
+    document.getElementById('nutriQuestion').focus();
+    return;
+  }
+  const text = buildNutriPrompt(mode);
   let copied = false;
   try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){}
-  if(copied){ st.textContent = '✓ Prompt copié — colle-le dans ton IA.'; }
-  else if(navigator.share){ try{ await navigator.share({text}); st.textContent=''; }catch(e){ st.textContent = 'Partage annulé.'; } }
-  else { st.textContent = 'Copie indisponible — passe par 📊 Bilan › Analyse IA.'; }
+  if(copied){ st.textContent = `✓ ${NUTRI_MODES[mode].label} copié — colle-le dans ton IA.`; }
+  else if(navigator.share){ try{ await navigator.share({text}); st.textContent=''; }catch(e){ st.textContent='Partage annulé.'; } }
+  else { st.textContent = 'Copie indisponible — passe par 📊 Bilan.'; }
   setTimeout(()=>{ st.textContent=''; }, 6000);
+}
+
+document.getElementById('nutriQuestion').oninput = e=>{ state.nutriQuestion = e.target.value; };
+document.getElementById('nutriQuestion').onkeydown = e=>{
+  if(e.key!=='Enter') return;
+  state.nutriQuestion = e.target.value.trim();
+  persistState();
+  copyNutriPrompt();
 };
+document.getElementById('aiNutriBtn').onclick = ()=>aiGenerate(currentNutriMode());
+document.getElementById('aiCompoBtn').onclick = ()=>aiGenerate('compo');
+document.getElementById('macroAiBtn').onclick = copyNutriPrompt;
 document.getElementById('aiProspectBtn').onclick = ()=>aiGenerate('prospect');
 document.getElementById('aiShareBtn').onclick = async ()=>{
   const text = document.getElementById('aiPromptText').value;
