@@ -1232,6 +1232,25 @@
   @media (hover:hover){ .macro-ai-btn:hover{border-color:var(--accent);} }
   /* Quatre tons d'analyse, accessibles d'un tap sous la jauge. Le bouton du haut
      lance le mode courant ; ceux-ci permettent d'en changer sans passer par un menu. */
+  /* Aperçu de prompt : on lit et on ajuste AVANT d'envoyer, plutôt que de copier
+     à l'aveugle. Le même modal sert aux six prompts de l'application. */
+  .promptbox{max-width:600px; width:100%;}
+  #promptText{
+    width:100%; box-sizing:border-box; min-height:44vh; max-height:56vh; resize:vertical;
+    padding:11px; border:1px solid var(--line); border-radius:10px;
+    background:var(--panel-2); color:var(--text);
+    font-family:'JetBrains Mono',monospace; font-size:0.68rem; line-height:1.55;
+  }
+  #promptText:focus{outline:none; border-color:var(--accent);}
+  .prompt-steps{
+    display:flex; flex-wrap:wrap; gap:4px 10px; align-items:baseline;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
+    padding:8px 10px; margin-top:10px; font-size:0.64rem; color:var(--text-dim);
+  }
+  .prompt-steps b{color:var(--text); font-size:0.66rem;}
+  .prompt-actions{display:flex; gap:8px; align-items:stretch; margin-top:10px;}
+  .prompt-actions .add-btn{flex:1;}
+  .prompt-actions .btn-sm{flex-shrink:0;}
   .ai-modes{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;}
   .ai-mode{
     display:flex; flex-direction:column; align-items:flex-start; gap:1px;
@@ -2147,7 +2166,8 @@
 
     <div class="card">
       <h2>Catalogue d'exercices <span class="tag mono" id="exCountTag"></span></h2>
-      <div class="check-sub" style="margin:3px 0 10px">Colle ici le JSON des machines de ta salle.</div>
+      <div class="check-sub" style="margin:3px 0 10px">Photographie une machine, copie le prompt, envoie-le avec tes photos à ton IA, puis colle sa réponse ici.</div>
+      <button class="add-btn" id="machinePromptBtn" style="margin-bottom:8px;">📷 Prompt d'identification de machine</button>
       <textarea id="exJsonIn" rows="3" placeholder='{"exercices":[{"nom":"...","groupe":"pecs","unite":"kg","reglages":"...","muscles":{"pectoraux":1},"substitut":"..."}]}'></textarea>
       <button class="add-btn" id="exImportBtn" style="margin-top:8px;">Importer ces exercices</button>
       <div class="io-msg" id="exIoMsg"></div>
@@ -2269,21 +2289,13 @@
   <div class="bilan-cols">
   <div class="card" id="aiPromptCard">
     <h2>🤖 Analyse IA</h2>
-    <div class="disclaimer">Génère un prompt complet à coller dans ton IA (Dinootoo ou autre). Les données de ton carnet y sont injectées automatiquement. Le rôle de l'expert est modifiable dans ⚙️ Réglages.</div>
+    <div class="disclaimer">Chaque bouton ouvre le prompt en aperçu : tu le relis, tu l'ajustes si besoin, puis tu le copies. Les données de ton carnet y sont injectées automatiquement. Le rôle de l'expert est modifiable dans ⚙️ Réglages.</div>
     <div style="display:flex; gap:8px;">
       <button class="add-btn" id="aiRetroBtn" style="flex:1; width:auto; margin-bottom:0;">🔙 Rétrospective<br><span style="font-size:0.68rem; font-weight:400;">7 derniers jours</span></button>
       <button class="add-btn" id="aiProspectBtn" style="flex:1; width:auto; margin-bottom:0; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">🔜 Semaine à venir<br><span style="font-size:0.68rem; font-weight:400;">objectifs + menus</span></button>
     </div>
     <button class="add-btn" id="aiNutriBtn" style="margin-top:8px; margin-bottom:0;">🍽️ Analyse nutritionniste<br><span style="font-size:0.68rem; font-weight:400;">journée affichée · remplacements chiffrés</span></button>
     <button class="add-btn" id="aiCompoBtn" style="margin-top:8px; margin-bottom:0; background:var(--panel-2); color:var(--text); border:1px solid var(--line);">⚖️ Composition corporelle<br><span style="font-size:0.68rem; font-weight:400;">série longue · tendance par appareil</span></button>
-    <div id="aiPromptResult" style="display:none; margin-top:12px;">
-      <div class="check-sub" id="aiPromptStatus" style="margin-bottom:8px;"></div>
-      <details>
-        <summary style="font-size:0.8rem; cursor:pointer;">Voir le prompt généré</summary>
-        <textarea id="aiPromptText" readonly style="width:100%; min-height:180px; margin-top:8px; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--panel-2); color:var(--text); font-size:0.72rem; font-family:'JetBrains Mono',monospace;"></textarea>
-      </details>
-      <button class="add-btn" id="aiShareBtn" style="margin-top:10px;">📤 Partager le prompt</button>
-    </div>
   </div>
 
   <!-- SEMAINE -->
@@ -2625,6 +2637,28 @@
     <span class="mono" id="scClock" style="font-size:.72rem;color:var(--text-dim)">00:00</span>
   </div>
   <div class="sc-body" id="scBody"></div>
+</div>
+
+<div class="modal-overlay" id="promptModal">
+  <div class="modal-box promptbox">
+    <div class="modal-header">
+      <h3 id="promptTitle">Prompt</h3>
+      <button class="modal-close" id="promptClose">✕</button>
+    </div>
+    <div class="check-sub" id="promptMeta" style="margin-bottom:8px;"></div>
+    <textarea id="promptText" spellcheck="false"></textarea>
+    <div class="prompt-steps" id="promptSteps" style="display:none;">
+      <b>Ensuite :</b>
+      <span>1. Ouvre ton IA</span><span>2. Colle et envoie</span>
+      <span>3. Copie sa réponse</span><span>4. Reviens ici pour l'importer</span>
+    </div>
+    <div class="prompt-actions">
+      <button class="add-btn" id="promptCopy" style="margin:0;">📋 Copier</button>
+      <button class="btn-sm" id="promptShare">Partager</button>
+      <button class="btn-sm" id="promptReset" title="Revenir au texte généré">↺</button>
+    </div>
+    <div class="io-msg" id="promptStatus"></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="menuQtyModal">
@@ -6285,6 +6319,20 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'4.4.0', date:'26 août 2026', items:[
+    'Nouveau prompt « 📷 Identification de machine » : tu le copies, tu l\'envoies à ton IA avec tes photos, elle te renvoie la fiche en JSON que tu réimportes — même principe que pour tes recettes.',
+    'Le prompt énumère les valeurs autorisées (groupes, zones musculaires, unités) pour que la réponse passe la validation du premier coup.',
+    'Il demande une fiche PAR MOUVEMENT et non par appareil, et reprend le nom exact d\'un exercice déjà présent pour le mettre à jour au lieu de le dupliquer.',
+    'Si une photo ne permet pas d\'identifier la machine avec certitude, l\'IA doit le signaler : la fiche est importée mais marquée à vérifier sur place.',
+    'L\'import contrôle désormais aussi le groupe musculaire et l\'unité de charge.'
+  ]},
+  {v:'4.3.0', date:'26 août 2026', items:[
+    'Tous les prompts s\'ouvrent maintenant dans un aperçu : tu les relis en entier avant de les envoyer, au lieu de copier à l\'aveugle.',
+    'Le texte est modifiable — tu peux ajouter une contrainte du jour ou retirer un bloc avant de copier.',
+    'Le bouton ↺ rétablit le texte généré, et l\'aperçu repart toujours de zéro à l\'ouverture suivante : une retouche ne contamine pas les fois d\'après.',
+    'Le prompt de séance affiche en plus les quatre étapes à suivre pour rapporter la réponse dans l\'application.',
+    'L\'ancien aperçu en accordéon du Bilan a été retiré, il faisait doublon.'
+  ]},
   {v:'4.2.1', date:'26 août 2026', items:[
     'Les quatre tons d\'analyse sont désormais des boutons directement sous la jauge de la page Jour, sous « Analyser ma journée ».',
     'Un tap sur un ton le sélectionne et copie le prompt dans la foulée — plus de menu intermédiaire.',
@@ -8872,19 +8920,67 @@ ${aiDishLibraryBlock()}
 ${NUTRI_MODES[mode].body(hasPlan)}`;
 }
 
-async function aiGenerate(kind){
+/* ---------- APERÇU DE PROMPT ----------
+   Un seul modal pour les six prompts. On les LIT avant de les envoyer, et on peut
+   les ajuster ponctuellement — ajouter une contrainte du jour, retirer un bloc
+   devenu inutile — sans que la modification ne contamine les fois suivantes :
+   le texte de référence est regénéré à chaque ouverture, ↺ y revient. */
+let promptOriginal = '';
+
+const PROMPT_TITLES = {
+  retro:'🔄 Rétrospective de la semaine',
+  prospect:'🔜 Semaine à venir',
+  compo:'⚖️ Composition corporelle',
+  seance:'💪 Séance de musculation',
+  machine:'📷 Identification de machine'
+};
+
+function openPromptPreview(text, title, withSteps){
+  promptOriginal = text;
+  document.getElementById('promptTitle').textContent = title || 'Prompt';
+  document.getElementById('promptText').value = text;
+  document.getElementById('promptMeta').textContent =
+    `${text.length.toLocaleString('fr-FR')} caractères · relis, ajuste si besoin, puis copie.`;
+  document.getElementById('promptSteps').style.display = withSteps ? '' : 'none';
+  document.getElementById('promptStatus').textContent = '';
+  document.getElementById('promptModal').classList.add('open');
+}
+
+function aiGenerate(kind){
   const text = kind==='retro' ? buildRetroPrompt()
              : kind==='compo' ? buildCompositionPrompt()
              : (kind==='nutri' || NUTRI_MODES[kind]) ? buildNutriPrompt(NUTRI_MODES[kind] ? kind : null)
              : buildProspectPrompt();
-  document.getElementById('aiPromptText').value = text;
-  document.getElementById('aiPromptResult').style.display = 'block';
-  let copied = false;
-  try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){}
-  document.getElementById('aiPromptStatus').textContent = copied
-    ? '✓ Prompt copié dans le presse-papier — colle-le dans ton IA.'
-    : 'Copie automatique indisponible : ouvre l\'aperçu ci-dessous et copie manuellement, ou utilise Partager.';
+  const title = PROMPT_TITLES[kind] || (NUTRI_MODES[kind] ? NUTRI_MODES[kind].label + ' — journée' : 'Analyse de la journée');
+  openPromptPreview(text, title, false);
 }
+
+document.getElementById('promptClose').onclick = ()=> document.getElementById('promptModal').classList.remove('open');
+document.getElementById('promptModal').onclick = e=>{ if(e.target.id==='promptModal') e.currentTarget.classList.remove('open'); };
+document.getElementById('promptReset').onclick = ()=>{
+  document.getElementById('promptText').value = promptOriginal;
+  document.getElementById('promptStatus').textContent = 'Texte d\u2019origine rétabli.';
+};
+document.getElementById('promptCopy').onclick = async ()=>{
+  const text = document.getElementById('promptText').value;
+  const st = document.getElementById('promptStatus');
+  if(!text.trim()){ st.textContent = 'Le prompt est vide.'; return; }
+  try{
+    await navigator.clipboard.writeText(text);
+    st.textContent = '✓ Copié — colle-le dans ton IA.';
+  }catch(e){
+    // Sur les navigateurs qui refusent l'écriture, la sélection manuelle reste possible.
+    const ta = document.getElementById('promptText');
+    ta.focus(); ta.select();
+    st.textContent = 'Copie automatique refusée : le texte est sélectionné, fais « Copier ».';
+  }
+};
+document.getElementById('promptShare').onclick = async ()=>{
+  const text = document.getElementById('promptText').value;
+  if(!text.trim()) return;
+  if(navigator.share){ try{ await navigator.share({text}); }catch(e){} }
+  else { document.getElementById('promptCopy').click(); }
+};
 document.getElementById('aiRetroBtn').onclick = ()=>aiGenerate('retro');
 /* Le ton de l'analyse se choisit d'un tap sous la jauge, sans menu intermédiaire :
    changer de mode ne doit pas coûter plus cher que lancer l'analyse. */
@@ -8913,7 +9009,7 @@ function renderAiModes(){
   });
 }
 
-async function copyNutriPrompt(){
+function copyNutriPrompt(){
   const st = document.getElementById('macroAiStatus');
   const mode = currentNutriMode();
   if(mode==='question' && !(state.nutriQuestion||'').trim()){
@@ -8921,13 +9017,8 @@ async function copyNutriPrompt(){
     document.getElementById('nutriQuestion').focus();
     return;
   }
-  const text = buildNutriPrompt(mode);
-  let copied = false;
-  try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){}
-  if(copied){ st.textContent = `✓ ${NUTRI_MODES[mode].label} copié — colle-le dans ton IA.`; }
-  else if(navigator.share){ try{ await navigator.share({text}); st.textContent=''; }catch(e){ st.textContent='Partage annulé.'; } }
-  else { st.textContent = 'Copie indisponible — passe par 📊 Bilan.'; }
-  setTimeout(()=>{ st.textContent=''; }, 6000);
+  st.textContent = '';
+  openPromptPreview(buildNutriPrompt(mode), NUTRI_MODES[mode].label + ' — journée', false);
 }
 
 document.getElementById('nutriQuestion').oninput = e=>{ state.nutriQuestion = e.target.value; };
@@ -8941,12 +9032,6 @@ document.getElementById('aiNutriBtn').onclick = ()=>aiGenerate(currentNutriMode(
 document.getElementById('aiCompoBtn').onclick = ()=>aiGenerate('compo');
 document.getElementById('macroAiBtn').onclick = copyNutriPrompt;
 document.getElementById('aiProspectBtn').onclick = ()=>aiGenerate('prospect');
-document.getElementById('aiShareBtn').onclick = async ()=>{
-  const text = document.getElementById('aiPromptText').value;
-  if(!text) return;
-  if(navigator.share){ try{ await navigator.share({text}); }catch(e){} }
-  else { try{ await navigator.clipboard.writeText(text); alert('Copié dans le presse-papier.'); }catch(e){} }
-};
 document.getElementById('aiRoleInput').onchange = e=>{ state.aiRole = e.target.value.trim(); persistState(); };
 document.getElementById('waterGoalInput').onchange = e=>{
   state.waterGoalMl = parseInt(e.target.value)||1500;
@@ -9539,11 +9624,50 @@ S'il n'y a aucun historique, c'est une REPRISE : propose des charges volontairem
 "ex" doit correspondre EXACTEMENT à un nom du catalogue. "load" est un nombre dans l'unité de l'exercice (kg, numéro de plaque, ou secondes pour le gainage). Aucun commentaire, aucun texte avant ou après le JSON.`;
 }
 
+/* Prompt d'identification des machines. Il sert à alimenter le catalogue à partir
+   de photos : c'est le pendant, côté musculation, de l'import de recettes.
+   Il énumère les valeurs autorisées (groupes, zones, unités, pictogrammes) parce
+   que l'import les valide strictement : un JSON hors nomenclature est rejeté. */
+function buildMachinePrompt(){
+  const m = muscuState();
+  const zones = Object.entries(MUSCLE_ZONES).map(([k,v])=>`${k} (${v})`).join(', ');
+  const groupes = MUSCLE_GROUPS.map(g=>`${g.key} (${g.label})`).join(', ');
+  const dejaLa = Object.keys(m.exercises);
+
+  return `Tu es préparateur physique. Je vais te montrer des PHOTOS de machines de ma salle de musculation. Pour chacune, tu identifies l'appareil et tu produis une fiche d'exercice au format JSON, sans aucun texte autour.
+
+═══ CE QUE JE T'ENVOIE ═══
+Une ou plusieurs photos de machines. Pour chaque machine, regarde :
+- la forme générale de l'appareil et la position d'utilisation ;
+- l'étiquette du fabricant si elle est lisible ;
+- le sélecteur de charge : colonne de plaques numérotées, disques à charger, ou haltères.
+
+Si une photo est trop floue ou trop partielle pour que tu identifies l'appareil avec certitude, NE DEVINE PAS : indique-le dans un champ "doute" plutôt que de produire une fiche approximative. Une fiche fausse est pire qu'une fiche manquante — elle me ferait charger une machine pour le mauvais mouvement.
+
+═══ POUR CHAQUE MACHINE ═══
+- "nom" : nom français usuel de l'exercice, court et sans ambiguïté (ex. "Tirage vertical", "Développé couché machine"). C'est la clé qui sera affichée pendant la séance.
+- "groupe" : UNE valeur parmi ${groupes}
+- "unite" : "plaques" si la charge se règle par une goupille sur une colonne numérotée, "kg" si ce sont des disques ou des haltères, "sec" pour un exercice tenu en isométrie.
+- "muscles" : objet associant des zones à leur niveau. 1 = muscle principal, 2 = muscle secondaire. Zones autorisées, aucune autre : ${zones}
+- "reglages" : ce qui se règle sur CETTE machine et qui compte pour bien la placer (hauteur de siège, position des poignées, cales, rouleau). Une phrase courte. Décris ce que tu vois sur la photo, ne récite pas un manuel générique.
+- "substitut" : un exercice de remplacement si la machine est occupée. Privilégie une machine que je possède déjà${dejaLa.length?` — voici mon catalogue actuel : ${dejaLa.join(', ')}`:''}.
+- "art" : UNE valeur parmi chestpress, latpulldown, legpress, cable, dumbbell, bodyweight. Choisis le pictogramme le plus proche de l'appareil, c'est purement illustratif.
+
+Si une même machine permet plusieurs mouvements distincts (une poulie, par exemple), crée UNE FICHE PAR MOUVEMENT plutôt qu'une fiche fourre-tout : la séance prescrit des exercices, pas des appareils.
+${dejaLa.length?`
+Si une machine correspond à un exercice déjà présent dans mon catalogue, reprends EXACTEMENT le même "nom" : la fiche sera mise à jour au lieu d'être dupliquée.
+`:''}
+═══ FORMAT DE SORTIE — JSON UNIQUEMENT ═══
+{"exercices":[{"nom":"Tirage vertical","groupe":"dos","unite":"plaques","art":"latpulldown","reglages":"Cales-cuisses serrées, prise large en pronation","muscles":{"dorsaux":1,"biceps":2,"trapezes":2},"substitut":"Tirage horizontal","doute":null}]}
+
+Le champ "doute" vaut null quand tu es sûr, ou une phrase expliquant ce qui te manque. Aucun commentaire, aucun texte avant ou après le JSON.`;
+}
+
 /* --- Imports JSON : on valide TOUT avant de remplacer quoi que ce soit.
    Un JSON partiellement appliqué serait pire qu'un refus. --- */
 function stripFences(raw){ return raw.replace(/```json|```/g,'').trim(); }
 
-document.getElementById('muscuPromptBtn').onclick = async ()=>{
+document.getElementById('muscuPromptBtn').onclick = ()=>{
   const msg = document.getElementById('muscuIoMsg');
   // Le prompt interdit tout exercice hors catalogue : le générer sur un catalogue
   // vide produit une demande impossible, et la séance obtenue serait de toute
@@ -9552,8 +9676,9 @@ document.getElementById('muscuPromptBtn').onclick = async ()=>{
     msg.innerHTML = '✕ Catalogue vide : le prompt exigerait des exercices qui n\u2019existent pas encore, et la séance générée serait refusée à l\u2019import.<br>Photographie les machines de ta salle, fais-en établir le JSON, puis importe-le ci-dessous.';
     return;
   }
-  try{ await navigator.clipboard.writeText(buildMuscuPrompt()); msg.textContent = '✓ Prompt copié — colle-le dans ton IA.'; }
-  catch(e){ msg.textContent = 'Copie impossible sur ce navigateur.'; }
+  msg.textContent = '';
+  // Les étapes s'affichent ici : c'est le prompt dont le retour doit être réimporté.
+  openPromptPreview(buildMuscuPrompt(), PROMPT_TITLES.seance, true);
 };
 
 document.getElementById('muscuImportBtn').onclick = ()=>{
@@ -9590,11 +9715,17 @@ document.getElementById('exImportBtn').onclick = ()=>{
   catch(e){ msg.textContent = '✕ JSON illisible : ' + e.message; return; }
   const arr = data.exercices || data.exercises || data;
   if(!Array.isArray(arr) || !arr.length){ msg.textContent = '✕ Attendu : un tableau "exercices".'; return; }
-  const errs = [], ok = [];
+  const errs = [], ok = [], doutes = [];
   const ARTS = ['chestpress','latpulldown','legpress','cable','dumbbell','bodyweight'];
+  const GRP = MUSCLE_GROUPS.map(g=>g.key);
   arr.forEach((e,i)=>{
     const nom = e.nom || e.name;
     if(!nom){ errs.push(`exercice ${i+1} : nom manquant`); return; }
+    // L'IA signale elle-même les identifications incertaines : on les importe,
+    // mais on les remonte pour que la fiche soit vérifiée sur place.
+    if(e.doute) doutes.push(`${nom} : ${e.doute}`);
+    if(e.groupe && !GRP.includes(e.groupe)){ errs.push(`${nom} : groupe inconnu « ${e.groupe} »`); return; }
+    if(e.unite && !['kg','plaques','sec'].includes(e.unite)){ errs.push(`${nom} : unité inconnue « ${e.unite} »`); return; }
     if(e.muscles && typeof e.muscles !== 'object'){ errs.push(`${nom} : "muscles" doit être un objet`); return; }
     const bad = Object.keys(e.muscles||{}).filter(z=>!MUSCLE_ZONES[z]);
     if(bad.length){ errs.push(`${nom} : zone(s) inconnue(s) ${bad.join(', ')}`); return; }
@@ -9606,7 +9737,8 @@ document.getElementById('exImportBtn').onclick = ()=>{
   let maj = 0;
   ok.forEach(([n,e])=>{ if(m.exercises[n]) maj++; m.exercises[n] = Object.assign({}, m.exercises[n], e); });
   persistState();
-  msg.textContent = `✓ ${ok.length} exercice(s) importé(s)${maj?`, dont ${maj} mis à jour`:''}.`;
+  msg.innerHTML = `✓ ${ok.length} exercice(s) importé(s)${maj?`, dont ${maj} mis à jour`:''}.`
+    + (doutes.length ? `<br>⚠️ À vérifier sur place :<br>· ${doutes.join('<br>· ')}` : '');
   document.getElementById('exJsonIn').value = '';
   renderExCatalogue(); updatePromptBtnState();
 };
@@ -9637,6 +9769,10 @@ function updateMuscuEntry(){
   }
 }
 
+document.getElementById('machinePromptBtn').onclick = ()=>{
+  document.getElementById('exIoMsg').textContent = '';
+  openPromptPreview(buildMachinePrompt(), PROMPT_TITLES.machine, true);
+};
 document.getElementById('muscuStartBtn').onclick = startSeance;
 document.getElementById('scQuit').onclick = ()=>{
   if(scDoneSets()===0 || confirm('Quitter la séance en cours ? Les séries saisies seront perdues.')) closeSeance();
