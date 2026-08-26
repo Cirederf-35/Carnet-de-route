@@ -6261,6 +6261,10 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'4.1.1', date:'26 août 2026', items:[
+    'Correction : le prompt de séance pouvait être copié alors que le catalogue d\'exercices était vide. Il exigeait alors des exercices inexistants, et la séance obtenue était rejetée à l\'import.',
+    'Le bouton est maintenant grisé et explique quoi faire tant qu\'aucune machine n\'est enregistrée.'
+  ]},
   {v:'4.1.0', date:'26 août 2026', items:[
     'La carte d\'adhérent ACIGNE FORM\' est intégrée directement dans l\'application : elle est disponible dès l\'ouverture, sans import et sans occuper le stockage.',
     'Elle s\'affiche pivotée en pleine hauteur d\'un seul tap depuis la page Musculation.',
@@ -9101,6 +9105,14 @@ function renderExCatalogue(){
   document.querySelectorAll('#exGrid .ex-card').forEach(c=> c.onclick = ()=> openExerciseSheet(c.dataset.ex));
 }
 
+function updatePromptBtnState(){
+  const btn = document.getElementById('muscuPromptBtn');
+  if(!btn) return;
+  const vide = !Object.keys(muscuState().exercises).length;
+  btn.style.opacity = vide ? '.45' : '1';
+  btn.textContent = vide ? '📋 Copier le prompt (catalogue vide)' : '📋 Copier le prompt de séance';
+}
+
 function renderSeanceSummary(){
   const m = muscuState();
   const el = document.getElementById('seanceSummary');
@@ -9124,7 +9136,7 @@ function renderMuscuHistory(){
 
 function renderMuscu(){
   renderMemberCard(); renderMuscuGroups(); renderExCatalogue();
-  renderSeanceSummary(); renderMuscuHistory();
+  renderSeanceSummary(); renderMuscuHistory(); updatePromptBtnState();
 }
 
 function openExerciseSheet(name){
@@ -9409,6 +9421,13 @@ function stripFences(raw){ return raw.replace(/```json|```/g,'').trim(); }
 
 document.getElementById('muscuPromptBtn').onclick = async ()=>{
   const msg = document.getElementById('muscuIoMsg');
+  // Le prompt interdit tout exercice hors catalogue : le générer sur un catalogue
+  // vide produit une demande impossible, et la séance obtenue serait de toute
+  // façon rejetée à l'import. On bloque en amont plutôt que d'échouer en aval.
+  if(!Object.keys(muscuState().exercises).length){
+    msg.innerHTML = '✕ Catalogue vide : le prompt exigerait des exercices qui n\u2019existent pas encore, et la séance générée serait refusée à l\u2019import.<br>Photographie les machines de ta salle, fais-en établir le JSON, puis importe-le ci-dessous.';
+    return;
+  }
   try{ await navigator.clipboard.writeText(buildMuscuPrompt()); msg.textContent = '✓ Prompt copié — colle-le dans ton IA.'; }
   catch(e){ msg.textContent = 'Copie impossible sur ce navigateur.'; }
 };
@@ -9465,7 +9484,7 @@ document.getElementById('exImportBtn').onclick = ()=>{
   persistState();
   msg.textContent = `✓ ${ok.length} exercice(s) importé(s)${maj?`, dont ${maj} mis à jour`:''}.`;
   document.getElementById('exJsonIn').value = '';
-  renderExCatalogue();
+  renderExCatalogue(); updatePromptBtnState();
 };
 
 /* Navigation : on entre par la page Sport, on en revient par le même chemin.
