@@ -1251,6 +1251,65 @@
   .prompt-actions{display:flex; gap:8px; align-items:stretch; margin-top:10px;}
   .prompt-actions .add-btn{flex:1;}
   .prompt-actions .btn-sm{flex-shrink:0;}
+  /* Aperçu direct : ce que la quantité saisie apporte RÉELLEMENT, et ce qu'il
+     reste à couvrir sur la journée. Recalculé à chaque frappe. */
+  .role-head{
+    grid-column:1/-1; font-size:0.66rem; color:var(--text-dim);
+    padding:6px 2px 2px; font-family:'Space Grotesk',sans-serif; font-weight:600;
+  }
+  .role-tile{position:relative;}
+  .tile-count{
+    position:absolute; top:4px; right:6px;
+    font-family:'JetBrains Mono',monospace; font-size:0.56rem; color:var(--text-dim);
+  }
+  .food-tile{display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;}
+  .ft-macro{
+    font-family:'JetBrains Mono',monospace; font-size:0.56rem;
+    color:var(--text-dim); line-height:1.3; font-weight:400;
+  }
+  /* Composeur : les jauges du manque en haut, les suggestions en dessous. */
+  .cp-gap{display:flex; flex-direction:column; gap:9px; margin-bottom:10px;}
+  .cp-bar-head{display:flex; justify-content:space-between; align-items:baseline; font-size:0.7rem; color:var(--text-dim); margin-bottom:3px;}
+  .cp-bar-head b{font-family:'JetBrains Mono',monospace; color:var(--text); font-size:0.74rem;}
+  .cp-bar-head b span{color:var(--text-dim); font-weight:400; font-size:0.64rem;}
+  .cp-bar-head b.ok{color:var(--success);} .cp-bar-head b.over{color:var(--danger);}
+  .cp-track{height:7px; background:var(--panel-2); border-radius:4px; overflow:hidden;}
+  .cp-track i{display:block; height:100%; background:var(--accent); transition:width .25s;}
+  .cp-track i.over{background:var(--danger);}
+  .cp-summary{background:var(--accent-soft); border-radius:10px; padding:9px 11px; font-size:0.74rem; line-height:1.5; margin-bottom:10px;}
+  .cp-list{display:flex; flex-direction:column; gap:5px; margin-bottom:10px;}
+  .cp-item{display:flex; align-items:center; gap:8px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px; padding:7px 10px; font-size:0.74rem;}
+  .cp-item span:first-child{flex:1;}
+  .cp-item button{background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:0.8rem;}
+  .cp-sugg-head{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:0.78rem; margin:12px 0 7px;}
+  .cp-sugg{
+    display:flex; flex-direction:column; gap:3px; width:100%; text-align:left; cursor:pointer;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:11px;
+    padding:9px 11px; margin-bottom:6px; color:var(--text); font-family:inherit;
+  }
+  .cp-sugg:active{transform:scale(.985)}
+  .cp-sugg-name{font-size:0.78rem; font-weight:500;}
+  .cp-sugg-q{font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--accent); margin-left:4px;}
+  .cp-sugg-m{font-size:0.62rem; color:var(--text-dim);}
+  .cp-actions{display:flex; gap:8px; margin-top:12px;}
+  .cp-actions .add-btn{flex:1;}
+  .live-macro{
+    margin-top:12px; border:1px solid var(--line); border-radius:12px;
+    background:var(--panel-2); padding:10px 12px;
+  }
+  .lm-top{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin-bottom:8px;}
+  .lm-kcal{font-family:'JetBrains Mono',monospace; font-size:1.5rem; font-weight:700; color:var(--accent); line-height:1;}
+  .lm-dens{font-family:'JetBrains Mono',monospace; font-size:0.64rem; color:var(--text-dim); text-align:right;}
+  .lm-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .lm-cell{text-align:center;}
+  .lm-cell b{display:block; font-family:'JetBrains Mono',monospace; font-size:0.94rem; font-weight:700;}
+  .lm-cell span{font-size:0.6rem; color:var(--text-dim);}
+  .lm-p b{color:#199e70;} .lm-f b{color:#eda100;} .lm-c b{color:#2a78d6;}
+  .lm-after{
+    margin-top:9px; padding-top:8px; border-top:1px dashed var(--line);
+    font-family:'JetBrains Mono',monospace; font-size:0.62rem; color:var(--text-dim); line-height:1.6;
+  }
+  .lm-after .ok{color:var(--success);} .lm-after .over{color:var(--danger);}
   .ai-modes{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;}
   .ai-mode{
     display:flex; flex-direction:column; align-items:flex-start; gap:1px;
@@ -1886,6 +1945,7 @@
       </div>
     </div>
     <div class="macro-foot" id="macroFoot"></div>
+    <button class="macro-ai-btn" id="composeBtn">🧩 Composer avec ce qu'il me reste</button>
     <button class="macro-ai-btn" id="macroAiBtn">🍽️ Analyser ma journée</button>
     <div class="ai-modes" id="aiModes"></div>
     <div id="aiQuestionRow" style="display:none;">
@@ -2639,6 +2699,16 @@
   <div class="sc-body" id="scBody"></div>
 </div>
 
+<div class="modal-overlay" id="composeModal">
+  <div class="modal-box promptbox">
+    <div class="modal-header">
+      <h3>🧩 Composer</h3>
+      <button class="modal-close" id="composeClose">✕</button>
+    </div>
+    <div id="composeBody"></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="promptModal">
   <div class="modal-box promptbox">
     <div class="modal-header">
@@ -2845,6 +2915,7 @@
           <div><label class="field-inline">Lipides /100g</label><input type="number" id="modalF" step="0.1"></div>
           <div><label class="field-inline">Glucides /100g</label><input type="number" id="modalC" step="0.1"></div>
         </div>
+        <div class="live-macro" id="modalLive"></div>
         <button class="add-btn" id="modalConfirmAdd">Ajouter à la journée</button>
       </div>
     </div>
@@ -2974,6 +3045,23 @@ const SPORT_ACTIVITIES = {
 };
 let currentSportActivity = null;
 const UNIT_ITEMS = {
+  /* Portions usuelles ajoutées : poissons, laitages et féculents portionnables.
+     Peser reste possible via la bascule grammes du modal — l'unité n'est qu'un
+     raccourci pour les aliments dont la portion est évidente à l'oeil. */
+  "Pavé de saumon":{weight:130,label:"pavé(x)"},
+  "Cabillaud":{weight:130,label:"filet(s)"},
+  "Colin / lieu":{weight:130,label:"filet(s)"},
+  "Thon nature (conserve)":{weight:110,label:"boîte(s)"},
+  "Thon en boîte (au naturel)":{weight:110,label:"boîte(s)"},
+  "Thon en boîte au naturel":{weight:110,label:"boîte(s)"},
+  "Sardines fraîches":{weight:90,label:"sardine(s)"},
+  "Œuf":{weight:55,label:"œuf(s)"},
+  "Fromage blanc 0%":{weight:100,label:"pot(s)"},
+  "Fromage blanc 3%":{weight:100,label:"pot(s)"},
+  "Yaourt à la grecque":{weight:125,label:"pot(s)"},
+  "Galette de sarrasin":{weight:80,label:"galette(s)"},
+  "Galette végétale":{weight:100,label:"galette(s)"},
+  "Pain sportif":{weight:40,label:"tranche(s)"},
   "Tomate":{weight:120,label:"tomate(s)"},
   "Banane":{weight:120,label:"banane(s)"},
   "Pomme":{weight:180,label:"pomme(s)"},
@@ -4200,9 +4288,52 @@ function applyQtyMode(name, keepValue){
     if(!keepValue) input.value = unit.weight;
   }
   updateQtyHint(name);
+  updateModalLive();
 }
 
 /* Rappelle en permanence l'équivalence entre les deux unités. */
+/* Recalcul à la frappe : ce que la quantité saisie apporte, et où ça place la
+   journée. Sans ça, il faut valider puis revenir en arrière pour ajuster. */
+function updateModalLive(){
+  const box = document.getElementById('modalLive');
+  if(!box) return;
+  const p100 = parseFloat(document.getElementById('modalP').value) || 0;
+  const f100 = parseFloat(document.getElementById('modalF').value) || 0;
+  const c100 = parseFloat(document.getElementById('modalC').value) || 0;
+  const v = parseFloat(document.getElementById('modalQty').value) || 0;
+  const unit = UNIT_ITEMS[modalName];
+  const grams = (unit && modalQtyMode === 'unit') ? v * unit.weight : v;
+  const r = grams / 100;
+  const P = p100*r, F = f100*r, C = c100*r;
+  const kcal = Math.round(P*4 + C*4 + F*9);
+  const dens = kcal > 0 ? (P/(kcal/100)).toFixed(1) : '—';
+
+  // Où la journée atterrit si on valide : la question qu'on se pose vraiment.
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  const tot = dayFoodTotals(day, 'all');
+  const need = computeTDEE(iso) + sportTotalKcal(day);
+  const mt = macroTargets(iso, need);
+  const nP = tot.p + P, nF = tot.f + F, nC = tot.c + C, nK = tot.kcal + kcal;
+  const cls = (val, lo, hi) => val < lo ? '' : (hi != null && val > hi) ? 'over' : 'ok';
+
+  box.innerHTML = `
+    <div class="lm-top">
+      <div><div class="lm-kcal">${kcal} kcal</div>
+        <span style="font-size:.6rem;color:var(--text-dim)">pour ${Math.round(grams)} g</span></div>
+      <div class="lm-dens">${dens} g P / 100 kcal</div>
+    </div>
+    <div class="lm-grid">
+      <div class="lm-cell lm-p"><b>${P.toFixed(1)}</b><span>protéines</span></div>
+      <div class="lm-cell lm-f"><b>${F.toFixed(1)}</b><span>lipides</span></div>
+      <div class="lm-cell lm-c"><b>${C.toFixed(1)}</b><span>glucides</span></div>
+    </div>
+    <div class="lm-after">Journée après ajout : ${Math.round(nK)} / ${mt.budget} kcal
+      · P <span class="${cls(nP, mt.p.floor)}">${Math.round(nP)}</span>/${mt.p.floor}
+      · L <span class="${cls(nF, mt.f.low, mt.f.high)}">${Math.round(nF)}</span>/${mt.f.high}
+      · G <span class="${cls(nC, mt.c.low, mt.c.high)}">${Math.round(nC)}</span>/${mt.c.low}-${mt.c.high}</div>`;
+}
+
 function updateQtyHint(name){
   const unit = UNIT_ITEMS[name];
   const hint = document.getElementById('modalQtyHint');
@@ -6319,6 +6450,20 @@ function dishTotals(dish){
    ajouter une entrée en position 0. Le numéro affiché sur l'accueil est toujours CHANGELOG[0].v.
    Ne lister que les nouveautés visibles pour l'utilisateur, pas les détails techniques. */
 const CHANGELOG = [
+  {v:'4.6.0', date:'26 août 2026', items:[
+    'Nouveau composeur « 🧩 Composer avec ce qu\'il me reste », sous la jauge : quatre jauges montrent le manque du jour, et l\'application propose les aliments qui le comblent le mieux.',
+    'Les suggestions sont calculées en local depuis ta base d\'ingrédients — instantané, hors ligne, sans passer par une IA.',
+    'Le moteur privilégie le plancher protéines, tient compte du plafond lipides et propose des quantités réalistes, jamais plus de deux aliments du même rôle.',
+    'Un tap ajoute une suggestion, et le tout part au journal ou s\'enregistre comme nouvelle recette.',
+    '14 portions usuelles ajoutées : pavé de saumon, filet de cabillaud, boîte de thon, œuf, pot de fromage blanc, galette, tranche de pain sportif…'
+  ]},
+  {v:'4.5.0', date:'26 août 2026', items:[
+    'Les macros et les calories se recalculent à la frappe quand tu changes la quantité ou les valeurs pour 100 g : plus besoin de valider pour voir le résultat.',
+    'L\'aperçu indique aussi où atterrit ta journée après ajout, avec les trois macros comparées à leurs cibles.',
+    'Les ingrédients sont désormais classables par rôle dans l\'assiette : Protéines, Glucides, Lipides, Volume et Mixte, en plus des familles culinaires.',
+    'Dans une vue par rôle, les ingrédients sont triés par densité protéique décroissante — les meilleurs choix en premier.',
+    'Chaque ingrédient affiche ses calories et ses trois macros directement dans la liste.'
+  ]},
   {v:'4.4.0', date:'26 août 2026', items:[
     'Nouveau prompt « 📷 Identification de machine » : tu le copies, tu l\'envoies à ton IA avec tes photos, elle te renvoie la fiche en JSON que tu réimportes — même principe que pour tes recettes.',
     'Le prompt énumère les valeurs autorisées (groupes, zones musculaires, unités) pour que la réponse passe la validation du premier coup.',
@@ -8139,19 +8284,67 @@ document.getElementById('estConfirm').onclick = ()=>{
 };
 function closeFoodModal(){ document.getElementById('foodModal').classList.remove('open'); modalEditIndex = null; }
 
+/* ---------- RÔLE NUTRITIONNEL D'UN INGRÉDIENT ----------
+   Calculé à partir de ses macros, jamais saisi : les 353 ingrédients sont classés
+   sans migration de données. Le classement se fait par RÔLE DANS L'ASSIETTE et non
+   par macro dominante — sinon le brocoli et les pâtes atterrissent ensemble, ce qui
+   n'aide pas à composer un plat. */
+const FOOD_ROLES = {
+  prot:   {label:'Protéines', icon:'🥩', hint:'≥ 8 g de protéines / 100 kcal'},
+  gluc:   {label:'Glucides',  icon:'🍚', hint:'énergie, à ajuster selon le sport'},
+  lip:    {label:'Lipides',   icon:'🧈', hint:'poste à surveiller'},
+  volume: {label:'Volume',    icon:'🥦', hint:'< 45 kcal / 100 g, rassasiant'},
+  mixte:  {label:'Mixte',     icon:'🍱', hint:'sans dominante nette'}
+};
+function foodRole(v){
+  const p=v.p||0, f=v.f||0, c=v.c||0;
+  const kc = p*4 + c*4 + f*9;
+  if(kc < 45) return 'volume';           // rassasiant à coût calorique négligeable
+  if(p/(kc/100) >= 8) return 'prot';     // même seuil que la notation des recettes
+  if(f*9/kc >= 0.45) return 'lip';
+  if(c*4/kc >= 0.45) return 'gluc';
+  return 'mixte';
+}
+function foodDensity(v){
+  const kc = (v.p||0)*4 + (v.c||0)*4 + (v.f||0)*9;
+  return kc>0 ? (v.p||0)/(kc/100) : 0;
+}
+let modalRole = null;  // null = classement par catégorie culinaire
+
 function renderModalCategoryGrid(){
   const grid = document.getElementById('modalCategoryGrid');
-  grid.innerHTML = state.categoryOrder.map(k=>
-    `<button type="button" class="icon-tile" data-val="${k}">${FOOD_CATEGORY_ICONS[k]||'🍽'}<span class="tile-label">${FOOD_CATEGORIES[k]}</span></button>`
-  ).join('');
-  grid.querySelectorAll('.icon-tile').forEach(btn=>{
-    btn.onclick = ()=>{ modalCat = btn.dataset.val; renderModalItemGrid(); modalPush('item'); };
+  const counts = {};
+  Object.values(state.ingredients).forEach(v=>{ const r=foodRole(v); counts[r]=(counts[r]||0)+1; });
+  grid.innerHTML =
+    `<div class="role-head">Par rôle dans l'assiette</div>`
+    + Object.entries(FOOD_ROLES).map(([k,r])=>
+        `<button type="button" class="icon-tile role-tile" data-role="${k}">${r.icon}<span class="tile-label">${r.label}</span><span class="tile-count">${counts[k]||0}</span></button>`).join('')
+    + `<div class="role-head">Par famille</div>`
+    + state.categoryOrder.map(k=>
+        `<button type="button" class="icon-tile" data-val="${k}">${FOOD_CATEGORY_ICONS[k]||'🍽'}<span class="tile-label">${FOOD_CATEGORIES[k]}</span></button>`).join('');
+  grid.querySelectorAll('.icon-tile[data-val]').forEach(btn=>{
+    btn.onclick = ()=>{ modalCat = btn.dataset.val; modalRole = null; renderModalItemGrid(); modalPush('item'); };
+  });
+  grid.querySelectorAll('.role-tile').forEach(btn=>{
+    btn.onclick = ()=>{ modalRole = btn.dataset.role; modalCat = null; renderModalItemGrid(); modalPush('item'); };
   });
 }
 function renderModalItemGrid(){
   const grid = document.getElementById('modalItemGrid');
-  const items = Object.entries(state.ingredients).filter(([,v])=>v.cat===modalCat).map(([name])=>name).sort();
-  grid.innerHTML = items.map(name=>`<button type="button" class="food-tile" data-val="${name}">${name}</button>`).join('')
+  // Par rôle : trié par densité protéique décroissante — les meilleurs choix en tête.
+  // Par famille : ordre alphabétique, on cherche un ingrédient précis.
+  const all = Object.entries(state.ingredients)
+    .filter(([,v]) => modalRole ? foodRole(v)===modalRole : v.cat===modalCat);
+  all.sort(modalRole
+    ? (a,b)=> foodDensity(b[1]) - foodDensity(a[1])
+    : (a,b)=> a[0].localeCompare(b[0]));
+  const items = all.map(([name])=>name);
+  const hint = modalRole ? `<div class="role-head">${FOOD_ROLES[modalRole].icon} ${FOOD_ROLES[modalRole].label} — ${FOOD_ROLES[modalRole].hint}</div>` : '';
+  grid.innerHTML = hint + all.map(([name,v])=>{
+    const kc = Math.round((v.p||0)*4 + (v.c||0)*4 + (v.f||0)*9);
+    return `<button type="button" class="food-tile" data-val="${name}">${name}`
+      + `<span class="ft-macro">${kc} kcal · P ${v.p||0} · L ${v.f||0} · G ${v.c||0}</span></button>`;
+  }).join('')
     + `<button type="button" class="food-tile" id="modalNewTile" style="border-style:dashed; color:var(--accent);">+ Nouvel ingrédient</button>`;
   grid.querySelectorAll('.food-tile[data-val]').forEach(btn=>{
     btn.onclick = ()=>{
@@ -8201,7 +8394,12 @@ document.getElementById('modalQtyMode').querySelectorAll('button').forEach(btn=>
     applyQtyMode(modalName, true);
   };
 });
-document.getElementById('modalQty').addEventListener('input', ()=>updateQtyHint(modalName));
+['modalQty','modalP','modalF','modalC'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    if(id==='modalQty') updateQtyHint(modalName);
+    updateModalLive();
+  });
+});
 
 document.getElementById('modalConfirmAdd').onclick = ()=>{
   const qty = parseFloat(document.getElementById('modalQty').value) || 0;
@@ -8920,6 +9118,176 @@ ${aiDishLibraryBlock()}
 ${NUTRI_MODES[mode].body(hasPlan)}`;
 }
 
+
+/* ================================================================
+   COMPOSEUR — piloté par le manque du jour
+   Le moteur tourne EN LOCAL sur la base d'ingrédients : pas d'aller-retour
+   avec une IA pour une question arithmétique. Il répond à « qu'est-ce qui
+   bouche le trou le plus efficacement », pas à « qu'est-ce qui est bon ».
+   ================================================================ */
+let composeItems = [];   // [{name, grams}]
+
+function dayGap(){
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  const tot = dayFoodTotals(day, 'all');
+  const need = computeTDEE(iso) + sportTotalKcal(day);
+  const mt = macroTargets(iso, need);
+  const add = composeItems.reduce((a,it)=>{
+    const v = state.ingredients[it.name]; if(!v) return a;
+    const r = it.grams/100;
+    return {p:a.p+(v.p||0)*r, f:a.f+(v.f||0)*r, c:a.c+(v.c||0)*r};
+  }, {p:0,f:0,c:0});
+  const P = tot.p+add.p, F = tot.f+add.f, C = tot.c+add.c;
+  const K = P*4 + C*4 + F*9;
+  return {
+    targets: mt,
+    kcal:{now:Math.round(K), goal:mt.budget, left:Math.round(mt.budget-K)},
+    p:{now:P, goal:mt.p.floor, left:Math.max(0, mt.p.floor-P)},
+    f:{now:F, low:mt.f.low, high:mt.f.high, left:Math.max(0, mt.f.low-F), over:Math.max(0, F-mt.f.high)},
+    c:{now:C, low:mt.c.low, high:mt.c.high, left:Math.max(0, mt.c.low-C)}
+  };
+}
+
+/* Score d'un ingrédient face au manque : on récompense ce qui comble
+   protéines et glucides manquants, on pénalise ce qui pousse les lipides
+   au-delà du plafond. Le score est rapporté à 100 kcal pour comparer à
+   budget calorique égal — sinon l'huile gagnerait toujours. */
+/* Portion maximale réaliste par rôle : sans ce garde-fou, le moteur propose
+   400 g de sauce nuoc-mâm parce que le ratio est bon. Un score élevé ne rend
+   pas une quantité mangeable. */
+const MAX_PORTION = {prot:200, gluc:250, lip:40, volume:250, mixte:150};
+/* Familles jamais proposées en tant que telles : condiments, épices, boissons.
+   Elles assaisonnent un plat, elles ne le composent pas. */
+const NO_SUGGEST_CATS = ['epicerie','boissons','plaisirs'];
+
+function suggestFoods(gap, limit){
+  const rows = [];
+  Object.entries(state.ingredients).forEach(([name,v])=>{
+    const kc100 = (v.p||0)*4 + (v.c||0)*4 + (v.f||0)*9;
+    if(kc100 < 15) return;                       // condiments : effet nul
+    if(NO_SUGGEST_CATS.includes(v.cat)) return;
+    if(gap.kcal.left <= 0) return;
+    const per = 100/kc100;                       // grammes pour 100 kcal
+    const P = (v.p||0)*per, F = (v.f||0)*per, C = (v.c||0)*per;
+    let score = 0;
+    if(gap.p.left > 0) score += Math.min(P, gap.p.left) * 3;      // priorité au plancher protéines
+    if(gap.c.left > 0) score += Math.min(C, gap.c.left) * 0.6;
+    if(gap.f.over > 0) score -= F * 2;                            // déjà au-dessus du plafond
+    else score -= Math.max(0, F - (gap.f.high - gap.f.now)) * 2;  // ne pas le franchir
+    if(score <= 0) return;
+    // Quantité proposée : plafonnée par le budget calorique restant et par un
+    // grammage réaliste, arrondie à 10 g pour rester lisible.
+    const role = foodRole(v);
+    const maxKcal = Math.min(gap.kcal.left, 350);
+    let grams = Math.round(maxKcal * per / 10) * 10;
+    grams = Math.min(grams, MAX_PORTION[role] || 150);
+    const unit = UNIT_ITEMS[name];
+    // Aliment portionnable : on arrondit à l'unité entière la plus proche,
+    // sans jamais descendre sous une portion ni dépasser le plafond du rôle.
+    if(unit){
+      const n = Math.max(1, Math.round(grams/unit.weight));
+      grams = n * unit.weight;
+      if(grams > (MAX_PORTION[role]||150) * 1.3) grams = unit.weight;
+    }
+    if(grams <= 0) return;
+    const r = grams/100;
+    rows.push({name, grams, unit,
+      kcal:Math.round(kc100*r), p:(v.p||0)*r, f:(v.f||0)*r, c:(v.c||0)*r,
+      score, role});
+  });
+  rows.sort((a,b)=>b.score-a.score);
+  // Un seul représentant par rôle en tête, pour ne pas proposer six fromages.
+  const seen = {}, out = [];
+  rows.forEach(r=>{ if(out.length>=limit) return; if((seen[r.role]||0)>=2) return; seen[r.role]=(seen[r.role]||0)+1; out.push(r); });
+  return out;
+}
+
+function renderCompose(){
+  const g = dayGap();
+  const box = document.getElementById('composeBody');
+  if(!box) return;
+  const bar = (label, now, goal, hi) => {
+    const pc = goal ? Math.min(100, now/goal*100) : 0;
+    const over = hi != null && now > hi;
+    return `<div class="cp-bar">
+      <div class="cp-bar-head"><span>${label}</span>
+        <b class="${over?'over':(now>=goal?'ok':'')}">${Math.round(now)}<span> / ${goal}${hi!=null?'-'+hi:''}</span></b></div>
+      <div class="cp-track"><i style="width:${pc}%" class="${over?'over':''}"></i></div></div>`;
+  };
+  const sugg = suggestFoods(g, 6);
+  box.innerHTML = `
+    <div class="cp-gap">
+      ${bar('Calories', g.kcal.now, g.kcal.goal)}
+      ${bar('Protéines', g.p.now, g.p.goal)}
+      ${bar('Lipides', g.f.now, g.f.low, g.f.high)}
+      ${bar('Glucides', g.c.now, g.c.low, g.c.high)}
+    </div>
+    <div class="cp-summary">${g.kcal.left > 0
+      ? `Il te reste <b>${g.kcal.left} kcal</b>${g.p.left>0?`, <b>${Math.round(g.p.left)} g</b> de protéines`:''}${g.c.left>0?`, <b>${Math.round(g.c.left)} g</b> de glucides`:''}.`
+      : `Budget atteint : <b>${-g.kcal.left} kcal</b> au-dessus de la cible.`}</div>
+    ${composeItems.length ? `<div class="cp-list">${composeItems.map((it,i)=>{
+      const v = state.ingredients[it.name] || {p:0,f:0,c:0};
+      const r = it.grams/100;
+      const kc = Math.round(((v.p||0)*4+(v.c||0)*4+(v.f||0)*9)*r);
+      return `<div class="cp-item"><span>${it.name} · ${it.grams} g</span>
+        <span class="mono">${kc} kcal</span><button data-rm="${i}">✕</button></div>`;
+    }).join('')}</div>` : ''}
+    <div class="cp-sugg-head">${g.kcal.left>0 ? 'Ce qui comble le mieux' : 'Ajouter quand même'}</div>
+    ${sugg.length ? sugg.map((r,i)=>`
+      <button class="cp-sugg" data-add="${i}">
+        <span class="cp-sugg-name">${FOOD_ROLES[r.role].icon} ${r.name}
+          <span class="cp-sugg-q">${r.unit ? Math.round(r.grams/r.unit.weight)+' '+r.unit.label+' · ' : ''}${r.grams} g</span></span>
+        <span class="cp-sugg-m mono">${r.kcal} kcal · P ${r.p.toFixed(0)} · L ${r.f.toFixed(0)} · G ${r.c.toFixed(0)}</span>
+      </button>`).join('') : '<div class="check-sub">Aucune suggestion : le budget est atteint.</div>'}
+    <div class="cp-actions">
+      <button class="add-btn" id="cpToDay" style="margin:0;">Ajouter à la journée</button>
+      <button class="btn-sm" id="cpToDish">Enregistrer comme plat</button>
+    </div>`;
+
+  box.querySelectorAll('.cp-sugg').forEach(b=>{
+    b.onclick = ()=>{
+      const r = sugg[parseInt(b.dataset.add)];
+      const ex = composeItems.find(x=>x.name===r.name);
+      if(ex) ex.grams += r.grams; else composeItems.push({name:r.name, grams:r.grams});
+      renderCompose();
+    };
+  });
+  box.querySelectorAll('[data-rm]').forEach(b=>{
+    b.onclick = ()=>{ composeItems.splice(parseInt(b.dataset.rm),1); renderCompose(); };
+  });
+  document.getElementById('cpToDay').onclick = composeToDay;
+  document.getElementById('cpToDish').onclick = composeToDish;
+}
+
+function composeToDay(){
+  if(!composeItems.length){ alert('Ajoute au moins un ingrédient.'); return; }
+  const iso = isoDate(selectedDate);
+  const day = getDay(iso);
+  composeItems.forEach(it=>{
+    const v = state.ingredients[it.name]; if(!v) return;
+    const r = it.grams/100;
+    day.foods.push({eaten:defaultEaten(iso), meal:defaultMeal(), name:it.name, grams:it.grams,
+      unitCount:null, unitLabel:null, p:(v.p||0)*r, f:(v.f||0)*r, c:(v.c||0)*r});
+  });
+  setDay(iso, day);
+  composeItems = [];
+  document.getElementById('composeModal').classList.remove('open');
+  render();
+}
+
+function composeToDish(){
+  if(!composeItems.length){ alert('Ajoute au moins un ingrédient.'); return; }
+  const nom = prompt('Nom du plat ?');
+  if(!nom || !nom.trim()) return;
+  state.dishes[nom.trim()] = {ingredients: composeItems.map(it=>({name:it.name, grams:it.grams})), portions:1};
+  persistState();
+  composeItems = [];
+  document.getElementById('composeModal').classList.remove('open');
+  alert(`« ${nom.trim()} » enregistré dans tes recettes.`);
+  render();
+}
+
 /* ---------- APERÇU DE PROMPT ----------
    Un seul modal pour les six prompts. On les LIT avant de les envoyer, et on peut
    les ajuster ponctuellement — ajouter une contrainte du jour, retirer un bloc
@@ -8955,6 +9323,13 @@ function aiGenerate(kind){
   openPromptPreview(text, title, false);
 }
 
+document.getElementById('composeBtn').onclick = ()=>{
+  composeItems = [];
+  renderCompose();
+  document.getElementById('composeModal').classList.add('open');
+};
+document.getElementById('composeClose').onclick = ()=> document.getElementById('composeModal').classList.remove('open');
+document.getElementById('composeModal').onclick = e=>{ if(e.target.id==='composeModal') e.currentTarget.classList.remove('open'); };
 document.getElementById('promptClose').onclick = ()=> document.getElementById('promptModal').classList.remove('open');
 document.getElementById('promptModal').onclick = e=>{ if(e.target.id==='promptModal') e.currentTarget.classList.remove('open'); };
 document.getElementById('promptReset').onclick = ()=>{
